@@ -2,6 +2,7 @@ package org.bouncycastle.openpgp;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -18,6 +19,7 @@ import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.sig.KeyServerPreferences;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.bcpg.sig.PreferredAlgorithms;
+import org.bouncycastle.bcpg.sig.PreferredKeyServer;
 import org.bouncycastle.bcpg.sig.PrimaryUserID;
 import org.bouncycastle.bcpg.sig.Revocable;
 import org.bouncycastle.bcpg.sig.RevocationKey;
@@ -399,6 +401,16 @@ public class PGPSignatureSubpacketVector
         }
 
         return new KeyServerPreferences(p.isCritical(), p.isLongLength(), p.getData());
+    }
+
+    public PreferredKeyServer[] getPreferredKeyServers() {
+        SignatureSubpacket[] subpackets = this.getSubpackets(SignatureSubpacketTags.PREFERRED_KEY_SERV);
+        PreferredKeyServer[] preferredKeyServers = new PreferredKeyServer[subpackets.length];
+        for (int i = 0; i < preferredKeyServers.length; i++)
+        {
+            preferredKeyServers[i] = new PreferredKeyServer(subpackets[i].isCritical(), subpackets[i].isLongLength(), subpackets[i].getData());
+        }
+        return preferredKeyServers;
     }
 
     public Exportable getExportable()

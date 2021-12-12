@@ -1,6 +1,7 @@
 package org.bouncycastle.openpgp;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -15,8 +16,10 @@ import org.bouncycastle.bcpg.sig.IssuerFingerprint;
 import org.bouncycastle.bcpg.sig.IssuerKeyID;
 import org.bouncycastle.bcpg.sig.KeyExpirationTime;
 import org.bouncycastle.bcpg.sig.KeyFlags;
+import org.bouncycastle.bcpg.sig.KeyServerPreferences;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.bcpg.sig.PreferredAlgorithms;
+import org.bouncycastle.bcpg.sig.PreferredKeyServer;
 import org.bouncycastle.bcpg.sig.PrimaryUserID;
 import org.bouncycastle.bcpg.sig.Revocable;
 import org.bouncycastle.bcpg.sig.RevocationKey;
@@ -118,6 +121,10 @@ public class PGPSignatureSubpacketGenerator
         packets.add(new KeyExpirationTime(isCritical, seconds));
     }
 
+    public void setKeyServerPreferences(boolean isCritical, List<KeyServerPreferences.Preference> preferences) {
+        packets.add(new KeyServerPreferences(isCritical, preferences));
+    }
+
     /**
      * Set the number of seconds a signature is valid for after the time of its creation.
      * A value of zero means the signature never expires.
@@ -190,6 +197,10 @@ public class PGPSignatureSubpacketGenerator
     {
         packets.add(new PreferredAlgorithms(SignatureSubpacketTags.PREFERRED_AEAD_ALGORITHMS, isCritical,
             algorithms));
+    }
+
+    public void addPreferredKeyServer(boolean isCriticl, URI keyServerUri) {
+        packets.add(new PreferredKeyServer(isCriticl, keyServerUri));
     }
 
     /**
