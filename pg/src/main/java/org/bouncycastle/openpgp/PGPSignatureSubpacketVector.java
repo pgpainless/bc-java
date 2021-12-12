@@ -15,6 +15,7 @@ import org.bouncycastle.bcpg.sig.IssuerFingerprint;
 import org.bouncycastle.bcpg.sig.IssuerKeyID;
 import org.bouncycastle.bcpg.sig.KeyExpirationTime;
 import org.bouncycastle.bcpg.sig.KeyFlags;
+import org.bouncycastle.bcpg.sig.KeyServerPreferences;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.bcpg.sig.PreferredAlgorithms;
 import org.bouncycastle.bcpg.sig.PrimaryUserID;
@@ -387,6 +388,17 @@ public class PGPSignatureSubpacketVector
             recipients[i] = new IntendedRecipientFingerprint(subpackets[i].isCritical(), subpackets[i].isLongLength(), subpackets[i].getData());
         }
         return recipients;
+    }
+
+    public KeyServerPreferences getKeyServerPreferences()
+    {
+        SignatureSubpacket p = getSubpacket(SignatureSubpacketTags.KEY_SERVER_PREFS);
+        if (p == null)
+        {
+            return null;
+        }
+
+        return new KeyServerPreferences(p.isCritical(), p.isLongLength(), p.getData());
     }
 
     public Exportable getExportable()
