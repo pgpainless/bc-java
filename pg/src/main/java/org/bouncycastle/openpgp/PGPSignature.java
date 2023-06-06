@@ -427,7 +427,8 @@ public class PGPSignature
 
         if (PGPSignature.SUBKEY_BINDING != signatureType
             && PGPSignature.PRIMARYKEY_BINDING != signatureType
-            && PGPSignature.SUBKEY_REVOCATION != signatureType)
+            && PGPSignature.SUBKEY_REVOCATION != signatureType
+            && PGPSignature.DIRECT_KEY != signatureType)
         {
             throw new PGPException("signature is not a key binding signature.");
         }
