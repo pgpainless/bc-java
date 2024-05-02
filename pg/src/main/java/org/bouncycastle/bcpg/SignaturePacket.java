@@ -381,6 +381,19 @@ public class SignaturePacket
         }
     }
 
+    /**
+     * Create a signature packet with raw signature encoding instead of MPI encoding
+     * (e.g. used with {@link PublicKeyAlgorithmTags#Ed25519}, {@link PublicKeyAlgorithmTags#Ed448}).
+     * @param version signature version
+     * @param signatureType signature type
+     * @param keyID issuer key-id
+     * @param keyAlgorithm signing key algorithm
+     * @param hashAlgorithm hash algorithm
+     * @param hashedData hashed subpackets
+     * @param unhashedData unhashed subpackets
+     * @param fingerPrint two-octet signature fingerprint
+     * @param signatureEncoding raw signature encoding
+     */
     public SignaturePacket(
             int                     version,
             int                     signatureType,
