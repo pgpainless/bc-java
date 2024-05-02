@@ -62,7 +62,8 @@ public class RegressionTest
         new BcImplProviderTest(),
         new OperatorJcajceTest(),
         new OpenPGPTest(),
-        new OperatorBcTest()
+        new OperatorBcTest(),
+        new PGPOnePassSignaturePacketTest()
     };
 
     public static void main(String[] args)

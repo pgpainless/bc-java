@@ -1,10 +1,16 @@
 package org.bouncycastle.bcpg.test;
 
+import org.bouncycastle.bcpg.BCPGInputStream;
+import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.ContainedPacket;
+import org.bouncycastle.bcpg.Packet;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.Encodable;
 import org.bouncycastle.util.test.SimpleTest;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public abstract class AbstractPacketTest
@@ -129,5 +135,40 @@ public abstract class AbstractPacketTest
     public void isNotNull(String message, Object value)
     {
         isTrue(message, value != null);
+    }
+
+    /**
+     * Return a {@link BCPGInputStream} containing the encoded packets.
+     * The packets will be encoded using new packet format.
+     * @param packets packets
+     * @return input stream
+     * @throws IOException
+     */
+    public static BCPGInputStream packetInputStreamFrom(ContainedPacket... packets)
+            throws IOException
+    {
+        return packetInputStreamFrom(true, packets);
+    }
+
+    /**
+     * Return a {@link BCPGInputStream} containing the encoded packets.
+     * @param newFormatOnly whether the packets use new or old encoding format
+     * @param packets packets
+     * @return input stream
+     * @throws IOException
+     */
+    public static BCPGInputStream packetInputStreamFrom(boolean newFormatOnly, ContainedPacket... packets)
+            throws IOException
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        BCPGOutputStream pOut = new BCPGOutputStream(bOut, newFormatOnly);
+
+        for (ContainedPacket p : packets) {
+            p.encode(pOut);
+        }
+        pOut.close();
+
+        ByteArrayInputStream bIn = new ByteArrayInputStream(bOut.toByteArray());
+        return new BCPGInputStream(bIn);
     }
 }
