@@ -15,17 +15,20 @@ public class Features
     /**
      * Identifier for the AEAD Encrypted Data Packet (packet 20) and version 5
      * Symmetric-Key Encrypted Session Key Packets (packet 3)
+     * This is a LibrePGP feature. For the corresponding OpenPGP feature, see {@link #FEATURE_SEIPD_V2}.
      */
     public static final byte FEATURE_AEAD_ENCRYPTED_DATA = 0x02;
 
     /**
      * Identifier for the Version 5 Public-Key Packet format and corresponding new
      * fingerprint format
+     * This is a LibrePGP feature.
      */
     public static final byte FEATURE_VERSION_5_PUBLIC_KEY = 0x04;
 
     /**
      * Symmetrically Encrypted Integrity Protected Data packet version 2.
+     * This data packet revision makes use of AEAD schemes to protect the plaintext.
      */
     public static final byte FEATURE_SEIPD_V2 = 0x08;
 
