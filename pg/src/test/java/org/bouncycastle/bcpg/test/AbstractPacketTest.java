@@ -1,11 +1,15 @@
 package org.bouncycastle.bcpg.test;
 
+import org.bouncycastle.bcpg.ArmoredInputStream;
+import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.ContainedPacket;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.test.SimpleTest;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public abstract class AbstractPacketTest
         extends SimpleTest
@@ -129,5 +133,11 @@ public abstract class AbstractPacketTest
     public void isNotNull(String message, Object value)
     {
         isTrue(message, value != null);
+    }
+
+    public static BCPGInputStream armoredInputStream(String armor) throws IOException {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armor.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        return new BCPGInputStream(aIn);
     }
 }
