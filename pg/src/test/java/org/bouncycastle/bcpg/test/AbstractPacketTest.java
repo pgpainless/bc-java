@@ -3,8 +3,11 @@ package org.bouncycastle.bcpg.test;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.ContainedPacket;
+import org.bouncycastle.openpgp.PGPObjectFactory;
+import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.test.SimpleTest;
 
 import java.io.ByteArrayInputStream;
@@ -135,9 +138,27 @@ public abstract class AbstractPacketTest
         isTrue(message, value != null);
     }
 
-    public static BCPGInputStream armoredInputStream(String armor) throws IOException {
+    public static BCPGInputStream armoredInputStream(String armor)
+            throws IOException
+    {
         ByteArrayInputStream bIn = new ByteArrayInputStream(armor.getBytes(StandardCharsets.UTF_8));
         ArmoredInputStream aIn = new ArmoredInputStream(bIn);
         return new BCPGInputStream(aIn);
+    }
+
+    public static PGPObjectFactory armoredObjectFactory(String armor)
+            throws IOException
+    {
+        return new BcPGPObjectFactory(armoredInputStream(armor));
+    }
+
+    public static BCPGInputStream hexInputStream(String hex)
+    {
+        return new BCPGInputStream(new ByteArrayInputStream(Hex.decode(hex)));
+    }
+
+    public static PGPObjectFactory hexObjectFactory(String hex)
+    {
+        return new BcPGPObjectFactory(hexInputStream(hex));
     }
 }

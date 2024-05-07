@@ -1,14 +1,11 @@
 package org.bouncycastle.bcpg.test;
 
-import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.util.encoders.Hex;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 public class X25519KeyTest extends AbstractPacketTest {
@@ -20,14 +17,12 @@ public class X25519KeyTest extends AbstractPacketTest {
 
     @Override
     public void performTest() throws Exception {
-        testParseEd25519PublicKey();
+        testParseX25519PGPPublicKey();
     }
 
-    private void testParseEd25519PublicKey() throws IOException {
-        byte[] enc = Hex.decode("c62a0663877fe319000000208693248367f9e5015db922f8f48095dda784987f2d5985b12fbad16caf5e4435");
-        ByteArrayInputStream bIn = new ByteArrayInputStream(enc);
-        BCPGInputStream pIn = new BCPGInputStream(bIn);
-        PGPObjectFactory objFactory = new BcPGPObjectFactory(pIn);
+    private void testParseX25519PGPPublicKey() throws IOException {
+        // subkey from https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-sample-v6-certificate-trans
+        PGPObjectFactory objFactory = hexObjectFactory("c62a0663877fe319000000208693248367f9e5015db922f8f48095dda784987f2d5985b12fbad16caf5e4435");
         PGPPublicKeyRing ring = (PGPPublicKeyRing) objFactory.nextObject();
         PGPPublicKey key = ring.getPublicKey();
 
