@@ -1,12 +1,18 @@
 package org.bouncycastle.bcpg.test;
 
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.X25519KeyPairGenerator;
+import org.bouncycastle.crypto.params.X25519KeyGenerationParameters;
+import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 
 public class X25519KeyTest
         extends AbstractPacketTest
@@ -21,7 +27,22 @@ public class X25519KeyTest
     public void performTest()
             throws Exception
     {
+        testGenerateRawX25519KeyPair();
         testParseX25519PGPPublicKey();
+    }
+
+    private void testGenerateRawX25519KeyPair() {
+        X25519KeyPairGenerator gen = new X25519KeyPairGenerator();
+        gen.init(new X25519KeyGenerationParameters(new SecureRandom()));
+        AsymmetricCipherKeyPair pair = gen.generateKeyPair();
+
+        X25519PrivateKeyParameters priv = (X25519PrivateKeyParameters) pair.getPrivate();
+        byte[] privEnc = priv.getEncoded();
+        isEquals("Private key length mismatch", X25519PrivateKeyParameters.SECRET_SIZE, privEnc.length);
+
+        X25519PublicKeyParameters pub = (X25519PublicKeyParameters) pair.getPublic();
+        byte[] pubEnc = pub.getEncoded();
+        isEquals("Public key length mismatch", X25519PublicKeyParameters.KEY_SIZE, pubEnc.length);
     }
 
     private void testParseX25519PGPPublicKey()
