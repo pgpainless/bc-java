@@ -1,6 +1,7 @@
 package org.bouncycastle.bcpg.test;
 
 import org.bouncycastle.bcpg.ContainedPacket;
+import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.test.SimpleTest;
@@ -54,6 +55,12 @@ public abstract class AbstractPacketTest
         isEncodingEqual(null, first, second);
     }
 
+    public void isEncodingEqual(ContainedPacket first, ContainedPacket second, PacketFormat format)
+            throws IOException
+    {
+        isEncodingEqual(null, first, second, format);
+    }
+
     /**
      * Test, whether the encoding of the first and second packet are identical.
      * If a mismatch is detected, a formatted hex dump of both packet encodings is printed to stdout.
@@ -72,6 +79,19 @@ public abstract class AbstractPacketTest
         sb.append("Expected: \n").append(PacketDumpUtil.hexdump(first)).append("\n");
         sb.append("Got: \n").append(PacketDumpUtil.hexdump(second));
         isTrue(sb.toString(), first == second || Arrays.areEqual(first.getEncoded(), second.getEncoded()));
+    }
+
+    public void isEncodingEqual(String message, ContainedPacket first, ContainedPacket second, PacketFormat format)
+            throws IOException
+    {
+        StringBuilder sb = new StringBuilder();
+        if (message != null)
+        {
+            sb.append(message).append("\n");
+        }
+        sb.append("Expected: \n").append(PacketDumpUtil.hexdump(first, format)).append("\n");
+        sb.append("Got: \n").append(PacketDumpUtil.hexdump(second, format));
+        isTrue(sb.toString(), first == second || Arrays.areEqual(first.getEncoded(format), second.getEncoded(format)));
     }
 
     /**
