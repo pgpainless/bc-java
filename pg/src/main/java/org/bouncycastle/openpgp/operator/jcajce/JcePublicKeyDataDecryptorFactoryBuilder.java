@@ -266,6 +266,15 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 }
                 publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X25519, 1);
             }
+            if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
+            {
+                agreementName = RFC6637Utils.getXDHAlgorithm(pubKeyData);
+                if (pEnc.length != (1 + X448PublicBCPGKey.LENGTH) || 0x40 != pEnc[0])
+                {
+                    throw new IllegalArgumentException("Invalid Curve448 public key");
+                }
+                publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X448, 1);
+            }
             else
             {
                 X9ECParametersHolder x9Params = ECNamedCurveTable.getByOIDLazy(ecKey.getCurveOID());

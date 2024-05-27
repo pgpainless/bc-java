@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
 import org.bouncycastle.asn1.ntt.NTTObjectIdentifiers;
 import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
@@ -37,6 +38,11 @@ public class RFC6637Utils
             return "X448withSHA512CKDF";
         }
         ECDHPublicBCPGKey ecKey = (ECDHPublicBCPGKey)pubKeyData.getKey();
+        if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
+        {
+            return "X448withSHA512CKDF";
+        }
+        // X25519
         switch (ecKey.getHashAlgorithm())
         {
         case HashAlgorithmTags.SHA256:
