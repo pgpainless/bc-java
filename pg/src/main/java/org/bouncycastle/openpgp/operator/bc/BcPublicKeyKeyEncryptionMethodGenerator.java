@@ -86,6 +86,7 @@ public class BcPublicKeyKeyEncryptionMethodGenerator
             {
                 ECDHPublicBCPGKey ecPubKey = (ECDHPublicBCPGKey)pubKeyPacket.getKey();
                 byte[] userKeyingMaterial = RFC6637Utils.createUserKeyingMaterial(pubKeyPacket, new BcKeyFingerprintCalculator());
+                // Legacy X25519
                 if (ecPubKey.getCurveOID().equals(CryptlibObjectIdentifiers.curvey25519))
                 {
                     AsymmetricCipherKeyPair ephKp = getAsymmetricCipherKeyPair(new X25519KeyPairGenerator(), new X25519KeyGenerationParameters(random));
@@ -97,6 +98,7 @@ public class BcPublicKeyKeyEncryptionMethodGenerator
                     ((X25519PublicKeyParameters)ephKp.getPublic()).encode(ephPubEncoding, 1);
                     return encryptSessionInfo(sessionInfo, secret, userKeyingMaterial, ephPubEncoding, ecPubKey.getHashAlgorithm(), ecPubKey.getSymmetricKeyAlgorithm());
                 }
+                // Legacy X448 (LibrePGP)
                 if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
                 {
                     AsymmetricCipherKeyPair ephKp = getAsymmetricCipherKeyPair(new X448KeyPairGenerator(), new X448KeyGenerationParameters(random));
@@ -108,6 +110,7 @@ public class BcPublicKeyKeyEncryptionMethodGenerator
                     ((X448PublicKeyParameters)ephKp.getPublic()).encode(ephPubEncoding, 1);
                     return encryptSessionInfo(sessionInfo, secret, userKeyingMaterial, ephPubEncoding, ecPubKey.getHashAlgorithm(), ecPubKey.getSymmetricKeyAlgorithm());
                 }
+                // NIST etc.
                 else
                 {
                     AsymmetricCipherKeyPair ephKp = getAsymmetricCipherKeyPair(new ECKeyPairGenerator(),
@@ -123,6 +126,7 @@ public class BcPublicKeyKeyEncryptionMethodGenerator
                     return encryptSessionInfo(sessionInfo, secret, userKeyingMaterial, ephPubEncoding, ecPubKey.getHashAlgorithm(), ecPubKey.getSymmetricKeyAlgorithm());
                 }
             }
+            // X25519
             else if (pubKey.getAlgorithm() == PublicKeyAlgorithmTags.X25519)
             {
                 return encryptSessionInfo(pubKeyPacket, sessionInfo, HashAlgorithmTags.SHA256, SymmetricKeyAlgorithmTags.AES_128, "X25519",
@@ -136,6 +140,7 @@ public class BcPublicKeyKeyEncryptionMethodGenerator
                         }
                     });
             }
+            // X448
             else if (pubKey.getAlgorithm() == PublicKeyAlgorithmTags.X448)
             {
                 return encryptSessionInfo(pubKeyPacket, sessionInfo, HashAlgorithmTags.SHA512, SymmetricKeyAlgorithmTags.AES_256, "X448",

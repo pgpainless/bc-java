@@ -63,6 +63,7 @@ public class BcPublicKeyDataDecryptorFactory
         {
             AsymmetricKeyParameter privKey = KEY_CONVERTER.getPrivateKey(pgpPrivKey);
 
+            // X25519
             if (keyAlgorithm == PublicKeyAlgorithmTags.X25519)
             {
                 return getSessionData(secKeyData[0], privKey, X25519PublicBCPGKey.LENGTH, HashAlgorithmTags.SHA256,
@@ -75,6 +76,7 @@ public class BcPublicKeyDataDecryptorFactory
                         }
                     });
             }
+            // X448
             else if (keyAlgorithm == PublicKeyAlgorithmTags.X448)
             {
                 return getSessionData(secKeyData[0], privKey, X448PublicBCPGKey.LENGTH, HashAlgorithmTags.SHA512,
@@ -110,7 +112,7 @@ public class BcPublicKeyDataDecryptorFactory
                 int symmetricKeyAlgorithm, hashAlgorithm;
 
                 ECDHPublicBCPGKey ecPubKey = (ECDHPublicBCPGKey)pgpPrivKey.getPublicKeyPacket().getKey();
-                // XDH
+                // Legacy X25519
                 if (ecPubKey.getCurveOID().equals(CryptlibObjectIdentifiers.curvey25519))
                 {
                     if (pEnc.length != 1 + X25519PublicKeyParameters.KEY_SIZE || 0x40 != pEnc[0])
@@ -120,6 +122,7 @@ public class BcPublicKeyDataDecryptorFactory
                     // skip the 0x40 header byte.
                     secret = BcUtil.getSecret(new X25519Agreement(), privKey, new X25519PublicKeyParameters(pEnc, 1));
                 }
+                // Legacy X448 (LibrePGP)
                 else if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
                 {
                     if (pEnc.length != 1 + X448PublicKeyParameters.KEY_SIZE || 0x40 != pEnc[0])
@@ -129,6 +132,7 @@ public class BcPublicKeyDataDecryptorFactory
                     // skip the 0x40 header byte.
                     secret = BcUtil.getSecret(new X448Agreement(), privKey, new X448PublicKeyParameters(pEnc, 1));
                 }
+                // NIST etc.
                 else
                 {
                     ECDomainParameters ecParameters = ((ECPrivateKeyParameters)privKey).getParameters();

@@ -101,6 +101,7 @@ public class JcePublicKeyKeyEncryptionMethodGenerator
                 ECDHPublicBCPGKey ecKey = (ECDHPublicBCPGKey)pubKey.getPublicKeyPacket().getKey();
                 String keyEncryptionOID = RFC6637Utils.getKeyEncryptionOID(ecKey.getSymmetricKeyAlgorithm()).getId();
                 PublicKeyPacket pubKeyPacket = pubKey.getPublicKeyPacket();
+                // Legacy X25519
                 if (ecKey.getCurveOID().equals(CryptlibObjectIdentifiers.curvey25519))
                 {
                     return getEncryptSessionInfo(pubKeyPacket, "X25519", cryptoPublicKey, keyEncryptionOID,
@@ -108,6 +109,7 @@ public class JcePublicKeyKeyEncryptionMethodGenerator
                         (kpGen) -> kpGen.initialize(255, random),
                         (ephPubEncoding) -> Arrays.prepend(ephPubEncoding, X_HDR));
                 }
+                // Legacy X448 (LibrePGP)
                 if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
                 {
                     return getEncryptSessionInfo(pubKeyPacket, "X448", cryptoPublicKey, keyEncryptionOID,
@@ -115,6 +117,7 @@ public class JcePublicKeyKeyEncryptionMethodGenerator
                             (kpGen) -> kpGen.initialize(448, random),
                             (ephPubEncoding) -> Arrays.prepend(ephPubEncoding, X_HDR));
                 }
+                // NIST etc.
                 else
                 {
                     return getEncryptSessionInfo(pubKeyPacket, "EC", cryptoPublicKey, keyEncryptionOID,
@@ -134,11 +137,13 @@ public class JcePublicKeyKeyEncryptionMethodGenerator
                         });
                 }
             }
+            // X25519
             else if (pubKey.getAlgorithm() == PublicKeyAlgorithmTags.X25519)
             {
                 return getEncryptSessionInfo(pubKey, "X25519", cryptoPublicKey, NISTObjectIdentifiers.id_aes128_wrap.getId(),
                     SymmetricKeyAlgorithmTags.AES_128, sessionInfo, "X25519withSHA256HKDF", 255);
             }
+            // X448
             else if (pubKey.getAlgorithm() == PublicKeyAlgorithmTags.X448)
             {
                 return getEncryptSessionInfo(pubKey, "X448", cryptoPublicKey, NISTObjectIdentifiers.id_aes256_wrap.getId(),

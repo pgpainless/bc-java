@@ -182,11 +182,13 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 {
                     return decryptSessionData(keyConverter, privKey, secKeyData);
                 }
+                // X25519
                 else if (keyAlgorithm == PublicKeyAlgorithmTags.X25519)
                 {
                     return decryptSessionData(keyConverter, privKey, secKeyData[0], X25519PublicBCPGKey.LENGTH, "X25519withSHA256HKDF",
                         SymmetricKeyAlgorithmTags.AES_128, EdECObjectIdentifiers.id_X25519, "X25519");
                 }
+                // X448
                 else if (keyAlgorithm == PublicKeyAlgorithmTags.X448)
                 {
                     return decryptSessionData(keyConverter, privKey, secKeyData[0], X448PublicBCPGKey.LENGTH, "X448withSHA512HKDF",
@@ -256,7 +258,7 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
             PublicKey publicKey;
             String agreementName;
             ECDHPublicBCPGKey ecKey = (ECDHPublicBCPGKey)pubKeyData.getKey();
-            // XDH
+            // Legacy X25519
             if (ecKey.getCurveOID().equals(CryptlibObjectIdentifiers.curvey25519))
             {
                 agreementName = RFC6637Utils.getXDHAlgorithm(pubKeyData);
@@ -266,6 +268,7 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 }
                 publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X25519, 1);
             }
+            // Legacy X448 (LibrePGP)
             else if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
             {
                 agreementName = RFC6637Utils.getXDHAlgorithm(pubKeyData);
@@ -275,6 +278,7 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 }
                 publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X448, 1);
             }
+            // NIST etc.
             else
             {
                 X9ECParametersHolder x9Params = ECNamedCurveTable.getByOIDLazy(ecKey.getCurveOID());
