@@ -120,7 +120,7 @@ public class BcPublicKeyDataDecryptorFactory
                     // skip the 0x40 header byte.
                     secret = BcUtil.getSecret(new X25519Agreement(), privKey, new X25519PublicKeyParameters(pEnc, 1));
                 }
-                if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
+                else if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
                 {
                     if (pEnc.length != 1 + X448PublicKeyParameters.KEY_SIZE || 0x40 != pEnc[0])
                     {
