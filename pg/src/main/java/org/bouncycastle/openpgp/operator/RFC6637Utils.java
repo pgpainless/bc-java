@@ -29,20 +29,23 @@ public class RFC6637Utils
 
     public static String getXDHAlgorithm(PublicKeyPacket pubKeyData)
     {
+        // X25519
         if (pubKeyData.getKey() instanceof X25519PublicBCPGKey)
         {
             return "X25519withSHA256CKDF";
         }
+        // X448
         else if (pubKeyData.getKey() instanceof X448PublicBCPGKey)
         {
             return "X448withSHA512CKDF";
         }
         ECDHPublicBCPGKey ecKey = (ECDHPublicBCPGKey)pubKeyData.getKey();
+        // Legacy X448 (LibrePGP)
         if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
         {
             return "X448withSHA512CKDF";
         }
-        // X25519
+        // Legacy X25519
         switch (ecKey.getHashAlgorithm())
         {
         case HashAlgorithmTags.SHA256:
