@@ -1,14 +1,20 @@
 package org.bouncycastle.bcpg.test;
 
+import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.ContainedPacket;
+import org.bouncycastle.bcpg.Packet;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Pack;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.test.SimpleTest;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 
 public abstract class AbstractPacketTest
         extends SimpleTest
@@ -134,6 +140,22 @@ public abstract class AbstractPacketTest
         isTrue(message, value != null);
     }
 
+    public static Date parseUTCDate(String timestamp) {
+        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
+        parser.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            return parser.parse(timestamp);
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Malformed UTC timestamp", e);
+        }
+    }
+
+    public static String formatUTCDate(Date timestamp) {
+        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
+        parser.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return parser.format(timestamp);
+    }
+
     /**
      * Decode a four octet OpenPGP timestamp from its hex encoding.
      * @param hex hex encoded OpenPGP timestamp
@@ -141,5 +163,17 @@ public abstract class AbstractPacketTest
      */
     public Date hexDecodeDate(String hex) {
         return new Date(Pack.bigEndianToInt(Hex.decode(hex), 0) * 1000L);
+    }
+
+    public Packet hexDecodePacket(String hex)
+            throws IOException
+    {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(Hex.decode(hex));
+        BCPGInputStream pIn = new BCPGInputStream(bIn);
+        Packet p = pIn.readPacket();
+        if (pIn.available() != 0) {
+            throw new IllegalStateException("Packet input stream is not empty.");
+        }
+        return p;
     }
 }
