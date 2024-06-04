@@ -4,10 +4,11 @@ import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.gnu.GNUObjectIdentifiers;
 import org.bouncycastle.bcpg.*;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.Ed448KeyPairGenerator;
-import org.bouncycastle.crypto.params.Ed448KeyGenerationParameters;
+import org.bouncycastle.crypto.generators.X448KeyPairGenerator;
+import org.bouncycastle.crypto.params.X448KeyGenerationParameters;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -168,18 +169,21 @@ public class PublicKeyPacketTest extends AbstractPacketTest
     }
 
     private void gen() throws PGPException, IOException {
-        Ed448KeyPairGenerator gen = new Ed448KeyPairGenerator();
-        gen.init(new Ed448KeyGenerationParameters(new SecureRandom()));
+        X448KeyPairGenerator gen = new X448KeyPairGenerator();
+        gen.init(new X448KeyGenerationParameters(new SecureRandom()));
         AsymmetricCipherKeyPair kp = gen.generateKeyPair();
 
         Date date = new Date((new Date().getTime() / 1000) * 1000);
-        System.out.println(date);
+        System.out.println(formatUTCDate(date));
         BcPGPKeyConverter con = new BcPGPKeyConverter();
-        PGPPublicKey pk = con.getPGPPublicKey(6, PublicKeyAlgorithmTags.Ed448, null, kp.getPublic(), date);
+        PGPPublicKey pk = con.getPGPPublicKey(6, PublicKeyAlgorithmTags.X448, null, kp.getPublic(), date);
+        PGPPublicKey sk = new PGPPublicKey(
+                new PublicSubkeyPacket(pk.getVersion(), pk.getAlgorithm(), pk.getCreationTime(), pk.getPublicKeyPacket().getKey()),
+                new BcKeyFingerprintCalculator());
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         BCPGOutputStream pOut = new BCPGOutputStream(bOut, PacketFormat.CURRENT);
-        pk.encode(pOut);
+        sk.encode(pOut);
         pOut.close();
         System.out.println(Hex.toHexString(bOut.toByteArray()));
     }
