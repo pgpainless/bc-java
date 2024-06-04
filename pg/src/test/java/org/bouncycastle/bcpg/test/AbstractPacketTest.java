@@ -3,9 +3,12 @@ package org.bouncycastle.bcpg.test;
 import org.bouncycastle.bcpg.ContainedPacket;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.Pack;
+import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.test.SimpleTest;
 
 import java.io.IOException;
+import java.util.Date;
 
 public abstract class AbstractPacketTest
         extends SimpleTest
@@ -129,5 +132,14 @@ public abstract class AbstractPacketTest
     public void isNotNull(String message, Object value)
     {
         isTrue(message, value != null);
+    }
+
+    /**
+     * Decode a four octet OpenPGP timestamp from its hex encoding.
+     * @param hex hex encoded OpenPGP timestamp
+     * @return date
+     */
+    public Date hexDecodeDate(String hex) {
+        return new Date(Pack.bigEndianToInt(Hex.decode(hex), 0) * 1000L);
     }
 }
