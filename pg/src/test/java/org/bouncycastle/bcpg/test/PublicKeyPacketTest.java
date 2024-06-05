@@ -13,6 +13,7 @@ import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -36,6 +37,9 @@ public class PublicKeyPacketTest extends AbstractPacketTest
 
         v6Ed25519PublicKeyTest();
         v6Ed448PublicKeyTest();
+
+        v6PublicKeyWithKeyTooLong();
+        v6PublicKeyWithKeyTooShort();
         //*/
     }
 
@@ -166,6 +170,40 @@ public class PublicKeyPacketTest extends AbstractPacketTest
                 new Ed448PublicBCPGKey(Hex.decode(rawKey))
         );
         isEncodingEqual("Encoding mismatch", Hex.decode(testVector), p.getEncoded(PacketFormat.CURRENT));
+    }
+
+    private void v6PublicKeyWithKeyTooShort()
+            throws IOException
+    {
+        // Test vector is the primary key extracted from here:
+        // https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-sample-v6-certificate-trans
+        // but with 4 octets removed from the end and decreased packet length.
+        String testVector =
+                "c6260663877fe31b00000020f94da7bb\n" +
+                        "48d60a61e567706a6587d0331999bb9d\n" +
+                        "891a08242ead8454";
+        try {
+            PublicKeyPacket packet = (PublicKeyPacket) hexDecodePacket(testVector);
+            fail("Expected EOF exception, since we can't fully read a key too short.");
+        } catch (EOFException e) {
+            // expected
+        }
+    }
+
+    private void v6PublicKeyWithKeyTooLong()
+            throws IOException
+    {
+        // Test vector is the primary key extracted from here:
+        // https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-sample-v6-certificate-trans
+        // but with 4 octets appended octets at the end and increased packet length.
+        String testVector =
+                "c62e0663877fe31b00000020f94da7bb\n" +
+                        "48d60a61e567706a6587d0331999bb9d\n" +
+                        "891a08242ead84543df895a301020304";
+        byte[] rawKey = Hex.decode("f94da7bb48d60a61e567706a6587d0331999bb9d891a08242ead84543df895a3");
+        PublicKeyPacket packet = (PublicKeyPacket) hexDecodePacket(testVector);
+        isEncodingEqual("Appended octets MUST not be part of the parsed key",
+                rawKey, packet.getKey().getEncoded());
     }
 
     private void gen() throws PGPException, IOException {
