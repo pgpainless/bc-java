@@ -45,6 +45,7 @@ public class PublicKeyPacketTest
 
         v6PublicKeyWithKeyTooLong();
         v6PublicKeyWithKeyTooShort();
+        v6Ed25519KeyWithWrongLength();
         //*/
     }
 
@@ -187,6 +188,11 @@ public class PublicKeyPacketTest
         isEncodingEqual("Packet encoding mismatch", Hex.decode(testVector), p.getEncoded(PacketFormat.CURRENT));
     }
 
+    /**
+     * Parse a version 6 OpenPGP key with algorithm ID {@link PublicKeyAlgorithmTags#Ed25519}.
+     *
+     * @throws IOException not expected
+     */
     private void v6Ed25519PublicKeyTest()
             throws IOException
     {
@@ -218,6 +224,11 @@ public class PublicKeyPacketTest
         isTrue("Key class mismatch", packet.getKey() instanceof Ed25519PublicBCPGKey);
     }
 
+    /**
+     * Parse a version 6 OpenPGP key with algorithm ID {@link PublicKeyAlgorithmTags#Ed448}.
+     *
+     * @throws IOException not expected
+     */
     private void v6Ed448PublicKeyTest()
             throws IOException
     {
@@ -244,6 +255,14 @@ public class PublicKeyPacketTest
         isEncodingEqual("Encoding mismatch", Hex.decode(testVector), p.getEncoded(PacketFormat.CURRENT));
     }
 
+    /**
+     * Test behavior when parsing a version 6 OpenPGP key, where the key material is truncated.
+     * In this case, 4 octets have been removed from the key material field (decreasing the length to 28 octets).
+     * The packet length octet has been adjusted to the new length, but the keyOctets=32 field is kept the same.
+     * An {@link EOFException} is expected, since the parser tries to parse 32 key material octets, but can only read 28.
+     *
+     * @throws IOException not expected
+     */
     private void v6PublicKeyWithKeyTooShort()
             throws IOException
     {
@@ -265,6 +284,13 @@ public class PublicKeyPacketTest
         }
     }
 
+    /**
+     * Test behavior when parsing a version 6 OpenPGP packet where some bytes were appended to the key material.
+     * The packet length counter has been adjusted, but the key material length counter has not.
+     * No exception is expected, since the keyOctets counter is used to determine the length of the key material.
+     *
+     * @throws IOException not expected
+     */
     private void v6PublicKeyWithKeyTooLong()
             throws IOException
     {
@@ -279,6 +305,34 @@ public class PublicKeyPacketTest
         PublicKeyPacket packet = (PublicKeyPacket) hexDecodePacket(testVector);
         isEncodingEqual("Appended octets MUST not be part of the parsed key",
                 rawKey, packet.getKey().getEncoded());
+    }
+
+    /**
+     * Test behavior when parsing a version 6 OpenPGP key with algorithm ID {@link PublicKeyAlgorithmTags#Ed25519},
+     * but with truncated key material. Instead of 32 octets, the key only consists of 31. The keyOctets counter
+     * and packet length have been adjusted accordingly.
+     * An {@link EOFException} is expected, since Ed25519 always uses 32 octets.
+     *
+     * @throws IOException not expected
+     */
+    private void v6Ed25519KeyWithWrongLength()
+            throws IOException
+    {
+        // Test vector is the primary key extracted from here:
+        // https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-sample-v6-certificate-trans
+        // but with 1 octet stripped from the end and adjusted packet length and key material counters.
+        String testVector =
+                "c6290663877fe31b0000001ff94da7bb\n" +
+                        "48d60a61e567706a6587d0331999bb9d\n" +
+                        "891a08242ead84543df895";
+        try
+        {
+            hexDecodePacket(testVector);
+        }
+        catch (EOFException e)
+        {
+            // expected
+        }
     }
 
     private void gen()
