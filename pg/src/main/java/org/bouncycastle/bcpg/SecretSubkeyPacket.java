@@ -71,6 +71,18 @@ public class SecretSubkeyPacket
         this(pubKeyPacket, encAlgorithm, 0, s2kUsage, s2k, iv, secKeyData);
     }
 
+    public SecretSubkeyPacket(
+            PublicSubkeyPacket pubKeyPacket,
+            int encAlgorithm,
+            int aeadAlgorithm,
+            int s2kUsage,
+            S2K s2K,
+            byte[] iv,
+            byte[] secKeyData)
+    {
+        super(SECRET_SUBKEY, pubKeyPacket, encAlgorithm, aeadAlgorithm, s2kUsage, s2K, iv, secKeyData);
+    }
+
     /**
      * Create a secret subkey packet.
      *
