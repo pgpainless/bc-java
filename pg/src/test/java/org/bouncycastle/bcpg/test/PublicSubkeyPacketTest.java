@@ -43,6 +43,8 @@ public class PublicSubkeyPacketTest extends AbstractPacketTest {
         isEquals("Creation time mismatch", creationTime, packet.getTime());
         isEncodingEqual("Raw key encoding mismatch", rawKey, packet.getKey().getEncoded());
         isTrue("Key class mismatch", packet.getKey() instanceof X25519PublicBCPGKey);
+
+        isFalse(hexDecodePacket(Hex.toHexString(packet.getEncoded(PacketFormat.LEGACY))).hasNewPacketFormat());
     }
 
     private void v6X448PublicSubkeyTest() throws IOException {

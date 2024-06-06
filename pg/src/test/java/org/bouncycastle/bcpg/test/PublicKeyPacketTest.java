@@ -151,6 +151,8 @@ public class PublicKeyPacketTest
                 new Ed448PublicBCPGKey(Hex.decode(rawKey))
         );
         isEncodingEqual("Encoding mismatch", Hex.decode(testVector), p.getEncoded(PacketFormat.CURRENT));
+
+        isFalse(hexDecodePacket(Hex.toHexString(p.getEncoded(PacketFormat.LEGACY))).hasNewPacketFormat());
     }
 
     /**

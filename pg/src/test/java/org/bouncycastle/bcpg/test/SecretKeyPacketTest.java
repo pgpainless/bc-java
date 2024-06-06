@@ -63,6 +63,8 @@ public class SecretKeyPacketTest
                 null,
                 rawSecKey);
         isEncodingEqual(Hex.decode(testVector), sk.getEncoded(PacketFormat.CURRENT));
+
+        isFalse(hexDecodePacket(Hex.toHexString(sk.getEncoded(PacketFormat.LEGACY))).hasNewPacketFormat());
     }
 
     public static void main(String[] args)

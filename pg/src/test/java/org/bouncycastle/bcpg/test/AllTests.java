@@ -20,10 +20,17 @@ public class AllTests
 
         org.bouncycastle.util.test.Test[] tests = new org.bouncycastle.util.test.Test[]
                 {
+                        new BCPGOutputStreamTest(),
+
                         new SignaturePacketTest(),
                         new OnePassSignaturePacketTest(),
                         new OpenPgpMessageTest(),
-                        new FingerprintUtilTest()
+                        new FingerprintUtilTest(),
+
+                        new PublicKeyPacketTest(),
+                        new PublicSubkeyPacketTest(),
+                        new SecretKeyPacketTest(),
+                        new SecretSubkeyPacketTest()
                 };
 
         for (int i = 0; i != tests.length; i++)
