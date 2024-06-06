@@ -87,13 +87,14 @@ public class SecretKeyPacketTest
         byte[] encryptedSecKey = Hex.decode("78258fa484d88b27f220e3d2de0203ca0f1feecb6b775381e3e2d9b1485c22338ca551e09a263f22eb4992e9677a8058");
 
         SecretKeyPacket packet = (SecretKeyPacket) hexDecodePacket(testVector);
+        isTrue("Packet length encoding format mismatch", packet.hasNewPacketFormat());
         isEquals("S2K usage mismatch", SecretKeyPacket.USAGE_AEAD, packet.getS2KUsage());
         isEquals("Symmetric enc algorithm mismatch", SymmetricKeyAlgorithmTags.AES_256, packet.getEncAlgorithm());
         isEquals("AEAD algorithm mismatch", AEADAlgorithmTags.OCB, packet.getAeadAlgorithm());
         S2K s2k = packet.getS2K();
         isEncodingEqual("Argon2 salt (s2k iv) mismatch", argon2Salt, s2k.getIV());
-        isEquals("Argon2 parallelism (p) mismatch", 4, s2k.getParallelism());
         isEquals("Argon2 passes (t) mismatch", 1, s2k.getPasses());
+        isEquals("Argon2 parallelism (p) mismatch", 4, s2k.getParallelism());
         isEquals("Argon2 memory exponent (m) mismatch", 21, s2k.getMemorySizeExponent());
         isEncodingEqual("IV mismatch", aeadIv, packet.getIV());
         isEncodingEqual("Encrypted MPIs mismatch", encryptedSecKey, packet.getSecretKeyData());
