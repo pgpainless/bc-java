@@ -6,43 +6,40 @@ import org.bouncycastle.util.encoders.Hex;
 import java.io.IOException;
 import java.util.Date;
 
-public class SecretKeyPacketTest
+public class SecretSubkeyPacketTest
         extends AbstractPacketTest
 {
-
     @Override
     public String getName()
     {
-        return "SecretKeyPacketTest";
+        return "SecretSubkeyPacketTest";
     }
 
     @Override
     public void performTest()
             throws Exception
     {
-        unencryptedV6Ed25519Key();
+        unencryptedV6X25519Subkey();
     }
 
-    private void unencryptedV6Ed25519Key()
+    private void unencryptedV6X25519Subkey()
             throws IOException
     {
-        // Test vector is the primary key taken from here:
-        // https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-sample-v6-secret-key-transf
-        String testVector = "c54b0663877fe31b00000020f94da7bb\n" +
-                "48d60a61e567706a6587d0331999bb9d\n" +
-                "891a08242ead84543df895a300197281\n" +
-                "7b12be707e8d5f586ce61361201d344e\n" +
-                "b266a2c82fde6835762b65b0b7";
-        byte[] rawPubKey = Hex.decode("f94da7bb48d60a61e567706a6587d0331999bb9d891a08242ead84543df895a3");
-        byte[] rawSecKey = Hex.decode("1972817b12be707e8d5f586ce61361201d344eb266a2c82fde6835762b65b0b7");
+        String testVector = "c74b0663877fe3190000002086932483\n" +
+                "67f9e5015db922f8f48095dda784987f\n" +
+                "2d5985b12fbad16caf5e4435004d600a\n" +
+                "4f794d44775c57a26e0feefed558e9af\n" +
+                "ffd6ad0d582d57fb2ba2dcedb8";
         Date creationTime = hexDecodeDate("63877fe3");
+        byte[] rawPubKey = Hex.decode("8693248367f9e5015db922f8f48095dda784987f2d5985b12fbad16caf5e4435");
+        byte[] rawSecKey = Hex.decode("4d600a4f794d44775c57a26e0feefed558e9afffd6ad0d582d57fb2ba2dcedb8");
 
-        SecretKeyPacket packet = (SecretKeyPacket) hexDecodePacket(testVector);
+        SecretSubkeyPacket packet = (SecretSubkeyPacket) hexDecodePacket(testVector);
         isEquals(PublicKeyPacket.VERSION_6, packet.getPublicKeyPacket().getVersion());
         isTrue(packet.hasNewPacketFormat());
+        isEquals(PublicKeyAlgorithmTags.X25519, packet.getPublicKeyPacket().getAlgorithm());
         isEquals(creationTime, packet.getPublicKeyPacket().getTime());
-        isEquals(PublicKeyAlgorithmTags.Ed25519, packet.getPublicKeyPacket().getAlgorithm());
-        isEquals(SecretKeyPacket.USAGE_NONE, packet.getS2KUsage());
+        isEquals(SecretSubkeyPacket.USAGE_NONE, packet.getS2KUsage());
         isNull(packet.getIV());
         isNull(packet.getS2K());
         isEquals(0, packet.getAeadAlgorithm());
@@ -51,12 +48,12 @@ public class SecretKeyPacketTest
         isEncodingEqual(rawSecKey, packet.getSecretKeyData());
         isEncodingEqual(Hex.decode(testVector), packet.getEncoded(PacketFormat.CURRENT));
 
-        SecretKeyPacket sk = new SecretKeyPacket(
-                new PublicKeyPacket(
+        SecretSubkeyPacket sk = new SecretSubkeyPacket(
+                new PublicSubkeyPacket(
                         PublicKeyPacket.VERSION_6,
-                        PublicKeyAlgorithmTags.Ed25519,
+                        PublicKeyAlgorithmTags.X25519,
                         creationTime,
-                        new Ed25519PublicBCPGKey(rawPubKey)),
+                        new X25519PublicBCPGKey(rawPubKey)),
                 SymmetricKeyAlgorithmTags.NULL,
                 SecretKeyPacket.USAGE_NONE,
                 null,
@@ -67,6 +64,6 @@ public class SecretKeyPacketTest
 
     public static void main(String[] args)
     {
-        runTest(new SecretKeyPacketTest());
+        runTest(new SecretSubkeyPacketTest());
     }
 }
