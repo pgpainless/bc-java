@@ -4,8 +4,10 @@ import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.gnu.GNUObjectIdentifiers;
 import org.bouncycastle.bcpg.*;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.Ed448KeyPairGenerator;
-import org.bouncycastle.crypto.params.Ed448KeyGenerationParameters;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
+import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
+import org.bouncycastle.jcajce.provider.asymmetric.util.PrimeCertaintyCalculator;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
@@ -16,7 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.security.SecureRandom;
 import java.util.Date;
 
 public class PublicKeyPacketTest
@@ -39,6 +40,7 @@ public class PublicKeyPacketTest
         v4LegacyEd25519WithLibrePgpOidPublicKeyTest();
         v4Ed448PublicKeyTest();
         v4LegacyEd448PublicKeyTest();
+        v4RsaPublicKey();
 
         v6Ed25519PublicKeyTest();
         v6Ed448PublicKeyTest();
@@ -188,6 +190,46 @@ public class PublicKeyPacketTest
                 new EdDSAPublicBCPGKey(EdECObjectIdentifiers.id_Ed448, new BigInteger(1, rawKey))
         );
         isEncodingEqual("Packet encoding mismatch", Hex.decode(testVector), p.getEncoded(PacketFormat.CURRENT));
+    }
+
+    private void v4RsaPublicKey() throws IOException {
+        String testVector = "99018d045da59cf2010c00b970bf4f42\n" +
+                "840b4ccba18db62f6f835cbaea346df9\n" +
+                "a03d1172c17e778cf86815fe1983a9af\n" +
+                "fec78e5e981e71374e715b6d7f30bcc9\n" +
+                "c20aaeddda4138b0386fdcb5a478064f\n" +
+                "ede9ac8d15f7543711d69385822b3773\n" +
+                "ff9e9f5b63b4176dea21177c514269e4\n" +
+                "82253784437510ad761550200bb3be9d\n" +
+                "a8572fcb692da4c50a0abe987fe6943f\n" +
+                "e7086ab32ae81160c9a12574c8e6f6e4\n" +
+                "1fe2c24fe92d4168ca10c6f5b8f4908c\n" +
+                "c3c6b12a5beec16bc9e871095e70c177\n" +
+                "5f928c379929db3ada2eff5d94106959\n" +
+                "6e375e4b63702660332db44a8bab6959\n" +
+                "9af097bf102c14598522019c4b22532f\n" +
+                "f42bab10eb71530e8ddd174eb4b99865\n" +
+                "2f6e1279f9cb552417cf28f0d92ef3dd\n" +
+                "2e93a06b7b01732722c0c79c11678174\n" +
+                "a95ff2ab7e94590d0907f0141a11d53d\n" +
+                "d15fea997a79ac41c13e465ef6c15226\n" +
+                "ed7fc608da883946c8135ad5df53b79b\n" +
+                "4865eb97964ca5b03a99b7e177447c68\n" +
+                "fc567e60d68883a106e7e1302bd41e1d\n" +
+                "6c02930a5599ef21f7fdff40dc6b7c1b\n" +
+                "bcb2306b74f80b2b217d3d0011010001";
+        Date creationTime = hexDecodeDate("5da59cf2");
+        PublicKeyPacket packet = (PublicKeyPacket) hexDecodePacket(testVector);
+
+        isFalse(packet.hasNewPacketFormat());
+        isEquals(PublicKeyPacket.VERSION_4, packet.getVersion());
+        isEquals(PublicKeyAlgorithmTags.RSA_GENERAL, packet.getAlgorithm());
+        isEquals(creationTime, packet.getTime());
+        isTrue(packet.getKey() instanceof RSAPublicBCPGKey);
+        RSAPublicBCPGKey k = (RSAPublicBCPGKey) packet.getKey();
+        isEquals(BigInteger.valueOf(0x10001), k.getPublicExponent());
+
+        isEncodingEqual(Hex.decode(testVector), packet.getEncoded(PacketFormat.LEGACY));
     }
 
     /**
@@ -340,14 +382,15 @@ public class PublicKeyPacketTest
     private void gen()
             throws PGPException, IOException
     {
-        Ed448KeyPairGenerator gen = new Ed448KeyPairGenerator();
-        gen.init(new Ed448KeyGenerationParameters(new SecureRandom()));
+        RSAKeyPairGenerator gen = new RSAKeyPairGenerator();
+        gen.init(new RSAKeyGenerationParameters(BigInteger.valueOf(0x10001),
+                CryptoServicesRegistrar.getSecureRandom(), 2048, PrimeCertaintyCalculator.getDefaultCertainty(2048)));
         AsymmetricCipherKeyPair kp = gen.generateKeyPair();
 
         Date date = new Date((new Date().getTime() / 1000) * 1000);
         System.out.println(formatUTCDate(date));
         BcPGPKeyConverter con = new BcPGPKeyConverter();
-        PGPPublicKey pk = con.getPGPPublicKey(4, PublicKeyAlgorithmTags.EDDSA_LEGACY, null, kp.getPublic(), date);
+        PGPPublicKey pk = con.getPGPPublicKey(4, PublicKeyAlgorithmTags.RSA_GENERAL, null, kp.getPublic(), date);
         // pk = new PGPPublicKey(new PublicSubkeyPacket(pk.getVersion(), pk.getAlgorithm(), pk.getCreationTime(), pk.getPublicKeyPacket().getKey()), new BcKeyFingerprintCalculator());
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
@@ -355,6 +398,14 @@ public class PublicKeyPacketTest
         pk.encode(pOut);
         pOut.close();
         System.out.println(Hex.toHexString(bOut.toByteArray()));
+
+        bOut = new ByteArrayOutputStream();
+        ArmoredOutputStream aOut = new ArmoredOutputStream(bOut);
+        pOut = new BCPGOutputStream(aOut, PacketFormat.CURRENT);
+        pk.encode(pOut);
+        pOut.close();
+        aOut.close();
+        System.out.println(bOut.toString());
     }
 
     public static void main(String[] args)

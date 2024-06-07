@@ -1,8 +1,6 @@
 package org.bouncycastle.bcpg.test;
 
-import org.bouncycastle.bcpg.BCPGInputStream;
-import org.bouncycastle.bcpg.ContainedPacket;
-import org.bouncycastle.bcpg.Packet;
+import org.bouncycastle.bcpg.*;
 import org.bouncycastle.test.DumpUtil;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Pack;
@@ -10,7 +8,9 @@ import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.test.SimpleTest;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -174,6 +174,34 @@ public abstract class AbstractPacketTest
         if (pIn.available() != 0) {
             throw new IllegalStateException("Packet input stream is not empty.");
         }
+        pIn.close();
+        bIn.close();
+        return p;
+    }
+
+    public String armor(ContainedPacket packet, PacketFormat format)
+            throws IOException
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ArmoredOutputStream aOut = new ArmoredOutputStream(bOut);
+        BCPGOutputStream pOut = new BCPGOutputStream(aOut, format);
+        packet.encode(pOut);
+        pOut.close();
+        aOut.close();
+        return bOut.toString();
+    }
+
+    public Packet dearmor(String armor) throws IOException {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armor.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        Packet p = pIn.readPacket();
+        if (pIn.available() != 0) {
+            throw new IllegalStateException("Packet input stream is not empty.");
+        }
+        pIn.close();
+        aIn.close();
+        bIn.close();
         return p;
     }
 }
