@@ -26,6 +26,7 @@ import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.bcpg.sig.SignatureTarget;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.math.ec.rfc8032.Ed25519;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
@@ -767,6 +768,7 @@ public class PGPSignatureTest
         testUserAttributeEncoding();
         testExportNonExportableSignature();
         testRejectionOfIllegalSignatureType0xFF();
+        testGetSignatureOfLegacyEd25519KeyWithShortMPIs();
     }
 
     private void testUserAttributeEncoding()
@@ -1408,6 +1410,17 @@ public class PGPSignatureTest
         {
             // expected
         }
+    }
+
+    private void testGetSignatureOfLegacyEd25519KeyWithShortMPIs()
+            throws PGPException, IOException
+    {
+        String ed25519KeyWithShortSignatureMPIs = "88740401160a00270502666a2d4009105ac5b83f1a5ad687162104229cfc85fe0ca2e3718b022c5ac5b83f1a5ad6870000a16b00f7754c1d14b068ae5e6816c376367569b1ae984587e8e5ec3cc54b811549a4920100ca2159e5965bf7d8655385449994aead14ccf05c3f33335b98d305c0f20ef50e";
+        ByteArrayInputStream bIn = new ByteArrayInputStream(Hex.decode(ed25519KeyWithShortSignatureMPIs));
+        BCPGInputStream pIn = new BCPGInputStream(bIn);
+        PGPSignature signature = new PGPSignature(pIn);
+        isEquals("Short MPIs in LegacyEd25519 signature MUST be properly parsed",
+                Ed25519.SIGNATURE_SIZE, signature.getSignature().length);
     }
 
     private PGPSignatureList readSignatures(String armored)
