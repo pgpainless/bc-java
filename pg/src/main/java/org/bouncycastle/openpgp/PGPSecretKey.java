@@ -143,6 +143,11 @@ public class PGPSecretKey
                 S2K s2k = keyEncryptor.getS2K();
 
                 int s2kUsage;
+                if (keyEncryptor.getAeadAlgorithm() != 0)
+                {
+                    s2kUsage = SecretKeyPacket.USAGE_AEAD;
+                    return generateSecretKeyPacket(isMasterKey, pubKey.publicPk, encAlgorithm, keyEncryptor.getAeadAlgorithm(), s2kUsage, s2k, iv, encData);
+                }
 
                 if (checksumCalculator != null)
                 {
@@ -196,6 +201,18 @@ public class PGPSecretKey
         else
         {
             return new SecretSubkeyPacket(pubKey, encAlgorithm, s2kusage, s2k, iv, secKeyData);
+        }
+    }
+
+    private static SecretKeyPacket generateSecretKeyPacket(boolean isMasterKey, PublicKeyPacket pubKey, int encAlgorithm, int aeadAlgorithm, int s2kUsage, S2K s2K, byte[] iv, byte[] secKeyData)
+    {
+        if (isMasterKey)
+        {
+            return new SecretKeyPacket(pubKey, encAlgorithm, aeadAlgorithm, s2kUsage, s2K, iv, secKeyData);
+        }
+        else
+        {
+            return new SecretSubkeyPacket(pubKey, encAlgorithm, aeadAlgorithm, s2kUsage, s2K, iv, secKeyData);
         }
     }
 
@@ -437,6 +454,16 @@ public class PGPSecretKey
     public int getKeyEncryptionAlgorithm()
     {
         return secret.getEncAlgorithm();
+    }
+
+    /**
+     * Return the AEAD algorithm the key is encrypted with.
+     * Returns <pre>0</pre> if no AEAD is used.
+     * @return aead key encryption algorithm
+     */
+    public int getAEADKeyEncryptionAlgorithm()
+    {
+        return secret.getAeadAlgorithm();
     }
 
     /**
