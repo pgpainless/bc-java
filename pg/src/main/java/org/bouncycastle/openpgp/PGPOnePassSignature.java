@@ -41,6 +41,7 @@ public class PGPOnePassSignature
     PGPOnePassSignature(
         OnePassSignaturePacket sigPack)
     {
+        super(sigPack.getVersion() == 3 ? 4 : sigPack.getVersion());
         this.sigPack = sigPack;
         this.sigType = sigPack.getSignatureType();
     }

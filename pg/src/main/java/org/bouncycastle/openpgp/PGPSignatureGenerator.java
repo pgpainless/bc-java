@@ -38,6 +38,14 @@ public class PGPSignatureGenerator
     public PGPSignatureGenerator(
         PGPContentSignerBuilder contentSignerBuilder)
     {
+        this(contentSignerBuilder, SignaturePacket.VERSION_4);
+    }
+
+    public PGPSignatureGenerator(
+            PGPContentSignerBuilder contentSignerBuilder,
+            int version)
+    {
+        super(version);
         this.contentSignerBuilder = contentSignerBuilder;
     }
 
@@ -112,7 +120,6 @@ public class PGPSignatureGenerator
         throws PGPException
     {
         MPInteger[] sigValues;
-        int version = 4;
         ByteArrayOutputStream sOut = new ByteArrayOutputStream();
         SignatureSubpacket[] hPkts, unhPkts;
 
@@ -150,9 +157,15 @@ public class PGPSignatureGenerator
 
             byte[] data = hOut.toByteArray();
 
+            if (version == SignaturePacket.VERSION_6)
+            {
+                sOut.write((byte) (data.length >> 24));
+                sOut.write((byte) (data.length >> 16));
+            }
             sOut.write((byte)(data.length >> 8));
             sOut.write((byte)data.length);
             sOut.write(data);
+
             byte[] hData = sOut.toByteArray();
 
             sOut.write((byte)version);

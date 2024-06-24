@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Vector;
 
+import org.bouncycastle.bcpg.sig.IssuerFingerprint;
 import org.bouncycastle.bcpg.sig.IssuerKeyID;
 import org.bouncycastle.bcpg.sig.SignatureCreationTime;
 import org.bouncycastle.util.Arrays;
@@ -239,6 +240,28 @@ public class SignaturePacket
             }
 
             unhashedData[i] = p;
+        }
+
+        if (version == VERSION_6 && keyID == 0L)
+        {
+            for (SignatureSubpacket p : hashedData)
+            {
+                if (p instanceof IssuerFingerprint)
+                {
+                    keyID = FingerprintUtil.keyIdFromV6Fingerprint(((IssuerFingerprint) p).getFingerprint());
+                }
+            }
+        }
+
+        if (version == VERSION_6 && keyID == 0L)
+        {
+            for (SignatureSubpacket p : unhashedData)
+            {
+                if (p instanceof IssuerFingerprint)
+                {
+                    keyID = FingerprintUtil.keyIdFromV6Fingerprint(((IssuerFingerprint) p).getFingerprint());
+                }
+            }
         }
     }
 
@@ -483,7 +506,7 @@ public class SignaturePacket
             trailer[3] = (byte)(time >> 8);
             trailer[4] = (byte)(time);
         }
-        else
+        else if (version == VERSION_4 || version == VERSION_5 || version == VERSION_6)
         {
             ByteArrayOutputStream    sOut = new ByteArrayOutputStream();
             SignatureSubpacket[]     hashed = this.getHashedSubPackets();
@@ -503,7 +526,14 @@ public class SignaturePacket
                 }
 
                 byte[]                   data = hOut.toByteArray();
-                StreamUtil.write2OctetLength(sOut, data.length);
+                if (version != VERSION_6)
+                {
+                    StreamUtil.write2OctetLength(sOut, data.length);
+                }
+                else
+                {
+                    StreamUtil.write4OctetLength(sOut, data.length);
+                }
                 sOut.write(data);
 
                 byte[]    hData = sOut.toByteArray();
