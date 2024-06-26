@@ -242,27 +242,8 @@ public class SignaturePacket
             unhashedData[i] = p;
         }
 
-        if (version == VERSION_6 && keyID == 0L)
-        {
-            for (SignatureSubpacket p : hashedData)
-            {
-                if (p instanceof IssuerFingerprint)
-                {
-                    keyID = FingerprintUtil.keyIdFromV6Fingerprint(((IssuerFingerprint) p).getFingerprint());
-                }
-            }
-        }
-
-        if (version == VERSION_6 && keyID == 0L)
-        {
-            for (SignatureSubpacket p : unhashedData)
-            {
-                if (p instanceof IssuerFingerprint)
-                {
-                    keyID = FingerprintUtil.keyIdFromV6Fingerprint(((IssuerFingerprint) p).getFingerprint());
-                }
-            }
-        }
+        setIssuerKeyId();
+        setCreationTime();
     }
 
     /**
@@ -735,6 +716,49 @@ public class SignaturePacket
             {
                 creationTime = ((SignatureCreationTime)hashedData[i]).getTime().getTime();
                 break;
+            }
+        }
+    }
+
+    /**
+     * Iterate over the hashed and unhashed signature subpackets to identify either a {@link IssuerKeyID} or
+     * {@link IssuerFingerprint} subpacket to derive the issuer key-ID from.
+     * The issuer {@link IssuerKeyID} and {@link IssuerFingerprint} subpacket information is "self-authenticating",
+     * as its authenticity can be verified by checking the signature with the corresponding key.
+     * Therefore, we can also check the unhashed signature subpacket area.
+     */
+    private void setIssuerKeyId()
+    {
+        if (keyID != 0L)
+        {
+            return;
+        }
+
+        for (SignatureSubpacket p : hashedData)
+        {
+            if (p instanceof IssuerKeyID)
+            {
+                keyID = ((IssuerKeyID) p).getKeyID();
+                return;
+            }
+            if (p instanceof IssuerFingerprint)
+            {
+                keyID = ((IssuerFingerprint) p).getKeyID();
+                return;
+            }
+        }
+
+        for (SignatureSubpacket p : unhashedData)
+        {
+            if (p instanceof IssuerKeyID)
+            {
+                keyID = ((IssuerKeyID) p).getKeyID();
+                return;
+            }
+            if (p instanceof IssuerFingerprint)
+            {
+                keyID = ((IssuerFingerprint) p).getKeyID();
+                return;
             }
         }
     }
