@@ -1,19 +1,28 @@
 package org.bouncycastle.openpgp.test;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
+import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
+import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
+import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -31,10 +40,12 @@ public class PGPV6SignatureTest
             throws Exception
     {
         verifyV6DirectKeySignature();
-        verifyV6TextSignature();
+        verifyV6BinarySignature();
     }
 
-    private void verifyV6DirectKeySignature() throws IOException, PGPException {
+    private void verifyV6DirectKeySignature()
+            throws IOException, PGPException
+    {
         String armoredCert = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n" +
                 "\n" +
                 "xioGY4d/4xsAAAAg+U2nu0jWCmHlZ3BqZYfQMxmZu52JGggkLq2EVD34laPCsQYf\n" +
@@ -63,16 +74,60 @@ public class PGPV6SignatureTest
         isTrue("Direct-Key Signature on the primary key MUST be correct.",
                 directKeySig.verifyCertification(primaryKey));
 
-        System.out.println("Verify Subkey sig");
-
         subkeyBinding.init(new BcPGPContentVerifierBuilderProvider(), primaryKey);
         isTrue("Subkey-Binding Signature MUST be correct.",
                 subkeyBinding.verifyCertification(primaryKey, subkey));
     }
 
-    private void verifyV6TextSignature() {
-    }
+    private void verifyV6BinarySignature()
+            throws IOException, PGPException {
+        String armoredKey = "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" +
+                "\n" +
+                "xUsGY4d/4xsAAAAg+U2nu0jWCmHlZ3BqZYfQMxmZu52JGggkLq2EVD34laMAGXKB\n" +
+                "exK+cH6NX1hs5hNhIB00TrJmosgv3mg1ditlsLfCsQYfGwoAAABCBYJjh3/jAwsJ\n" +
+                "BwUVCg4IDAIWAAKbAwIeCSIhBssYbE8GCaaX5NUt+mxyKwwfHifBilZwj2Ul7Ce6\n" +
+                "2azJBScJAgcCAAAAAK0oIBA+LX0ifsDm185Ecds2v8lwgyU2kCcUmKfvBXbAf6rh\n" +
+                "RYWzuQOwEn7E/aLwIwRaLsdry0+VcallHhSu4RN6HWaEQsiPlR4zxP/TP7mhfVEe\n" +
+                "7XWPxtnMUMtf15OyA51YBMdLBmOHf+MZAAAAIIaTJINn+eUBXbki+PSAld2nhJh/\n" +
+                "LVmFsS+60WyvXkQ1AE1gCk95TUR3XFeibg/u/tVY6a//1q0NWC1X+yui3O24wpsG\n" +
+                "GBsKAAAALAWCY4d/4wKbDCIhBssYbE8GCaaX5NUt+mxyKwwfHifBilZwj2Ul7Ce6\n" +
+                "2azJAAAAAAQBIKbpGG2dWTX8j+VjFM21J0hqWlEg+bdiojWnKfA5AQpWUWtnNwDE\n" +
+                "M0g12vYxoWM8Y81W+bHBw805I8kWVkXU6vFOi+HWvv/ira7ofJu16NnoUkhclkUr\n" +
+                "k0mXubZvyl4GBg==\n" +
+                "-----END PGP PRIVATE KEY BLOCK-----";
+        String msg = "Hello, World!\n";
 
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
+        PGPSecretKeyRing secretKeys = (PGPSecretKeyRing) objFac.nextObject();
+
+        PGPSecretKey signingSecKey = secretKeys.getSecretKey(); // primary key
+        PGPPrivateKey signingPrivKey = signingSecKey.extractPrivateKey(null);
+        PGPPublicKey signingPubKey = signingSecKey.getPublicKey();
+        PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
+                new BcPGPContentSignerBuilder(
+                        signingPubKey.getAlgorithm(),
+                        HashAlgorithmTags.SHA512),
+                signingPubKey);
+        sigGen.init(PGPSignature.BINARY_DOCUMENT, signingPrivKey);
+        sigGen.update(msg.getBytes(StandardCharsets.UTF_8));
+        PGPSignature binarySig = sigGen.generate();
+
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ArmoredOutputStream aOut = new ArmoredOutputStream(bOut);
+        BCPGOutputStream pOut = new BCPGOutputStream(aOut, PacketFormat.CURRENT);
+        binarySig.encode(pOut);
+        pOut.close();
+        aOut.close();
+        System.out.println(bOut);
+
+        binarySig.init(new BcPGPContentVerifierBuilderProvider(), signingPubKey);
+        binarySig.update(msg.getBytes(StandardCharsets.UTF_8));
+        isTrue("Detached binary signature MUST be valid.",
+                binarySig.verify());
+    }
 
     public static void main(String[] args) {
         runTest(new PGPV6SignatureTest());

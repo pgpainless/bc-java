@@ -421,7 +421,8 @@ public class SignaturePacket
             SignatureSubpacket[]    hashedData,
             SignatureSubpacket[]    unhashedData,
             byte[]                  fingerPrint,
-            byte[]                  signatureEncoding)
+            byte[]                  signatureEncoding,
+            byte[]                  salt)
     {
         super(SIGNATURE);
 
@@ -434,6 +435,37 @@ public class SignaturePacket
         this.unhashedData = unhashedData;
         this.fingerPrint = fingerPrint;
         this.signatureEncoding = Arrays.clone(signatureEncoding);
+        this.salt = Arrays.clone(salt);
+        if (hashedData != null)
+        {
+            setCreationTime();
+        }
+    }
+
+    public SignaturePacket(
+            int version,
+            int signatureType,
+            long keyID,
+            int keyAlgorithm,
+            int hashAlgorithm,
+            SignatureSubpacket[] hashedData,
+            SignatureSubpacket[] unhashedData,
+            byte[] fingerPrint,
+            MPInteger[] signature,
+            byte[] salt)
+    {
+        super(SIGNATURE);
+
+        this.version = version;
+        this.signatureType = signatureType;
+        this.keyID = keyID;
+        this.keyAlgorithm = keyAlgorithm;
+        this.hashAlgorithm = hashAlgorithm;
+        this.hashedData = hashedData;
+        this.unhashedData = unhashedData;
+        this.fingerPrint = fingerPrint;
+        this.signature = signature;
+        this.salt = Arrays.clone(salt);
         if (hashedData != null)
         {
             setCreationTime();
