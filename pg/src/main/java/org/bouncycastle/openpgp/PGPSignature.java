@@ -168,6 +168,11 @@ public class PGPSignature
         this.lastb = 0;
         this.sigOut = verifier.getOutputStream();
 
+        updateWithSalt();
+    }
+
+    private void updateWithSalt()
+    {
         if (getVersion() == SignaturePacket.VERSION_6)
         {
             update(sigPck.getSalt());

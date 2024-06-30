@@ -8,6 +8,7 @@ import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.OnePassSignaturePacket;
 import org.bouncycastle.bcpg.Packet;
+import org.bouncycastle.bcpg.SignaturePacket;
 import org.bouncycastle.openpgp.operator.PGPContentVerifier;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilder;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
@@ -62,6 +63,24 @@ public class PGPOnePassSignature
 
         lastb = 0;
         sigOut = verifier.getOutputStream();
+
+        updateWithSalt();
+    }
+
+    private void updateWithSalt()
+            throws PGPException
+    {
+        if (version == SignaturePacket.VERSION_6)
+        {
+            try
+            {
+                sigOut.write(getSalt());
+            }
+            catch (IOException e)
+            {
+                throw new PGPException("Cannot salt the signature.", e);
+            }
+        }
     }
 
     /**
@@ -146,8 +165,8 @@ public class PGPOnePassSignature
     }
 
     /**
-     * Return true, if the signature is contains any signatures that follow.
-     * An bracketing OPS is followed by additional OPS packets and is calculated over all the data between itself
+     * Return true, if the signature contains any signatures that follow.
+     * A bracketing OPS is followed by additional OPS packets and is calculated over all the data between itself
      * and its corresponding signature (it is an attestation for contained signatures).
      *
      * @return true if containing, false otherwise

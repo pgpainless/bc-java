@@ -118,9 +118,12 @@ public class PGPSignatureGenerator
         {
             salt = new byte[16];
             CryptoServicesRegistrar.getSecureRandom().nextBytes(salt);
-            try {
+            try
+            {
                 sigOut.write(salt);
-            } catch (IOException e) {
+            }
+            catch (IOException e)
+            {
                 throw new PGPException("Cannot update signature with salt.");
             }
         }
