@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Date;
 
+import org.bouncycastle.bcpg.HashUtils;
 import org.bouncycastle.bcpg.MPInteger;
 import org.bouncycastle.bcpg.OnePassSignaturePacket;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
@@ -116,7 +117,8 @@ public class PGPSignatureGenerator
 
         if (version == SignaturePacket.VERSION_6)
         {
-            salt = new byte[16];
+            int saltSize = HashUtils.getV6SignatureSaltSizeInBytes(contentSigner.getHashAlgorithm());
+            salt = new byte[saltSize];
             CryptoServicesRegistrar.getSecureRandom().nextBytes(salt);
             try
             {
