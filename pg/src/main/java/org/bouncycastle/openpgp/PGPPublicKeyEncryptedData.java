@@ -15,6 +15,7 @@ import org.bouncycastle.openpgp.operator.PGPDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.SessionKeyDataDecryptorFactory;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * A public key encrypted data object.
@@ -101,7 +102,14 @@ public class PGPPublicKeyEncryptedData
         byte[] sessionData = dataDecryptorFactory.recoverSessionData(keyData.getAlgorithm(), keyData.getEncSessionKey());
         if (keyData.getAlgorithm() == PublicKeyAlgorithmTags.X25519 || keyData.getAlgorithm() == PublicKeyAlgorithmTags.X448)
         {
-            return new PGPSessionKey(sessionData[0] & 0xff, Arrays.copyOfRange(sessionData, 1, sessionData.length));
+            if (getVersion() == PublicKeyEncSessionPacket.VERSION_3)
+            {
+                return new PGPSessionKey(keyData.getEncSessionKey()[0][32 + 2] & 0xff, sessionData);
+            }
+            else if (getVersion() == PublicKeyEncSessionPacket.VERSION_6)
+            {
+                return new PGPSessionKey(((SymmetricEncIntegrityPacket)encData).getCipherAlgorithm(), sessionData);
+            }
         }
         if (!confirmCheckSum(sessionData))
         {

@@ -64,7 +64,7 @@ public class BcPublicKeyDataDecryptorFactory
 
             if (keyAlgorithm == PublicKeyAlgorithmTags.X25519)
             {
-                return getSessionData(secKeyData[0], privKey, X25519PublicBCPGKey.LENGTH, HashAlgorithmTags.SHA256,
+                return getXSessionData(secKeyData[0], privKey, X25519PublicBCPGKey.LENGTH, HashAlgorithmTags.SHA256,
                     SymmetricKeyAlgorithmTags.AES_128, new X25519Agreement(), "X25519", new PublicKeyParametersOperation()
                     {
                         @Override
@@ -246,6 +246,24 @@ public class BcPublicKeyDataDecryptorFactory
             Arrays.concatenate(pEnc, pgpPrivKey.getPublicKeyPacket().getKey().getEncoded(), secret), "OpenPGP " + algorithmName));
 
         return Arrays.concatenate(new byte[]{enc[pLen + 1]}, unwrapSessionData(keyEnc, symmetricKeyAlgorithm, key));
+    }
+
+    private byte[] getXSessionData(byte[] enc, AsymmetricKeyParameter privKey, int pLen, int hashAlgorithm, int symmetricKeyAlgorithm,
+                                  RawAgreement agreement, String algorithmName, PublicKeyParametersOperation pkp)
+            throws PGPException, InvalidCipherTextException
+    {
+        byte[] pEnc = new byte[pLen];
+        System.arraycopy(enc, 0, pEnc, 0, pLen);
+        byte[] keyEnc;
+        int keyLen = enc[pLen] & 0xff;
+        assertOutOfRange(pLen + 1 + keyLen, enc);
+        keyEnc = new byte[keyLen];
+        System.arraycopy(enc, pLen + 1, keyEnc, 0, keyEnc.length);
+        byte[] secret = BcUtil.getSecret(agreement, privKey, pkp.getPublicKeyParameters(pEnc, 0));
+        KeyParameter key = new KeyParameter(RFC6637KDFCalculator.createKey(hashAlgorithm, symmetricKeyAlgorithm,
+                Arrays.concatenate(pEnc, pgpPrivKey.getPublicKeyPacket().getKey().getEncoded(), secret), "OpenPGP " + algorithmName));
+
+        return unwrapSessionData(keyEnc, symmetricKeyAlgorithm, key);
     }
 
     private static byte[] unwrapSessionData(byte[] keyEnc, int symmetricKeyAlgorithm, KeyParameter key)

@@ -66,6 +66,7 @@ public class PublicKeyEncSessionPacket
                 keyVersion = in.read();
                 keyFingerprint = new byte[keyInfoLen - 1];
                 in.readFully(keyFingerprint);
+                keyID = FingerprintUtil.keyIdFromV6Fingerprint(keyFingerprint);
             }
         }
         else
