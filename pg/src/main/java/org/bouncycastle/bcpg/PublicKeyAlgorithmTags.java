@@ -108,4 +108,22 @@ public interface PublicKeyAlgorithmTags
     int EXPERIMENTAL_9 = 108;
     int EXPERIMENTAL_10 = 109;
     int EXPERIMENTAL_11 = 110;
+
+    /**
+     * Persistent Symmetric Keys: AEAD
+     * Used for symmetric re-encryption.
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/draft-ietf-openpgp-persistent-symmetric-keys/">
+     *     Persistent Symmetric Keys in OpenPGP</a>
+     */
+    int AEAD = 128;
+
+    /**
+     * Persistent Symmetric Keys: HMAC
+     * Used for "symmetric signatures".
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/draft-ietf-openpgp-persistent-symmetric-keys/">
+     *     Persistent Symmetric Keys in OpenPGP</a>
+     */
+    int HMAC = 129;
 }
