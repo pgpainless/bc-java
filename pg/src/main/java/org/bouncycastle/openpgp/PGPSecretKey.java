@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.bouncycastle.bcpg.AEADPublicBCPGKey;
+import org.bouncycastle.bcpg.AEADSecretBCPGKey;
 import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.BCPGObject;
 import org.bouncycastle.bcpg.BCPGOutputStream;
@@ -18,6 +20,8 @@ import org.bouncycastle.bcpg.Ed25519SecretBCPGKey;
 import org.bouncycastle.bcpg.Ed448SecretBCPGKey;
 import org.bouncycastle.bcpg.EdSecretBCPGKey;
 import org.bouncycastle.bcpg.ElGamalSecretBCPGKey;
+import org.bouncycastle.bcpg.HMACPublicBCPGKey;
+import org.bouncycastle.bcpg.HMACSecretBCPGKey;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
@@ -678,6 +682,12 @@ public class PGPSecretKey
                 return new PGPPrivateKey(this.getKeyID(), pubPk, new Ed25519SecretBCPGKey(in));
             case PGPPublicKey.Ed448:
                 return new PGPPrivateKey(this.getKeyID(), pubPk, new Ed448SecretBCPGKey(in));
+            case PGPPublicKey.AEAD:
+                AEADPublicBCPGKey aeadPk = (AEADPublicBCPGKey) pubPk.getKey();
+                return new PGPPrivateKey(this.getKeyID(), pubPk, new AEADSecretBCPGKey(in, aeadPk.getSymmetricKeyAlgorithmId()));
+            case PGPPublicKey.HMAC:
+                HMACPublicBCPGKey hmacPk = (HMACPublicBCPGKey) pubPk.getKey();
+                return new PGPPrivateKey(this.getKeyID(), pubPk, new HMACSecretBCPGKey(in, hmacPk.getHashAlgorithmId()));
             default:
                 throw new PGPException("unknown public key algorithm encountered");
             }

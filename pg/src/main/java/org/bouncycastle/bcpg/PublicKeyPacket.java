@@ -101,6 +101,12 @@ public class PublicKeyPacket
         case Ed448:
             key = new Ed448PublicBCPGKey(in);
             break;
+        case AEAD:
+            key = new AEADPublicBCPGKey(in);
+            break;
+        case HMAC:
+            key = new HMACPublicBCPGKey(in);
+            break;
         default:
             throw new IOException("unknown PGP public key algorithm encountered: " + algorithm);
         }
