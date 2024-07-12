@@ -50,4 +50,28 @@ public class HashUtils
             return false;
         }
     }
+
+    public static int getDigestLength(int hashAlgorithmId)
+    {
+        switch (hashAlgorithmId)
+        {
+            case HashAlgorithmTags.MD5:
+                return 16;
+            case HashAlgorithmTags.SHA1:
+            case HashAlgorithmTags.RIPEMD160:
+                return 20;
+            case HashAlgorithmTags.SHA256:
+            case HashAlgorithmTags.SHA3_256:
+                return 32;
+            case HashAlgorithmTags.SHA384:
+                return 48;
+            case HashAlgorithmTags.SHA512:
+            case HashAlgorithmTags.SHA3_512:
+                return 64;
+            case HashAlgorithmTags.SHA224:
+                return 28;
+            default:
+                throw new IllegalArgumentException("Unknown hash algorithm ID supplied: " + hashAlgorithmId);
+        }
+    }
 }
