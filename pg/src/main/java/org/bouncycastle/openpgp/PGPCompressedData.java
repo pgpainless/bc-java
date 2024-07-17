@@ -127,7 +127,7 @@ public class PGPCompressedData
                   if (len == -1)
                   {
                       buf[0] = 0;
-                      len = 1;
+                      len = 0;
                       eof = true;
                   }
 
@@ -160,7 +160,7 @@ public class PGPCompressedData
                   if (len == -1)
                   {
                       buf[0] = 0;
-                      len = 1;
+                      len = 0;
                       eof = true;
                   }
 
