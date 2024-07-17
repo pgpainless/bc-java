@@ -50,7 +50,7 @@ public abstract class OctetArrayBCPGKey
     @Override
     public String getFormat()
     {
-        return "PGP";
+        return "RAW";
     }
 
     @Override
