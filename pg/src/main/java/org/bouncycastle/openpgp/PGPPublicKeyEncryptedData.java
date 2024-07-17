@@ -58,6 +58,11 @@ public class PGPPublicKeyEncryptedData
         return keyData.getKeyID();
     }
 
+    public byte[] getFingerprint()
+    {
+        return keyData.getKeyFingerprint();
+    }
+
     /**
      * Return the symmetric key algorithm required to decrypt the data protected by this object.
      *
@@ -221,4 +226,10 @@ public class PGPPublicKeyEncryptedData
     {
         return keyData.getVersion();
     }
+
+    public int getKeyVersion()
+    {
+        return keyData.getKeyVersion();
+    }
+
 }
