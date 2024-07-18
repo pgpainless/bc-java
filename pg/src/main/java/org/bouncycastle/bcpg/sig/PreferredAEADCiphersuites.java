@@ -7,6 +7,13 @@ import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Signature Subpacket containing the AEAD cipher suites (AEAD algorithm, Symmetric Key Algorithm pairs)
+ * preferred by the key holder's implementation.
+ *
+ * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-preferred-aead-ciphersuites">
+ *     C-R - Preferred AEAD Ciphersuites</a>
+ */
 public class PreferredAEADCiphersuites
     extends PreferredAlgorithms
 {
