@@ -52,7 +52,9 @@ public class PGPPublicKeyEncryptedData
      * Return the keyID for the key used to encrypt the data.
      *
      * @return long
+     * @deprecated use {@link #getKeyIdentifier()} instead
      */
+    @Deprecated
     public long getKeyID()
     {
         return keyData.getKeyID();
@@ -61,6 +63,16 @@ public class PGPPublicKeyEncryptedData
     public byte[] getFingerprint()
     {
         return keyData.getKeyFingerprint();
+    }
+
+    /**
+     * Return a {@link KeyIdentifier} for the key used to encrypt the data.
+     *
+     * @return key identifier
+     */
+    public KeyIdentifier getKeyIdentifier()
+    {
+        return new KeyIdentifier(keyData.getKeyFingerprint(), keyData.getKeyID());
     }
 
     /**
