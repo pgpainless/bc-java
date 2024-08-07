@@ -147,9 +147,7 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
             public byte[] recoverSessionData(int keyAlgorithm, byte[][] secKeyData, int pkeskVersion)
                 throws PGPException
             {
-                if (keyAlgorithm == PublicKeyAlgorithmTags.ECDH ||
-                        keyAlgorithm == PublicKeyAlgorithmTags.X25519 ||
-                        keyAlgorithm == PublicKeyAlgorithmTags.X448)
+                if (keyAlgorithm == PublicKeyAlgorithmTags.ECDH || keyAlgorithm == PublicKeyAlgorithmTags.X25519 || keyAlgorithm == PublicKeyAlgorithmTags.X448)
                 {
                     throw new PGPException("ECDH requires use of PGPPrivateKey for decryption");
                 }
@@ -264,18 +262,12 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
         byte[] keyEnc;
 
         pLen = ((((enc[0] & 0xff) << 8) + (enc[1] & 0xff)) + 7) / 8;
-        if ((2 + pLen + 1) > enc.length)
-        {
-            throw new PGPException("encoded length out of range");
-        }
+        checkRange(2 + pLen + 1, enc);
 
         pEnc = new byte[pLen];
         System.arraycopy(enc, 2, pEnc, 0, pLen);
         int keyLen = enc[pLen + 2] & 0xff;
-        if ((2 + pLen + 1 + keyLen) > enc.length)
-        {
-            throw new PGPException("encoded length out of range");
-        }
+        checkRange(2 + pLen + 1 + keyLen, enc);
 
         keyEnc = new byte[keyLen];
         System.arraycopy(enc, 2 + pLen + 1, keyEnc, 0, keyLen);
@@ -341,11 +333,8 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
             byte[] ephemeralKey = Arrays.copyOf(enc, pLen);
 
             int size = enc[pLen] & 0xff;
-            // checkRange
-            if ((pLen + 1 + size) > enc.length)
-            {
-                throw new PGPException("encoded length out of range");
-            }
+
+            checkRange(pLen + 1 + size, enc);
 
             // encrypted session key
             int sesKeyLen = size - (containsSKAlg ? 1 : 0);
@@ -363,18 +352,12 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
         }
     }
 
-    private Key getSessionKey(JcaPGPKeyConverter converter,
-                              PGPPrivateKey privKey,
-                              String agreementName,
-                              PublicKey publicKey,
-                              int symmetricKeyAlgorithm,
-                              byte[] keyEnc,
-                              AlgorithmParameterSpec ukms)
+    private Key getSessionKey(JcaPGPKeyConverter converter, PGPPrivateKey privKey, String agreementName,
+                              PublicKey publicKey, int symmetricKeyAlgorithm, byte[] keyEnc, AlgorithmParameterSpec ukms)
         throws PGPException, GeneralSecurityException
     {
         PrivateKey privateKey = converter.getPrivateKey(privKey);
-        String wrapName = RFC6637Utils.getKeyEncryptionOID(symmetricKeyAlgorithm).getId();
-        Key key = JcaJcePGPUtil.getSecret(helper, publicKey, wrapName, agreementName, ukms, privateKey);
+        Key key = JcaJcePGPUtil.getSecret(helper, publicKey, RFC6637Utils.getKeyEncryptionOID(symmetricKeyAlgorithm).getId(), agreementName, ukms, privateKey);
         Cipher c = helper.createKeyWrapper(symmetricKeyAlgorithm);
         c.init(Cipher.UNWRAP_MODE, key);
         return c.unwrap(keyEnc, "Session", Cipher.SECRET_KEY);
@@ -454,6 +437,15 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
         catch (Exception e)
         {
             throw new PGPException("exception decrypting session data", e);
+        }
+    }
+
+    private static void checkRange(int pLen, byte[] enc)
+            throws PGPException
+    {
+        if (pLen > enc.length)
+        {
+            throw new PGPException("encoded length out of range");
         }
     }
 }
