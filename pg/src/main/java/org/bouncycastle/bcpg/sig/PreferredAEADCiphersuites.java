@@ -11,8 +11,8 @@ import java.util.List;
  * Signature Subpacket containing the AEAD cipher suites (AEAD algorithm, Symmetric Key Algorithm pairs)
  * preferred by the key holder's implementation.
  *
- * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-crypto-refresh-13.html#name-preferred-aead-ciphersuites">
- *     C-R - Preferred AEAD Ciphersuites</a>
+ * @see <a href="https://www.rfc-editor.org/rfc/rfc9580.html#name-preferred-aead-ciphersuites">
+ *     OpenPGP - Preferred AEAD Ciphersuites</a>
  */
 public class PreferredAEADCiphersuites
     extends PreferredAlgorithms
@@ -23,8 +23,8 @@ public class PreferredAEADCiphersuites
     /**
      * AES-128 + OCB is a MUST implement and is therefore implicitly supported.
      *
-     * @see <a href="https://openpgp-wg.gitlab.io/rfc4880bis/#name-preferred-aead-ciphersuites">
-     * Crypto-Refresh § 5.2.3.15. Preferred AEAD Ciphersuites</a>
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc9580.html">
+     * OpenPGP - Preferred AEAD Ciphersuites</a>
      */
     private static final Combination AES_128_OCB = new Combination(SymmetricKeyAlgorithmTags.AES_128, AEADAlgorithmTags.OCB);
 
