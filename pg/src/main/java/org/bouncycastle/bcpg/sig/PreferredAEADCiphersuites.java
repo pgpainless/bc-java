@@ -23,7 +23,7 @@ public class PreferredAEADCiphersuites
     /**
      * AES-128 + OCB is a MUST implement and is therefore implicitly supported.
      *
-     * @see <a href="https://www.rfc-editor.org/rfc/rfc9580.html">
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc9580.html#name-preferred-aead-ciphersuites">
      * OpenPGP - Preferred AEAD Ciphersuites</a>
      */
     private static final Combination AES_128_OCB = new Combination(SymmetricKeyAlgorithmTags.AES_128, AEADAlgorithmTags.OCB);
