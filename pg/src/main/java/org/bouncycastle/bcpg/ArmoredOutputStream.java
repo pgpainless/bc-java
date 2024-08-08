@@ -28,6 +28,7 @@ public class ArmoredOutputStream
     public static final String COMMENT_HDR = "Comment";
     public static final String MESSAGE_ID_HDR = "MessageID";
     public static final String HASH_HDR = "Hash";
+    public static final String SALTED_HASH_HDR = "SaltedHash";
     public static final String CHARSET_HDR = "Charset";
 
     public static final String DEFAULT_VERSION = "BCPG v@RELEASE_NAME@";

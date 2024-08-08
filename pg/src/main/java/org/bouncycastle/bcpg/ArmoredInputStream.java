@@ -4,9 +4,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.bouncycastle.util.StringList;
 import org.bouncycastle.util.Strings;
+
+import static org.bouncycastle.bcpg.ArmoredOutputStream.CHARSET_HDR;
+import static org.bouncycastle.bcpg.ArmoredOutputStream.COMMENT_HDR;
+import static org.bouncycastle.bcpg.ArmoredOutputStream.HASH_HDR;
+import static org.bouncycastle.bcpg.ArmoredOutputStream.MESSAGE_ID_HDR;
+import static org.bouncycastle.bcpg.ArmoredOutputStream.SALTED_HASH_HDR;
+import static org.bouncycastle.bcpg.ArmoredOutputStream.VERSION_HDR;
 
 /**
  * reader for Base64 armored objects - read the headers and then start returning
@@ -137,6 +146,7 @@ public class ArmoredInputStream
     int            bufPtr = 3;
     boolean        crcFound = false;
     boolean        hasHeaders = true;
+    private HeaderRegistry headerRegistry = null;
     String         header = null;
     boolean        newLineFound = false;
     boolean        clearText = false;
@@ -190,6 +200,7 @@ public class ArmoredInputStream
     {
         this.in = in;
         this.hasHeaders = builder.hasHeaders;
+        this.headerRegistry = builder.registry;
         this.detectMissingChecksum = builder.detectMissingCRC;
         this.crc = builder.ignoreCRC ? null : new FastCRC24();
 
@@ -276,6 +287,14 @@ public class ArmoredInputStream
                     if (headerList.size() != 0 && line.indexOf(':') < 0)
                     {
                         throw new ArmoredInputException("invalid armor header");
+                    }
+                    if (headerList.size() != 0 && headerRegistry != null)
+                    {
+                        String headerLine = line.substring(0, line.indexOf(':'));
+                        if (!headerRegistry.isKnownHeader(headerLine))
+                        {
+                            throw new ArmoredInputException("unknown header: " + headerLine);
+                        }
                     }
                     headerList.add(line);
                     buf.reset();
@@ -618,6 +637,7 @@ public class ArmoredInputStream
     public static class Builder
     {
         private boolean hasHeaders = true;
+        private HeaderRegistry registry;
         private boolean detectMissingCRC = false;
         private boolean ignoreCRC = false;
 
@@ -636,6 +656,12 @@ public class ArmoredInputStream
         {
             this.hasHeaders = hasHeaders;
 
+            return this;
+        }
+
+        public Builder setSanitizeHeadersWith(HeaderRegistry registry)
+        {
+            this.registry = registry;
             return this;
         }
 
@@ -670,6 +696,36 @@ public class ArmoredInputStream
             throws IOException
         {
             return new ArmoredInputStream(inputStream, this);
+        }
+    }
+
+    public static class HeaderRegistry
+    {
+        private final Set<String> knownHeaders = new LinkedHashSet<>();
+
+        public HeaderRegistry()
+        {
+            knownHeaders.add(VERSION_HDR);
+            knownHeaders.add(COMMENT_HDR);
+            knownHeaders.add(MESSAGE_ID_HDR);
+            knownHeaders.add(HASH_HDR);
+            knownHeaders.add(CHARSET_HDR);
+            knownHeaders.add(SALTED_HASH_HDR);
+        }
+
+        public boolean isKnownHeader(String header)
+        {
+            return knownHeaders.contains(header);
+        }
+
+        public void clear()
+        {
+            knownHeaders.clear();
+        }
+
+        public void addKnownHeader(String header)
+        {
+            knownHeaders.add(header);
         }
     }
 }
