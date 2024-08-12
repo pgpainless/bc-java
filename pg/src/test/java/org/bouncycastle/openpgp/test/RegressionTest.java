@@ -80,7 +80,8 @@ public class RegressionTest
 
         new Curve25519PrivateKeyEncodingTest(),
         new EdDSAKeyConversionWithLeadingZeroTest(),
-        new ECDSAKeyPairTest()
+        new ECDSAKeyPairTest(),
+        new PGPv6SignatureTest()
     };
 
     public static void main(String[] args)
