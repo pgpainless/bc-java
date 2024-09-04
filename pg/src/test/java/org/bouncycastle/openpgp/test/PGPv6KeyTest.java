@@ -1,16 +1,24 @@
 package org.bouncycastle.openpgp.test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
+import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
+import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
+import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.test.SimpleTest;
@@ -59,6 +67,13 @@ public class PGPv6KeyTest
     public void performTest()
         throws Exception
     {
+        testParsingV6TestKey();
+        testParsingKeyWithS2KUsage255Fails();
+    }
+
+    private void testParsingV6TestKey()
+            throws IOException, PGPException
+    {
         KeyFingerPrintCalculator fingerPrintCalculator = new BcKeyFingerprintCalculator();
         ByteArrayInputStream bIn = new ByteArrayInputStream(ARMORED_CERT.getBytes());
         ArmoredInputStream armorIn = new ArmoredInputStream(bIn);
@@ -84,6 +99,47 @@ public class PGPv6KeyTest
 
         sKey = (PGPSecretKey)sIt.next();
         isTrue(Arrays.areEqual(SUBKEY_FINGERPRINT, sKey.getFingerprint()));
+    }
+
+    private void testParsingKeyWithS2KUsage255Fails()
+            throws IOException
+    {
+        String key = "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" +
+                "\n" +
+                "xWoGZoa2LRsAAAAgmhiiRFX3hwcwzLiuvdWDDZDh9Nxv81/lMDEzM5F8V9//\n" +
+                "HAkDCEreapu/LMUd4PqLHtGxfcoB1A+E0sihiWcNfT6FXNWMGWRkFJeeaCOM\n" +
+                "AQ3Lj9/7LChAohoBY3/ehbO5wqsGHxsIAAAATAWCZoa2LQMLCQcFFQgKDA4E\n" +
+                "FgACAQKbAwIeCSKhBjPv1COrW1H5oDCySKuf/H5Cc1+ZvV09yqQWAtL3P7Qd\n" +
+                "DScJAwcDCQEHAQkCBwIAAAAAsAQQQaWFRvLsvL20R42KZh/9WB/9EqF8gSk5\n" +
+                "PQTOFP5Qz39Vt/Zvtws/g4AygGXc9QNY1RN6fxyRNAFfDk/s20LCe/k6LPks\n" +
+                "Nu4ktB8deu3PAAXNBFRlc3TCiwYTGwgAAAAsBYJmhrYtAhkBIqEGM+/UI6tb\n" +
+                "UfmgMLJIq5/8fkJzX5m9XT3KpBYC0vc/tB0AAAAAr0YQ6MUfPM9gPa3QsCtn\n" +
+                "+8AeeRSv0JVkxz9ixjnUOd/Pibh5rHhcCQYc9I22DQOZ7o3g0seGCp7ljylj\n" +
+                "gdyZG3T68THYQkr+93y2Vo4s+hxG3gHHagZmhrYtGQAAACAt/sjg8KhRGqjH\n" +
+                "vsMpNr/mIOKXBEoSD2m9EMf7Z0rbKf8cCQMIOXl0OWtzknrgUxr1Rge0E8B2\n" +
+                "MuTFEL3MXZvQMq4HEKMbdDjbN+9ks3Dgu0XvtFsMG3T4r3EyPDaX5qjCiwYY\n" +
+                "GwgAAAAsBYJmhrYtApsMIqEGM+/UI6tbUfmgMLJIq5/8fkJzX5m9XT3KpBYC\n" +
+                "0vc/tB0AAAAA1OsQrMUhgpYvFHKjbcZHNslWXutOcJulNeSucnT1uMpAa84K\n" +
+                "+3Pczzrrb00+uglQRyje/4zKtIucsCx8vKW9n+yV4P8APzM4Bi7KbP9+JbLK\n" +
+                "uwo=\n" +
+                "-----END PGP PRIVATE KEY BLOCK-----";
+        ByteArrayInputStream bIn = new ByteArrayInputStream(key.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
+        PGPSecretKeyRing secretKeys = (PGPSecretKeyRing) objFac.nextObject();
+        PBESecretKeyDecryptor decryptor = new BcPBESecretKeyDecryptorBuilder(
+                new BcPGPDigestCalculatorProvider())
+                .build("password".toCharArray());
+        testException("Version 6 secret keys MUST NOT be protected using malleable CFB.", "PGPException",
+                new TestExceptionOperation() {
+                    @Override
+                    public void operation()
+                            throws Exception
+                    {
+                        secretKeys.getSecretKey().extractPrivateKey(decryptor);
+                    }
+                });
     }
 
     public static void main(String[] args)

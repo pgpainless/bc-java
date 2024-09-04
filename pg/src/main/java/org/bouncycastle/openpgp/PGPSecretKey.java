@@ -692,6 +692,11 @@ public class PGPSecretKey
 
         PublicKeyPacket pubPk = secret.getPublicKeyPacket();
 
+        if (pubPk.getVersion() == PublicKeyPacket.VERSION_6 && secret.getS2KUsage() == SecretKeyPacket.USAGE_CHECKSUM)
+        {
+            throw new PGPException("Version 6 secret keys MUST NOT be protected using malleable CFB.");
+        }
+
         try
         {
             byte[] data = extractKeyData(decryptorFactory);
