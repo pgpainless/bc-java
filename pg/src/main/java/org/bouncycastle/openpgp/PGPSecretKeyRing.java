@@ -22,6 +22,7 @@ import org.bouncycastle.bcpg.PublicSubkeyPacket;
 import org.bouncycastle.bcpg.SecretKeyPacket;
 import org.bouncycastle.bcpg.SecretSubkeyPacket;
 import org.bouncycastle.bcpg.TrustPacket;
+import org.bouncycastle.bcpg.UnsupportedPacketVersionException;
 import org.bouncycastle.bcpg.UserDataPacket;
 import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
@@ -178,7 +179,7 @@ public class PGPSecretKeyRing
             {
                 throw e;
             }
-            catch (IOException e)
+            catch (IOException | UnsupportedPacketVersionException e)
             {
                 // skip sub-keys with unrecognized algorithms to be upwards compatible
                 if (LOG.isLoggable(Level.FINE))
