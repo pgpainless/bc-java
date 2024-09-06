@@ -23,6 +23,7 @@ import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.PacketTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.TrustPacket;
+import org.bouncycastle.bcpg.UnsupportedPacketVersionException;
 import org.bouncycastle.bcpg.UserDataPacket;
 import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
 import org.bouncycastle.util.Iterable;
@@ -430,7 +431,7 @@ public class PGPPublicKeyRing
         {
             throw e;
         }
-        catch (IOException e)
+        catch (IOException | UnsupportedPacketVersionException e)
         {
             // Skip unrecognizable subkey
             if (LOG.isLoggable(Level.FINE))
