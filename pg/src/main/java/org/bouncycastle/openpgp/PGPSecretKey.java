@@ -555,13 +555,16 @@ public class PGPSecretKey
 
         if (secret.getEncAlgorithm() != SymmetricKeyAlgorithmTags.NULL)
         {
-            if (secret.getS2K().getType() == S2K.ARGON_2 && secret.getS2KUsage() != SecretKeyPacket.USAGE_AEAD)
+            if (secret.getS2K() != null)
             {
-                throw new PGPException("Argon2 MUST be used with AEAD.");
-            }
-            if (getPublicKey().getVersion() == PublicKeyPacket.VERSION_6 && secret.getS2K().getType() == S2K.SIMPLE)
-            {
-                throw new PGPException("Version 6 keys MUST NOT use Simple S2K.");
+                if (secret.getS2K().getType() == S2K.ARGON_2 && secret.getS2KUsage() != SecretKeyPacket.USAGE_AEAD)
+                {
+                    throw new PGPException("Argon2 MUST be used with AEAD.");
+                }
+                if (getPublicKey().getVersion() == PublicKeyPacket.VERSION_6 && secret.getS2K().getType() == S2K.SIMPLE)
+                {
+                    throw new PGPException("Version 6 keys MUST NOT use Simple S2K.");
+                }
             }
 
             try
