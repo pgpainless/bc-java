@@ -12,6 +12,7 @@ import org.bouncycastle.bcpg.sig.IssuerFingerprint;
 import org.bouncycastle.bcpg.sig.IssuerKeyID;
 import org.bouncycastle.bcpg.sig.KeyExpirationTime;
 import org.bouncycastle.bcpg.sig.KeyFlags;
+import org.bouncycastle.bcpg.sig.LibrePGPLiteralDataMetaHash;
 import org.bouncycastle.bcpg.sig.LibrePGPPreferredEncryptionModes;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.bcpg.sig.PolicyURI;
@@ -180,7 +181,9 @@ public class SignatureSubpacketInputStream
             return new IssuerFingerprint(isCritical, isLongLength, data);
         case INTENDED_RECIPIENT_FINGERPRINT:
             return new IntendedRecipientFingerprint(isCritical, isLongLength, data);
-        }
+        case LIBREPGP_LITERAL_DATA_META_HASH:
+            return new LibrePGPLiteralDataMetaHash(isCritical, isLongLength, data);
+    }
 
         return new SignatureSubpacket(type, isCritical, isLongLength, data);
     }

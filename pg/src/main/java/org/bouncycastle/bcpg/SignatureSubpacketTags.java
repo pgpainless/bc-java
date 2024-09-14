@@ -36,4 +36,5 @@ public interface SignatureSubpacketTags
     int ATTESTED_CERTIFICATIONS = 37;   // attested certifications (RESERVED)
     int KEY_BLOCK = 38;            // Key Block (RESERVED)
     int PREFERRED_AEAD_ALGORITHMS = 39;   // preferred AEAD algorithms
+    int LIBREPGP_LITERAL_DATA_META_HASH = 40;
 }

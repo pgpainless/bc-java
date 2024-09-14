@@ -24,7 +24,8 @@ public class AllTests
                         new OnePassSignaturePacketTest(),
                         new OpenPgpMessageTest(),
                         new FingerprintUtilTest(),
-                        new EncryptedMessagePacketTest()
+                        new EncryptedMessagePacketTest(),
+                        new LibrePGPLiteralDataMetaHashTest()
                 };
 
         for (int i = 0; i != tests.length; i++)
