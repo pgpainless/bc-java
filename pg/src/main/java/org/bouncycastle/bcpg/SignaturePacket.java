@@ -8,6 +8,7 @@ import java.util.Vector;
 import org.bouncycastle.bcpg.sig.IssuerFingerprint;
 import org.bouncycastle.bcpg.sig.IssuerKeyID;
 import org.bouncycastle.bcpg.sig.SignatureCreationTime;
+import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Pack;
 import org.bouncycastle.util.io.Streams;
@@ -36,6 +37,10 @@ public class SignaturePacket
     private SignatureSubpacket[]   unhashedData;
     private byte[]                 signatureEncoding;
     private byte[]                 salt; // v6 only
+
+    private byte contentType = 0x00; // default: binary
+    private byte[] contentFileName = new byte[0]; // default: empty
+    private long contentModificationDate = 0L; // default: 0
 
     SignaturePacket(
             BCPGInputStream    in)
@@ -533,6 +538,16 @@ public class SignaturePacket
                 }
                 sOut.write(data);
 
+                if (getVersion() == VERSION_5 &&
+                        (getSignatureType() == PGPSignature.BINARY_DOCUMENT ||
+                                getSignatureType() == PGPSignature.CANONICAL_TEXT_DOCUMENT))
+                {
+                    sOut.write(contentType);
+                    sOut.write(contentFileName.length);
+                    sOut.write(contentFileName);
+                    StreamUtil.write4OctetLength(sOut, (int) contentModificationDate);
+                }
+
                 byte[]    hData = sOut.toByteArray();
 
                 sOut.write((byte)this.getVersion());
@@ -555,6 +570,55 @@ public class SignaturePacket
         }
 
         return trailer;
+    }
+
+    /**
+     * Only for v5 - set metadata fields from the signed {@link LiteralDataPacket}.
+     * LibrePGP implementations need to call this method to allow for proper verification of non-detached
+     * v5 signatures.
+     * This method needs to be called prior to calling {@link #getSignatureTrailer()} (typically called by
+     * {@link PGPSignature#verify()} or {@link org.bouncycastle.openpgp.PGPOnePassSignature#verify(PGPSignature)}).
+     *
+     * @param literalData signed literal data packet
+     */
+    void setContentMetadata(LiteralDataPacket literalData)
+    {
+        setContentType(literalData.format);
+        setContentFileName(literalData.fileName);
+        setContentModificationDate(literalData.modDate);
+    }
+
+    /**
+     * Only for v5 - set the content type from the signed {@link LiteralDataPacket}.
+     * LibrePGP implementations need to call this method to allow for proper verification of non-detached
+     * v5 signatures.
+     * @param contentType content type, same as {@link LiteralDataPacket#getFormat()}
+     */
+    void setContentType(int contentType)
+    {
+        this.contentType = (byte) contentType;
+    }
+
+    /**
+     * Only for v5 - set the file name from the signed {@link LiteralDataPacket}.
+     * LibrePGP implementations need to call this method to allow for proper verification of non-detached
+     * v5 signatures.
+     * @param fileName content file name, same as {@link LiteralDataPacket#getFileName()}
+     */
+    void setContentFileName(byte[] fileName)
+    {
+        this.contentFileName = fileName == null ? new byte[0] : fileName;
+    }
+
+    /**
+     * Only for v5 - set the modification date from the signed {@link LiteralDataPacket}.
+     * LibrePGP implementations need to call this method to allow for proper verification of non-detached
+     * v5 signatures.
+     * @param modDate content modification date, same as {@link LiteralDataPacket#getModificationTime()}
+     */
+    void setContentModificationDate(long modDate)
+    {
+        this.contentModificationDate = modDate;
     }
 
     /**
