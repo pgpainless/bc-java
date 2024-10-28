@@ -1,7 +1,20 @@
 package org.bouncycastle.openpgp.api;
 
-import org.bouncycastle.bcpg.*;
-import org.bouncycastle.openpgp.*;
+import org.bouncycastle.bcpg.AEADAlgorithmTags;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.PacketFormat;
+import org.bouncycastle.bcpg.S2K;
+import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.openpgp.KeyIdentifier;
+import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPKeyRing;
+import org.bouncycastle.openpgp.PGPLiteralData;
+import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
@@ -11,11 +24,21 @@ import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenera
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 public class OpenPGPMessageGenerator
 {
+    public static final int BUFFER_SIZE = 1024;
+
     private Configuration config = new Configuration();
+
+    // Factory for creating ASCII armor
     private ArmoredOutputStreamFactory armorStreamFactory =
             outputStream -> ArmoredOutputStream.builder()
                     .clearHeaders()                   // Hide version
@@ -26,7 +49,7 @@ public class OpenPGPMessageGenerator
     private EncryptionNegotiator encryptionNegotiator =
             configuration ->
             {
-                if (config.recipients.isEmpty() && config.passphrases.isEmpty())
+                if (configuration.recipients.isEmpty() && configuration.passphrases.isEmpty())
                 {
                     return MessageEncryption.unencrypted();
                 }
@@ -44,9 +67,10 @@ public class OpenPGPMessageGenerator
     private SubkeySelector signingKeySelector =
             keyRing -> Collections.singletonList(KeyIdentifier.wildcard());
 
-
+    // Literal Data metadata
     private Date fileModificationDate = null;
     private String filename = null;
+    private char format = PGPLiteralData.BINARY;
 
     /**
      * Replace the {@link ArmoredOutputStreamFactory} with a custom implementation.
@@ -301,7 +325,7 @@ public class OpenPGPMessageGenerator
         {
             try
             {
-                return encGen.open(o, new byte[1024]);
+                return encGen.open(o, new byte[BUFFER_SIZE]);
             }
             catch (IOException e)
             {
@@ -310,10 +334,15 @@ public class OpenPGPMessageGenerator
         });
     }
 
+    /**
+     * Apply OpenPGP inline-signatures.
+     * @param out OpenPGP message output stream
+     * @throws PGPException if signatures cannot be generated
+     */
     private void applySignatures(OpenPGPMessageOutputStream out)
             throws PGPException
     {
-
+        // TODO: Implement
     }
 
     /**
@@ -331,10 +360,10 @@ public class OpenPGPMessageGenerator
             try
             {
                 return litGen.open(o,
-                        PGPLiteralDataGenerator.BINARY,
+                        format,
                         filename != null ? filename : "",
                         fileModificationDate != null ? fileModificationDate : PGPLiteralData.NOW,
-                        new byte[1024]);
+                        new byte[BUFFER_SIZE]);
             }
             catch (IOException e)
             {
