@@ -15,15 +15,26 @@ import java.util.*;
 
 public class OpenPGPMessageGenerator
 {
+    private Configuration config = new Configuration();
     private ArmoredOutputStreamFactory armorStreamFactory =
             outputStream -> ArmoredOutputStream.builder()
-                    .clearHeaders()                  // Hide version
+                    .clearHeaders()                   // Hide version
                     .enableCRC(false)   // Disable CRC sum
                     .build(outputStream);
 
     // TODO: Implement properly
     private EncryptionNegotiator encryptionNegotiator =
-            configuration -> MessageEncryption.aead(SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB);
+            configuration ->
+            {
+                if (config.recipients.isEmpty() && config.passphrases.isEmpty())
+                {
+                    return MessageEncryption.unencrypted();
+                }
+                else
+                {
+                    return MessageEncryption.aead(SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB);
+                }
+            };
 
     // TODO: Implement properly
     private SubkeySelector encryptionKeySelector =
@@ -33,7 +44,7 @@ public class OpenPGPMessageGenerator
     private SubkeySelector signingKeySelector =
             keyRing -> Collections.singletonList(KeyIdentifier.wildcard());
 
-    private Configuration config = new Configuration();
+
     private Date fileModificationDate = null;
     private String filename = null;
 
@@ -322,12 +333,12 @@ public class OpenPGPMessageGenerator
                 return litGen.open(o,
                         PGPLiteralDataGenerator.BINARY,
                         filename != null ? filename : "",
-                        fileModificationDate != null ? fileModificationDate : config.creationDate,
+                        fileModificationDate != null ? fileModificationDate : PGPLiteralData.NOW,
                         new byte[1024]);
             }
             catch (IOException e)
             {
-                throw new RuntimeException(e);
+                throw new PGPException("Could not apply literal data wrapping", e);
             }
         });
     }
@@ -370,19 +381,35 @@ public class OpenPGPMessageGenerator
         }
     }
 
+    /**
+     * Tuple representing a recipients OpenPGP certificate.
+     */
     static class Recipient
     {
         private final PGPPublicKeyRing certificate;
         private final SubkeySelector subkeySelector;
 
+        /**
+         * Create a {@link Recipient}.
+         *
+         * @param certificate OpenPGP certificate (public key)
+         * @param subkeySelector selector to select encryption-capable subkeys from the certificate
+         */
         public Recipient(PGPPublicKeyRing certificate, SubkeySelector subkeySelector)
         {
             this.certificate = certificate;
             this.subkeySelector = subkeySelector;
         }
 
+        /**
+         * Return a set of {@link PGPPublicKey subkeys} which will be used for message encryption.
+         *
+         * @return encryption capable subkeys for this recipient
+         */
         public List<PGPPublicKey> encryptionKeys()
         {
+            // we first construct a set, so that we don't accidentally encrypt the message multiple times for the
+            //  same subkey (e.g. if wildcards KeyIdentifiers are used).
             Set<PGPPublicKey> encryptionKeys = new LinkedHashSet<>();
             for (KeyIdentifier identifier : subkeySelector.select(certificate))
             {
@@ -396,12 +423,23 @@ public class OpenPGPMessageGenerator
         }
     }
 
+    /**
+     * Tuple representing an OpenPGP key used for signing.
+     */
     static class SigningKey
     {
         private final PGPSecretKeyRing signingKey;
         private final PBESecretKeyDecryptor decryptor;
         private final SubkeySelector subkeySelector;
 
+        /**
+         * Create a {@link SigningKey}.
+         * TODO: If there are multiple signing subkeys with different passphrases, we need multiple decryptors.
+         *
+         * @param signingKey OpenPGP key
+         * @param decryptor decryptor to unlock the signing subkey
+         * @param subkeySelector selector to select the signing subkey
+         */
         public SigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor decryptor, SubkeySelector subkeySelector)
         {
             this.signingKey = signingKey;
@@ -419,6 +457,13 @@ public class OpenPGPMessageGenerator
         private final int symmetricKeyAlgorithm;
         private final int aeadAlgorithm;
 
+        /**
+         * Create a {@link MessageEncryption} tuple.
+         *
+         * @param mode encryption mode (packet type)
+         * @param symmetricKeyAlgorithm symmetric key algorithm for message encryption
+         * @param aeadAlgorithm aead algorithm for message encryption
+         */
         private MessageEncryption(EncryptionMode mode, int symmetricKeyAlgorithm, int aeadAlgorithm)
         {
             this.mode = mode;
