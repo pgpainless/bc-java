@@ -4,6 +4,7 @@ import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
+import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.S2K;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
@@ -15,13 +16,19 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyRing;
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
+import org.bouncycastle.openpgp.PGPOnePassSignature;
+import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
+import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
 
@@ -66,6 +73,10 @@ public class OpenPGPMessageGenerator
     // TODO: Implement properly, taking encryption into account (sign-only should not compress)
     private CompressionNegotiator compressionNegotiator =
             configuration -> CompressionAlgorithmTags.UNCOMPRESSED;
+
+    // TODO: Implement properly
+    private HashAlgorithmNegotiator hashAlgorithmNegotiator =
+            (key, subkey) -> HashAlgorithmTags.SHA512;
 
     // TODO: Implement properly
     private SubkeySelector encryptionKeySelector =
@@ -191,25 +202,30 @@ public class OpenPGPMessageGenerator
      * Sign the message using a secret signing key.
      *
      * @param signingKey OpenPGP key
-     * @param signingKeyDecryptor decryptor to unlock the signing (sub-)keys.
+     * @param signingKeyDecryptorProvider provider for decryptors to unlock the signing (sub-)keys.
      * @return this
      */
-    public OpenPGPMessageGenerator addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor)
+    public OpenPGPMessageGenerator addSigningKey(
+            PGPSecretKeyRing signingKey,
+            PBESecretKeyDecryptorProvider signingKeyDecryptorProvider)
     {
-        return addSigningKey(signingKey, signingKeyDecryptor, signingKeySelector);
+        return addSigningKey(signingKey, signingKeyDecryptorProvider, signingKeySelector);
     }
 
     /**
      * Sign the message using a secret signing key.
      *
      * @param signingKey OpenPGP key
-     * @param signingKeyDecryptor decryptor to unlock the signing (sub-)keys.
+     * @param signingKeyDecryptorProvider provider for decryptors to unlock the signing (sub-)keys.
      * @param subkeySelector selector for selecting signing subkey(s)
      * @return this
      */
-    public OpenPGPMessageGenerator addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor, SubkeySelector subkeySelector)
+    public OpenPGPMessageGenerator addSigningKey(
+            PGPSecretKeyRing signingKey,
+            PBESecretKeyDecryptorProvider signingKeyDecryptorProvider,
+            SubkeySelector subkeySelector)
     {
-        config.signingKeys.add(new Signer(signingKey, signingKeyDecryptor, subkeySelector));
+        config.signingKeys.add(new Signer(signingKey, signingKeyDecryptorProvider, subkeySelector));
         return this;
     }
 
@@ -239,7 +255,7 @@ public class OpenPGPMessageGenerator
      * @throws PGPException if the output stream cannot be created
      */
     public OutputStream open(OutputStream out)
-            throws PGPException
+            throws PGPException, IOException
     {
         OpenPGPMessageOutputStream pgpOut = new OpenPGPMessageOutputStream(out);
         applyOptionalAsciiArmor(pgpOut);
@@ -328,7 +344,7 @@ public class OpenPGPMessageGenerator
         // Setup asymmetric message encryption
         for (Recipient recipient : config.recipients)
         {
-            for (PGPPublicKey encryptionSubkey : recipient.encryptionKeys())
+            for (PGPPublicKey encryptionSubkey : recipient.encryptionSubkeys())
             {
                 encGen.addMethod(new BcPublicKeyKeyEncryptionMethodGenerator(encryptionSubkey));
             }
@@ -377,9 +393,27 @@ public class OpenPGPMessageGenerator
      * @throws PGPException if signatures cannot be generated
      */
     private void applySignatures(OpenPGPMessageOutputStream out)
-            throws PGPException
+            throws PGPException, IOException
     {
         // TODO: Implement
+        for (Signer s : config.signingKeys)
+        {
+            for (PGPSecretKey signingSubkey : s.signingSubkeys())
+            {
+                int hashAlgorithm = hashAlgorithmNegotiator.negotiateHashAlgorithm(s.signingKey, signingSubkey);
+                PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
+                        new BcPGPContentSignerBuilder(signingSubkey.getPublicKey().getAlgorithm(), hashAlgorithm),
+                        signingSubkey.getPublicKey());
+
+                PBESecretKeyDecryptor decryptor = s.decryptorProvider == null ? null :
+                        s.decryptorProvider.provideDecryptor(signingSubkey);
+                PGPPrivateKey privKey = signingSubkey.extractPrivateKey(decryptor);
+
+                sigGen.init(PGPSignature.BINARY_DOCUMENT, privKey);
+                PGPOnePassSignature ops = sigGen.generateOnePassVersion(false);
+                ops.encode(out);
+            }
+        }
     }
 
     private void applyOptionalCompression(OpenPGPMessageOutputStream out)
@@ -462,6 +496,11 @@ public class OpenPGPMessageGenerator
         MessageEncryption negotiateEncryption(Configuration configuration);
     }
 
+    public interface HashAlgorithmNegotiator
+    {
+        int negotiateHashAlgorithm(PGPSecretKeyRing key, PGPSecretKey subkey);
+    }
+
     public static class Configuration
     {
         private Date creationDate = new Date();
@@ -508,7 +547,7 @@ public class OpenPGPMessageGenerator
          *
          * @return encryption capable subkeys for this recipient
          */
-        public List<PGPPublicKey> encryptionKeys()
+        public List<PGPPublicKey> encryptionSubkeys()
         {
             // we first construct a set, so that we don't accidentally encrypt the message multiple times for the
             //  same subkey (e.g. if wildcards KeyIdentifiers are used).
@@ -531,22 +570,39 @@ public class OpenPGPMessageGenerator
     static class Signer
     {
         private final PGPSecretKeyRing signingKey;
-        private final PBESecretKeyDecryptor decryptor;
+        private final PBESecretKeyDecryptorProvider decryptorProvider;
         private final SubkeySelector subkeySelector;
 
         /**
          * Create a {@link Signer}.
-         * TODO: If there are multiple signing subkeys with different passphrases, we need multiple decryptors.
          *
          * @param signingKey OpenPGP key
-         * @param decryptor decryptor to unlock the signing subkey
+         * @param decryptorProvider provider for decryptors to unlock the signing subkeys
          * @param subkeySelector selector to select the signing subkey
          */
-        public Signer(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor decryptor, SubkeySelector subkeySelector)
+        public Signer(PGPSecretKeyRing signingKey,
+                      PBESecretKeyDecryptorProvider decryptorProvider,
+                      SubkeySelector subkeySelector)
         {
             this.signingKey = signingKey;
-            this.decryptor = decryptor;
+            this.decryptorProvider = decryptorProvider;
             this.subkeySelector = subkeySelector;
+        }
+
+        public List<PGPSecretKey> signingSubkeys()
+        {
+            // we first construct a set, so that we don't accidentally sign the message multiple times using the
+            //  same subkey (e.g. if wildcards KeyIdentifiers are used).
+            Set<PGPSecretKey> signingKeys = new LinkedHashSet<>();
+            for (KeyIdentifier identifier : subkeySelector.select(signingKey))
+            {
+                Iterator<PGPSecretKey> selected = signingKey.getSecretKeys(identifier);
+                while (selected.hasNext())
+                {
+                    signingKeys.add(selected.next());
+                }
+            }
+            return new ArrayList<>(signingKeys);
         }
     }
 
@@ -672,5 +728,10 @@ public class OpenPGPMessageGenerator
          * @return non-null list of identifiers
          */
         List<KeyIdentifier> select(PGPKeyRing keyRing);
+    }
+
+    public interface PBESecretKeyDecryptorProvider
+    {
+        PBESecretKeyDecryptor provideDecryptor(PGPSecretKey key);
     }
 }

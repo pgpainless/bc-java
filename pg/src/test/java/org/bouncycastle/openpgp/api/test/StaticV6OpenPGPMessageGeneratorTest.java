@@ -1,9 +1,7 @@
 package org.bouncycastle.openpgp.api.test;
 
-import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
-import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
@@ -58,6 +56,7 @@ public class StaticV6OpenPGPMessageGeneratorTest
             throws Exception
     {
         staticEncryptedMessage();
+        staticSignedMessage();
     }
 
     private void staticEncryptedMessage()
@@ -67,7 +66,21 @@ public class StaticV6OpenPGPMessageGeneratorTest
         PGPPublicKeyRing certificate = toCert(secretKeys);
 
         OpenPGPMessageGenerator gen = getStaticGenerator()
-                .addEncryptionCertificate(certificate)
+                .addEncryptionCertificate(certificate);
+
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        OpenPGPMessageOutputStream pgOut = (OpenPGPMessageOutputStream) gen.open(bOut);
+        pgOut.write("Hello, World!\n".getBytes(StandardCharsets.UTF_8));
+        pgOut.close();
+
+        // System.out.println(bOut);
+    }
+
+    private void staticSignedMessage()
+            throws IOException, PGPException
+    {
+        PGPSecretKeyRing secretKeys = getTestKey();
+        OpenPGPMessageGenerator gen = getStaticGenerator()
                 .addSigningKey(secretKeys, null);
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
@@ -123,9 +136,9 @@ public class StaticV6OpenPGPMessageGeneratorTest
     {
         return new OpenPGPMessageGenerator()
                 .setEncryptionKeySelector(keyRing -> Collections.singletonList(encryptionKeyIdentifier))
-                .setSigningKeySelector(keyRing -> Collections.singletonList(signingKeyIdentifier))
-                .setEncryptionNegotiator(configuration -> OpenPGPMessageGenerator.MessageEncryption.aead(
-                        SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB));
+                .setSigningKeySelector(keyRing -> Collections.singletonList(signingKeyIdentifier));
+                //.setEncryptionNegotiator(configuration -> OpenPGPMessageGenerator.MessageEncryption.aead(
+                //        SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB));
     }
 
     public static void main(String[] args)
