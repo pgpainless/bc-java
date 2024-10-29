@@ -3,11 +3,13 @@ package org.bouncycastle.openpgp.api;
 import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.S2K;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.openpgp.KeyIdentifier;
+import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyRing;
@@ -61,6 +63,10 @@ public class OpenPGPMessageGenerator
                 }
             };
 
+    // TODO: Implement properly, taking encryption into account (sign-only should not compress)
+    private CompressionNegotiator compressionNegotiator =
+            configuration -> CompressionAlgorithmTags.UNCOMPRESSED;
+
     // TODO: Implement properly
     private SubkeySelector encryptionKeySelector =
             keyRing -> Collections.singletonList(KeyIdentifier.wildcard());
@@ -111,6 +117,19 @@ public class OpenPGPMessageGenerator
     public OpenPGPMessageGenerator setEncryptionNegotiator(EncryptionNegotiator encryptionNegotiator)
     {
         this.encryptionNegotiator = encryptionNegotiator;
+        return this;
+    }
+
+    /**
+     * Replace the default {@link CompressionNegotiator} with a custom implementation.
+     * The {@link CompressionNegotiator} is used to negotiate, whether and how to compress the literal data packet.
+     *
+     * @param compressionNegotiator negotiator
+     * @return this
+     */
+    public OpenPGPMessageGenerator setCompressionNegotiator(CompressionNegotiator compressionNegotiator)
+    {
+        this.compressionNegotiator = compressionNegotiator;
         return this;
     }
 
@@ -219,6 +238,7 @@ public class OpenPGPMessageGenerator
         applyPacketEncoding(pgpOut);
         applyOptionalEncryption(pgpOut);
         applySignatures(pgpOut);
+        applyOptionalCompression(pgpOut);
         applyLiteralDataWrap(pgpOut);
         return pgpOut;
     }
@@ -266,13 +286,15 @@ public class OpenPGPMessageGenerator
     private void applyOptionalEncryption(OpenPGPMessageOutputStream out)
             throws PGPException
     {
-        MessageEncryption encryption = encryptionNegotiator.negotiate(config);
+        MessageEncryption encryption = encryptionNegotiator.negotiateEncryption(config);
         if (!encryption.isEncrypted())
         {
             return; // No encryption
         }
 
         PGPDataEncryptorBuilder encBuilder = new BcPGPDataEncryptorBuilder(encryption.symmetricKeyAlgorithm);
+
+        // Specify container type for the plaintext
         switch (encryption.mode)
         {
             case SEIPDv1:
@@ -352,6 +374,30 @@ public class OpenPGPMessageGenerator
         // TODO: Implement
     }
 
+    private void applyOptionalCompression(OpenPGPMessageOutputStream out)
+            throws PGPException
+    {
+        int compressionAlgorithm = compressionNegotiator.negotiateCompression(config);
+        if (compressionAlgorithm == CompressionAlgorithmTags.UNCOMPRESSED)
+        {
+            return; // Uncompressed
+        }
+
+        PGPCompressedDataGenerator compGen = new PGPCompressedDataGenerator(compressionAlgorithm);
+
+        out.addLayer(o ->
+        {
+            try
+            {
+                return compGen.open(o, new byte[BUFFER_SIZE]);
+            }
+            catch (IOException e)
+            {
+                throw new PGPException("Could not apply compression", e);
+            }
+        });
+    }
+
     /**
      * Setup wrapping of the message plaintext in a literal data packet.
      *
@@ -385,6 +431,18 @@ public class OpenPGPMessageGenerator
         ArmoredOutputStream get(OutputStream out);
     }
 
+    public interface CompressionNegotiator
+    {
+        /**
+         * Negotiate a compression algorithm.
+         * Returning {@link org.bouncycastle.bcpg.CompressionAlgorithmTags#UNCOMPRESSED} will result in no compression.
+         *
+         * @param configuration message generator configuration
+         * @return negotiated compression algorithm ID
+         */
+        int negotiateCompression(Configuration configuration);
+    }
+
     public interface EncryptionNegotiator
     {
         /**
@@ -393,7 +451,7 @@ public class OpenPGPMessageGenerator
          * @param configuration message generator configuration
          * @return negotiated encryption mode and algorithms
          */
-        MessageEncryption negotiate(Configuration configuration);
+        MessageEncryption negotiateEncryption(Configuration configuration);
     }
 
     public static class Configuration

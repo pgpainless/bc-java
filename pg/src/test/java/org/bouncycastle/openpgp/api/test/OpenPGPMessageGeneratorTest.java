@@ -3,6 +3,7 @@ package org.bouncycastle.openpgp.api.test;
 import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
+import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
 import org.bouncycastle.openpgp.KeyIdentifier;
@@ -123,9 +124,12 @@ public class OpenPGPMessageGeneratorTest
         OpenPGPMessageGenerator.EncryptionNegotiator encryptionNegotiator =
                 configuration -> OpenPGPMessageGenerator.MessageEncryption.aead(
                         SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB);
+        OpenPGPMessageGenerator.CompressionNegotiator compressionNegotiator =
+                configuration -> CompressionAlgorithmTags.ZIP;
         gen.setEncryptionKeySelector(encryptionKeySelector);
         gen.setSigningKeySelector(signingKeySelector);
         gen.setEncryptionNegotiator(encryptionNegotiator);
+        gen.setCompressionNegotiator(compressionNegotiator);
 
         gen.addEncryptionCertificate(certificate);
         gen.addSigningKey(secretKeys, null);
