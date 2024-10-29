@@ -152,10 +152,11 @@ public class OpenPGPMessageGenerator
      * The recipient will be able to decrypt the message using their corresponding secret key.
      *
      * @param recipientCertificate recipient certificate (public key)
+     * @return this
      */
-    public void addEncryptionCertificate(PGPPublicKeyRing recipientCertificate)
+    public OpenPGPMessageGenerator addEncryptionCertificate(PGPPublicKeyRing recipientCertificate)
     {
-        addEncryptionCertificate(recipientCertificate, encryptionKeySelector);
+        return addEncryptionCertificate(recipientCertificate, encryptionKeySelector);
     }
 
     /**
@@ -165,10 +166,12 @@ public class OpenPGPMessageGenerator
      *
      * @param recipientCertificate recipient certificate (public key)
      * @param subkeySelector selector for encryption subkeys
+     * @return this
      */
-    public void addEncryptionCertificate(PGPPublicKeyRing recipientCertificate, SubkeySelector subkeySelector)
+    public OpenPGPMessageGenerator addEncryptionCertificate(PGPPublicKeyRing recipientCertificate, SubkeySelector subkeySelector)
     {
         config.recipients.add(new Recipient(recipientCertificate, subkeySelector));
+        return this;
     }
 
     /**
@@ -176,10 +179,12 @@ public class OpenPGPMessageGenerator
      * In addition to optional public key encryption, the message will be decryptable using the given passphrase.
      *
      * @param passphrase passphrase
+     * @return this
      */
-    public void addEncryptionPassphrase(char[] passphrase)
+    public OpenPGPMessageGenerator addEncryptionPassphrase(char[] passphrase)
     {
         config.passphrases.add(passphrase);
+        return this;
     }
 
     /**
@@ -187,10 +192,11 @@ public class OpenPGPMessageGenerator
      *
      * @param signingKey OpenPGP key
      * @param signingKeyDecryptor decryptor to unlock the signing (sub-)keys.
+     * @return this
      */
-    public void addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor)
+    public OpenPGPMessageGenerator addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor)
     {
-        addSigningKey(signingKey, signingKeyDecryptor, signingKeySelector);
+        return addSigningKey(signingKey, signingKeyDecryptor, signingKeySelector);
     }
 
     /**
@@ -199,10 +205,12 @@ public class OpenPGPMessageGenerator
      * @param signingKey OpenPGP key
      * @param signingKeyDecryptor decryptor to unlock the signing (sub-)keys.
      * @param subkeySelector selector for selecting signing subkey(s)
+     * @return this
      */
-    public void addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor, SubkeySelector subkeySelector)
+    public OpenPGPMessageGenerator addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor, SubkeySelector subkeySelector)
     {
         config.signingKeys.add(new Signer(signingKey, signingKeyDecryptor, subkeySelector));
+        return this;
     }
 
     /**
