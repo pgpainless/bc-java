@@ -6,6 +6,7 @@ import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.S2K;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.bouncycastle.openpgp.PGPException;
@@ -15,6 +16,7 @@ import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
@@ -181,7 +183,7 @@ public class OpenPGPMessageGenerator
      */
     public void addSigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor signingKeyDecryptor, SubkeySelector subkeySelector)
     {
-        config.signingKeys.add(new SigningKey(signingKey, signingKeyDecryptor, subkeySelector));
+        config.signingKeys.add(new Signer(signingKey, signingKeyDecryptor, subkeySelector));
     }
 
     /**
@@ -305,19 +307,24 @@ public class OpenPGPMessageGenerator
         // Setup symmetric (password-based) message encryption
         for (char[] passphrase : config.passphrases)
         {
+            PBEKeyEncryptionMethodGenerator skeskGen;
             switch (encryption.mode)
             {
                 case SEIPDv1:
                 case LIBREPGP_OED:
                     // "v4" and LibrePGP use symmetric-key encrypted session key packets version 4 (SKESKv4)
-                    encGen.addMethod(new BcPBEKeyEncryptionMethodGenerator(passphrase));
+                    skeskGen = new BcPBEKeyEncryptionMethodGenerator(passphrase);
                     break;
 
                 case SEIPDv2:
                     // v6 uses symmetric-key encrypted session key packets version 6 (SKESKv6) using AEAD
-                    encGen.addMethod(new BcPBEKeyEncryptionMethodGenerator(passphrase, S2K.Argon2Params.memoryConstrainedParameters()));
+                    skeskGen = new BcPBEKeyEncryptionMethodGenerator(passphrase, S2K.Argon2Params.memoryConstrainedParameters());
                     break;
+                default: continue;
             }
+
+            skeskGen.setSecureRandom(CryptoServicesRegistrar.getSecureRandom()); // Prevent NPE
+            encGen.addMethod(skeskGen);
         }
 
         // Finally apply encryption
@@ -394,7 +401,7 @@ public class OpenPGPMessageGenerator
         private Date creationDate = new Date();
         private boolean isArmored = true;
         private final List<Recipient> recipients = new ArrayList<>();
-        private final List<SigningKey> signingKeys = new ArrayList<>();
+        private final List<Signer> signingKeys = new ArrayList<>();
         private final List<char[]> passphrases = new ArrayList<>();
 
         public Configuration setArmored(boolean isArmored)
@@ -455,21 +462,21 @@ public class OpenPGPMessageGenerator
     /**
      * Tuple representing an OpenPGP key used for signing.
      */
-    static class SigningKey
+    static class Signer
     {
         private final PGPSecretKeyRing signingKey;
         private final PBESecretKeyDecryptor decryptor;
         private final SubkeySelector subkeySelector;
 
         /**
-         * Create a {@link SigningKey}.
+         * Create a {@link Signer}.
          * TODO: If there are multiple signing subkeys with different passphrases, we need multiple decryptors.
          *
          * @param signingKey OpenPGP key
          * @param decryptor decryptor to unlock the signing subkey
          * @param subkeySelector selector to select the signing subkey
          */
-        public SigningKey(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor decryptor, SubkeySelector subkeySelector)
+        public Signer(PGPSecretKeyRing signingKey, PBESecretKeyDecryptor decryptor, SubkeySelector subkeySelector)
         {
             this.signingKey = signingKey;
             this.decryptor = decryptor;
