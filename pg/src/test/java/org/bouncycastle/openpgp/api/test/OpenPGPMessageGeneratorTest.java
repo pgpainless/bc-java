@@ -35,6 +35,7 @@ public class OpenPGPMessageGeneratorTest
             throws PGPException, IOException
     {
         OpenPGPMessageGenerator gen = new OpenPGPMessageGenerator();
+        gen.setIsPadded(false);
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         OpenPGPMessageOutputStream msgOut = (OpenPGPMessageOutputStream) gen.open(bOut);
 
@@ -56,6 +57,7 @@ public class OpenPGPMessageGeneratorTest
     {
         OpenPGPMessageGenerator gen = new OpenPGPMessageGenerator();
         gen.setArmored(false); // disable ASCII armor
+        gen.setIsPadded(false); // disable padding
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         OpenPGPMessageOutputStream msgOut = (OpenPGPMessageOutputStream) gen.open(bOut);
@@ -72,6 +74,7 @@ public class OpenPGPMessageGeneratorTest
             throws PGPException, IOException
     {
         OpenPGPMessageGenerator gen = new OpenPGPMessageGenerator();
+        gen.setIsPadded(false);
         gen.setCompressionNegotiator(conf -> CompressionAlgorithmTags.ZIP);
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
@@ -94,6 +97,7 @@ public class OpenPGPMessageGeneratorTest
     {
         OpenPGPMessageGenerator gen = new OpenPGPMessageGenerator();
         gen.setArmored(false); // no armor
+        gen.setIsPadded(false);
         gen.setCompressionNegotiator(conf -> CompressionAlgorithmTags.ZIP);
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();

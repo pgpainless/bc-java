@@ -73,7 +73,7 @@ public class StaticV6OpenPGPMessageGeneratorTest
         pgOut.write("Hello, World!\n".getBytes(StandardCharsets.UTF_8));
         pgOut.close();
 
-        // System.out.println(bOut);
+        System.out.println(bOut);
     }
 
     private void staticSignedMessage()

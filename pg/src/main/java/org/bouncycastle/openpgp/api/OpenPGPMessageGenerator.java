@@ -5,7 +5,6 @@ import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
-import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.S2K;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
@@ -17,6 +16,7 @@ import org.bouncycastle.openpgp.PGPKeyRing;
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
 import org.bouncycastle.openpgp.PGPOnePassSignature;
+import org.bouncycastle.openpgp.PGPPadding;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
@@ -42,12 +42,13 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 
 public class OpenPGPMessageGenerator
 {
     public static final int BUFFER_SIZE = 1024;
 
-    private Configuration config = new Configuration();
+    private final Configuration config = new Configuration();
 
     // Factory for creating ASCII armor
     private ArmoredOutputStreamFactory armorStreamFactory =
@@ -257,14 +258,17 @@ public class OpenPGPMessageGenerator
     public OutputStream open(OutputStream out)
             throws PGPException, IOException
     {
-        OpenPGPMessageOutputStream pgpOut = new OpenPGPMessageOutputStream(out);
-        applyOptionalAsciiArmor(pgpOut);
-        applyPacketEncoding(pgpOut);
-        applyOptionalEncryption(pgpOut);
-        applySignatures(pgpOut);
-        applyOptionalCompression(pgpOut);
-        applyLiteralDataWrap(pgpOut);
-        return pgpOut;
+        OpenPGPMessageOutputStream.Builder streamBuilder = OpenPGPMessageOutputStream.builder();
+
+        applyOptionalAsciiArmor(streamBuilder);
+        applyPacketEncoding(streamBuilder);
+        applyOptionalPadding(streamBuilder);
+        applyOptionalEncryption(streamBuilder);
+        applySignatures(streamBuilder);
+        applyOptionalCompression(streamBuilder);
+        applyLiteralDataWrap(streamBuilder);
+
+        return streamBuilder.build(out);
     }
 
     /**
@@ -274,28 +278,32 @@ public class OpenPGPMessageGenerator
      * The {@link ArmoredOutputStream} will be instantiated using the {@link ArmoredOutputStreamFactory}
      * which can be replaced using {@link #setArmorStreamFactory(ArmoredOutputStreamFactory)}.
      *
-     * @param out OpenPGP message output stream
-     * @throws PGPException if ASCII armor cannot be added
+     * @param builder OpenPGP message output stream builder
      */
-    private void applyOptionalAsciiArmor(OpenPGPMessageOutputStream out)
-            throws PGPException
+    private void applyOptionalAsciiArmor(OpenPGPMessageOutputStream.Builder builder)
     {
         if (config.isArmored)
         {
-            out.addLayer(armorStreamFactory);
+            builder.armor(armorStreamFactory);
         }
     }
 
     /**
      * Apply OpenPGP packet encoding using a {@link BCPGOutputStream}.
      *
-     * @param out OpenPGP message output stream
-     * @throws PGPException if packet encoding cannot be applied
+     * @param builder OpenPGP message output stream builder
      */
-    private void applyPacketEncoding(OpenPGPMessageOutputStream out)
-            throws PGPException
+    private void applyPacketEncoding(OpenPGPMessageOutputStream.Builder builder)
     {
-        out.addLayer(o -> new BCPGOutputStream(o, PacketFormat.CURRENT));
+        // out.addLayer(o -> new BCPGOutputStream(o, PacketFormat.CURRENT));
+    }
+
+    private void applyOptionalPadding(OpenPGPMessageOutputStream.Builder builder)
+    {
+        if (config.isPadded)
+        {
+            builder.padding(o -> new OpenPGPMessageOutputStream.PaddingPacketAppenderOutputStream(o, PGPPadding::new));
+        }
     }
 
     /**
@@ -304,11 +312,9 @@ public class OpenPGPMessageGenerator
      * will be applied.
      * Otherwise, encryption mode and algorithms will be negotiated and message encryption will be applied.
      *
-     * @param out OpenPGP message output stream
-     * @throws PGPException if message encryption cannot be applied
+     * @param builder OpenPGP message output stream builder
      */
-    private void applyOptionalEncryption(OpenPGPMessageOutputStream out)
-            throws PGPException
+    private void applyOptionalEncryption(OpenPGPMessageOutputStream.Builder builder)
     {
         MessageEncryption encryption = encryptionNegotiator.negotiateEncryption(config);
         if (!encryption.isEncrypted())
@@ -374,7 +380,7 @@ public class OpenPGPMessageGenerator
         }
 
         // Finally apply encryption
-        out.addLayer(o ->
+        builder.encrypt(o ->
         {
             try
             {
@@ -389,35 +395,46 @@ public class OpenPGPMessageGenerator
 
     /**
      * Apply OpenPGP inline-signatures.
-     * @param out OpenPGP message output stream
-     * @throws PGPException if signatures cannot be generated
+     *
+     * @param builder OpenPGP message output stream builder
      */
-    private void applySignatures(OpenPGPMessageOutputStream out)
-            throws PGPException, IOException
+    private void applySignatures(OpenPGPMessageOutputStream.Builder builder)
     {
-        // TODO: Implement
-        for (Signer s : config.signingKeys)
+        builder.sign(o ->
         {
-            for (PGPSecretKey signingSubkey : s.signingSubkeys())
+            Stack<PGPSignatureGenerator> signatureGenerators = new Stack<>();
+            for (Signer s : config.signingKeys)
             {
-                int hashAlgorithm = hashAlgorithmNegotiator.negotiateHashAlgorithm(s.signingKey, signingSubkey);
-                PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
-                        new BcPGPContentSignerBuilder(signingSubkey.getPublicKey().getAlgorithm(), hashAlgorithm),
-                        signingSubkey.getPublicKey());
+                for (PGPSecretKey signingSubkey : s.signingSubkeys())
+                {
+                    int hashAlgorithm = hashAlgorithmNegotiator.negotiateHashAlgorithm(s.signingKey, signingSubkey);
+                    PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
+                            new BcPGPContentSignerBuilder(signingSubkey.getPublicKey().getAlgorithm(), hashAlgorithm),
+                            signingSubkey.getPublicKey());
 
-                PBESecretKeyDecryptor decryptor = s.decryptorProvider == null ? null :
-                        s.decryptorProvider.provideDecryptor(signingSubkey);
-                PGPPrivateKey privKey = signingSubkey.extractPrivateKey(decryptor);
+                    PBESecretKeyDecryptor decryptor = s.decryptorProvider == null ? null :
+                            s.decryptorProvider.provideDecryptor(signingSubkey);
+                    PGPPrivateKey privKey = signingSubkey.extractPrivateKey(decryptor);
 
-                sigGen.init(PGPSignature.BINARY_DOCUMENT, privKey);
-                PGPOnePassSignature ops = sigGen.generateOnePassVersion(false);
-                ops.encode(out);
+                    sigGen.init(PGPSignature.BINARY_DOCUMENT, privKey);
+                    signatureGenerators.push(sigGen);
+                }
             }
-        }
+
+            // One-Pass-Signatures
+            Iterator<PGPSignatureGenerator> sigGens = signatureGenerators.iterator();
+            while (sigGens.hasNext())
+            {
+                PGPSignatureGenerator gen = sigGens.next();
+                PGPOnePassSignature ops = gen.generateOnePassVersion(sigGens.hasNext());
+                ops.encode(o);
+            }
+
+            return new OpenPGPMessageOutputStream.SignerOutputStream(o, signatureGenerators);
+        });
     }
 
-    private void applyOptionalCompression(OpenPGPMessageOutputStream out)
-            throws PGPException
+    private void applyOptionalCompression(OpenPGPMessageOutputStream.Builder builder)
     {
         int compressionAlgorithm = compressionNegotiator.negotiateCompression(config);
         if (compressionAlgorithm == CompressionAlgorithmTags.UNCOMPRESSED)
@@ -427,7 +444,7 @@ public class OpenPGPMessageGenerator
 
         PGPCompressedDataGenerator compGen = new PGPCompressedDataGenerator(compressionAlgorithm);
 
-        out.addLayer(o ->
+        builder.compress(o ->
         {
             try
             {
@@ -443,14 +460,12 @@ public class OpenPGPMessageGenerator
     /**
      * Setup wrapping of the message plaintext in a literal data packet.
      *
-     * @param out OpenPGP message output stream
-     * @throws PGPException if literal data wrapping cannot be applied
+     * @param builder OpenPGP message output stream
      */
-    private void applyLiteralDataWrap(OpenPGPMessageOutputStream out)
-            throws PGPException
+    private void applyLiteralDataWrap(OpenPGPMessageOutputStream.Builder builder)
     {
         PGPLiteralDataGenerator litGen = new PGPLiteralDataGenerator();
-        out.addLayer(o ->
+        builder.literalData(o ->
         {
             try
             {
@@ -465,6 +480,12 @@ public class OpenPGPMessageGenerator
                 throw new PGPException("Could not apply literal data wrapping", e);
             }
         });
+    }
+
+    public OpenPGPMessageGenerator setIsPadded(boolean isPadded)
+    {
+        config.isPadded = false;
+        return this;
     }
 
     public interface ArmoredOutputStreamFactory
@@ -505,6 +526,7 @@ public class OpenPGPMessageGenerator
     {
         private Date creationDate = new Date();
         private boolean isArmored = true;
+        public boolean isPadded = true;
         private final List<Recipient> recipients = new ArrayList<>();
         private final List<Signer> signingKeys = new ArrayList<>();
         private final List<char[]> passphrases = new ArrayList<>();
@@ -512,6 +534,12 @@ public class OpenPGPMessageGenerator
         public Configuration setArmored(boolean isArmored)
         {
             this.isArmored = isArmored;
+            return this;
+        }
+
+        public Configuration setPadded(boolean isPadded)
+        {
+            this.isPadded = isPadded;
             return this;
         }
 
@@ -637,7 +665,8 @@ public class OpenPGPMessageGenerator
          */
         public static MessageEncryption unencrypted()
         {
-            return new MessageEncryption(EncryptionMode.SEIPDv1, SymmetricKeyAlgorithmTags.NULL, 0);
+            int none = 0;
+            return new MessageEncryption(EncryptionMode.SEIPDv1, SymmetricKeyAlgorithmTags.NULL, none);
         }
 
         /**
@@ -648,7 +677,8 @@ public class OpenPGPMessageGenerator
          */
         public static MessageEncryption integrityProtected(int symmetricKeyAlgorithm)
         {
-            return new MessageEncryption(EncryptionMode.SEIPDv1, symmetricKeyAlgorithm, 0);
+            int none = 0;
+            return new MessageEncryption(EncryptionMode.SEIPDv1, symmetricKeyAlgorithm, none);
         }
 
         /**
