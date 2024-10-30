@@ -2,7 +2,6 @@ package org.bouncycastle.openpgp.api;
 
 import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.S2K;
@@ -158,6 +157,12 @@ public class OpenPGPMessageGenerator
         return this;
     }
 
+    public OpenPGPMessageGenerator setHashAlgorithmNegotiator(HashAlgorithmNegotiator hashAlgorithmNegotiator)
+    {
+        this.hashAlgorithmNegotiator = hashAlgorithmNegotiator;
+        return this;
+    }
+
     /**
      * Add a recipients certificate to the set of encryption keys.
      * Subkeys will be selected using the default {@link #encryptionKeySelector}.
@@ -246,6 +251,7 @@ public class OpenPGPMessageGenerator
     {
         this.filename = file.getName();
         this.fileModificationDate = new Date(file.lastModified());
+        this.format = PGPLiteralData.BINARY;
         return this;
     }
 
@@ -261,7 +267,6 @@ public class OpenPGPMessageGenerator
         OpenPGPMessageOutputStream.Builder streamBuilder = OpenPGPMessageOutputStream.builder();
 
         applyOptionalAsciiArmor(streamBuilder);
-        applyPacketEncoding(streamBuilder);
         applyOptionalPadding(streamBuilder);
         applyOptionalEncryption(streamBuilder);
         applySignatures(streamBuilder);
@@ -286,16 +291,6 @@ public class OpenPGPMessageGenerator
         {
             builder.armor(armorStreamFactory);
         }
-    }
-
-    /**
-     * Apply OpenPGP packet encoding using a {@link BCPGOutputStream}.
-     *
-     * @param builder OpenPGP message output stream builder
-     */
-    private void applyPacketEncoding(OpenPGPMessageOutputStream.Builder builder)
-    {
-        // out.addLayer(o -> new BCPGOutputStream(o, PacketFormat.CURRENT));
     }
 
     private void applyOptionalPadding(OpenPGPMessageOutputStream.Builder builder)
@@ -484,7 +479,7 @@ public class OpenPGPMessageGenerator
 
     public OpenPGPMessageGenerator setIsPadded(boolean isPadded)
     {
-        config.isPadded = false;
+        config.setPadded(isPadded);
         return this;
     }
 
@@ -524,7 +519,6 @@ public class OpenPGPMessageGenerator
 
     public static class Configuration
     {
-        private Date creationDate = new Date();
         private boolean isArmored = true;
         public boolean isPadded = true;
         private final List<Recipient> recipients = new ArrayList<>();
@@ -540,12 +534,6 @@ public class OpenPGPMessageGenerator
         public Configuration setPadded(boolean isPadded)
         {
             this.isPadded = isPadded;
-            return this;
-        }
-
-        public Configuration setCreationDate(Date messageCreation)
-        {
-            this.creationDate = messageCreation;
             return this;
         }
     }
