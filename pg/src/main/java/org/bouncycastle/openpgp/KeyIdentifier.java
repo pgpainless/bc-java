@@ -263,6 +263,26 @@ public class KeyIdentifier
         return keyId == 0L && fingerprint.length == 0;
     }
 
+    public static boolean matches(List<KeyIdentifier> identifiers, KeyIdentifier identifier, boolean explicit)
+    {
+        for (KeyIdentifier candidate : identifiers)
+        {
+            if (!explicit && candidate.isWildcard())
+            {
+                return true;
+            }
+
+            if (candidate.getFingerprint() != null &&
+                    Arrays.constantTimeAreEqual(candidate.getFingerprint(), identifier.getFingerprint()))
+            {
+                return true;
+            }
+
+            return candidate.getKeyId() == identifier.getKeyId();
+        }
+        return false;
+    }
+
     /**
      * Return true, if any of the {@link KeyIdentifier KeyIdentifiers} in the {@code identifiers} list
      * matches the given {@link PGPPublicKey}.

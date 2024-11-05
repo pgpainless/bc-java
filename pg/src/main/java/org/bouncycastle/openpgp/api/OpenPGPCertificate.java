@@ -2,22 +2,22 @@ package org.bouncycastle.openpgp.api;
 
 import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.UnsupportedPacketVersionException;
+import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * OpenPGP certificates (TPKs - transferable public keys) are long-living structures that may change during
@@ -64,54 +64,16 @@ public class OpenPGPCertificate
         }
     }
 
-    private OpenPGPPrimaryKey evaluatePrimaryKey(PGPPublicKey pk, Date evaluationTime) throws PGPException {
+    private OpenPGPPrimaryKey evaluatePrimaryKey(PGPPublicKey pk, Date evaluationTime)
+            throws PGPException
+    {
         enforceKeyVersion(pk);
+        Signatures signatures = Signatures.on(pk);
 
-        List<PGPSignature> directKeySelfSignatures = new ArrayList<>();
-        List<PGPSignature> directKey3rdPartySignatures = new ArrayList<>();
-
-        // Sort direct-key signatures by issuer
-        Iterator<PGPSignature> directKeySigs = pk.getSignaturesOfType(PGPSignature.DIRECT_KEY);
-        while (directKeySigs.hasNext())
-        {
-            PGPSignature dkSig = directKeySigs.next();
-            if (!KeyIdentifier.matches(dkSig.getKeyIdentifiers(), pk))
-            {
-                // is 3rd-party-issued sig
-                directKey3rdPartySignatures.add(dkSig);
-            }
-            else // is self-sig
-            {
-                directKeySelfSignatures.add(dkSig);
-            }
-        }
-
-        // Sort by creation time, new -> old
-        directKeySelfSignatures.sort(Comparator.comparing(PGPSignature::getCreationTime).reversed());
-
-        // Find latest signature not newer than evaluation time
-        Iterator<PGPSignature> it = directKeySelfSignatures.iterator();
-        while (it.hasNext())
-        {
-            PGPSignature sig = it.next();
-            // Skip over sigs in the future
-            if (sig.getCreationTime().after(evaluationTime))
-            {
-                continue;
-            }
-
-            sig.init(new BcPGPContentVerifierBuilderProvider(), pk);
-            boolean isSignatureCorrect = sig.verifyCertification(pk);
-            if (isSignatureCorrect)
-            {
-                
-            }
-        }
-
-        else
-        {
-
-        }
+        Signatures directKeySelfSigs = signatures
+                .ofTypes(PGPSignature.DIRECT_KEY)
+                .issuedBy(pk)
+                .createdAtOrBefore(evaluationTime);
     }
 
     private OpenPGPSubkey evaluateSubkey(PGPPublicKey rawSubkey, OpenPGPPrimaryKey primaryKey)
@@ -194,6 +156,172 @@ public class OpenPGPCertificate
                 this.verifierBuilderProvider = verifierBuilderProvider;
             }
 
+        }
+    }
+
+    public static class Signatures
+    {
+
+        // descending by creation time (newest first)
+        private final List<PGPSignature> signatures = new ArrayList<>();
+
+        public static Signatures from(List<PGPSignature> unsorted)
+        {
+            Signatures sigs = new Signatures(unsorted);
+            sigs.signatures.sort(Comparator.comparing(PGPSignature::getCreationTime).reversed());
+            return sigs;
+        }
+
+        public static Signatures on(PGPPublicKey key)
+        {
+            Iterator<PGPSignature> iterator = key.getSignatures();
+            List<PGPSignature> list = new ArrayList<>();
+            while (iterator.hasNext())
+            {
+                list.add(iterator.next());
+            }
+            return Signatures.from(list);
+        }
+
+        private Signatures(List<PGPSignature> signatures)
+        {
+            this.signatures.addAll(signatures);
+        }
+
+        /**
+         * Return all signatures.
+         *
+         * @return signatures
+         */
+        public List<PGPSignature> get()
+        {
+            return Collections.unmodifiableList(signatures);
+        }
+
+        /**
+         * Return the current-most {@link PGPSignature} that matches the criteria.
+         *
+         * @return signature or null
+         */
+        public PGPSignature current()
+        {
+            return signatures.isEmpty() ? null : signatures.get(0);
+        }
+
+        public Signatures directKeySelfSignatures(OpenPGPPrimaryKey key)
+        {
+            return ofTypes(PGPSignature.DIRECT_KEY)
+                    .issuedBy(key.getKeyIdentifier())
+                    .wellformed()
+                    .createdAtOrBefore(key.certificate.getEvaluationTime())
+                    .correct(key);
+        }
+
+        private Signatures correct(OpenPGPPrimaryKey key)
+        {
+            return this; // TODO: Implement
+        }
+
+        /**
+         * Return a {@link Signatures list} containing all {@link PGPSignature PGPSignatures} whose creation time is
+         * before or equal to the passed in evaluationTime.
+         * If all {@link PGPSignature PGPSignatures} were created after the evaluationTime, return an
+         * empty {@link Signatures list}.
+         *
+         * @param evaluationTime evaluation time
+         * @return list of signatures created before or at evaluation time
+         */
+        public Signatures createdAtOrBefore(Date evaluationTime)
+        {
+            // Find index of most recent signature that was created before or at evaluation time
+            //  and return sublist from this index
+            for (int i = 0; i < signatures.size(); i++)
+            {
+                PGPSignature sig = signatures.get(i);
+                if (!sig.getCreationTime().after(evaluationTime))
+                {
+                    return new Signatures(signatures.subList(i, signatures.size()));
+                }
+            }
+            return new Signatures(Collections.emptyList());
+        }
+
+        public Signatures issuedBy(PGPPublicKey key)
+        {
+            return issuedBy(key.getKeyIdentifier());
+        }
+
+        public Signatures issuedBy(KeyIdentifier keyIdentifier)
+        {
+            List<PGPSignature> matching = new ArrayList<>();
+            for (PGPSignature sig : signatures)
+            {
+                if (KeyIdentifier.matches(sig.getKeyIdentifiers(), keyIdentifier, true))
+                {
+                    matching.add(sig);
+                }
+            }
+            return new Signatures(matching);
+        }
+
+        public Signatures notIssuedBy(PGPPublicKey key)
+        {
+            return notIssuedBy(key.getKeyIdentifier());
+        }
+
+        public Signatures notIssuedBy(KeyIdentifier keyIdentifier)
+        {
+            List<PGPSignature> matching = new ArrayList<>();
+            for (PGPSignature sig : signatures)
+            {
+                if (!KeyIdentifier.matches(sig.getKeyIdentifiers(), keyIdentifier, true))
+                {
+                    matching.add(sig);
+                }
+            }
+            return new Signatures(matching);
+        }
+
+        public Signatures ofTypes(int... types)
+        {
+            List<PGPSignature> matching = new ArrayList<>();
+            outer: for (PGPSignature sig : signatures)
+            {
+                for (int type : types)
+                {
+                    if (sig.getSignatureType() == type)
+                    {
+                        matching.add(sig);
+                        continue outer;
+                    }
+                }
+            }
+            return new Signatures(matching);
+        }
+
+        public Signatures wellformed()
+        {
+            List<PGPSignature> wellformed = new ArrayList<>();
+            for (PGPSignature sig : signatures)
+            {
+                if (sig.getHashedSubPackets().getSignatureCreationTime() == null)
+                {
+                    continue; // Missing hashed creation time - malformed
+                }
+
+                NotationData[] hashedNotations = sig.getHashedSubPackets().getNotationDataOccurrences();
+                for (NotationData notation : hashedNotations)
+                {
+                    if (!NotationPredicate.fromNotationRegistry(new NotationRegistry())
+                            .accept(notation))
+                    {
+                        continue; // Unknown critical notation
+                    }
+                }
+
+                wellformed.add(sig);
+            }
+            return new Signatures(wellformed);
         }
     }
 
