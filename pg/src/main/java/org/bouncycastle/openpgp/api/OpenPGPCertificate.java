@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.BinaryOperator;
 
 /**
  * OpenPGP certificates (TPKs - transferable public keys) are long-living structures that may change during
@@ -36,19 +38,28 @@ import java.util.Map;
  */
 public class OpenPGPCertificate
 {
+    private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
+
     protected final PGPPublicKeyRing rawCert;
     protected final Date evaluationTime;
 
     protected final OpenPGPPrimaryKey primaryKey;
     protected final Map<KeyIdentifier, OpenPGPSubkey> subkeys = new HashMap<>();
 
-    public OpenPGPCertificate(PGPPublicKeyRing rawCert)
+    public OpenPGPCertificate(PGPPublicKeyRing rawCert,
+                              PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+            throws PGPException
     {
-        this(rawCert, new Date());
+        this(rawCert, new Date(), contentVerifierBuilderProvider);
     }
 
-    public OpenPGPCertificate(PGPPublicKeyRing rawCert, Date evaluationTime)
+    public OpenPGPCertificate(PGPPublicKeyRing rawCert,
+                              Date evaluationTime,
+                              PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+            throws PGPException
     {
+        this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
+
         this.rawCert = rawCert;
         this.evaluationTime = evaluationTime;
 
@@ -68,12 +79,54 @@ public class OpenPGPCertificate
             throws PGPException
     {
         enforceKeyVersion(pk);
-        Signatures signatures = Signatures.on(pk);
+        Signatures signatures = Signatures.on(pk, contentVerifierBuilderProvider);
 
         Signatures directKeySelfSigs = signatures
                 .ofTypes(PGPSignature.DIRECT_KEY)
+                .wellformed()
                 .issuedBy(pk)
                 .createdAtOrBefore(evaluationTime);
+        OpenPGPSignature directKeySelfSignature = findCorrectKeySignature(directKeySelfSigs, pk, pk);
+
+        Signatures keyRevocationSelfSigs = signatures
+                .ofTypes(PGPSignature.KEY_REVOCATION)
+                .wellformed()
+                .issuedBy(pk)
+                .createdAtOrBefore(evaluationTime);
+        OpenPGPSignature keyRevocationSelfSignature = findCorrectKeySignature(keyRevocationSelfSigs, pk, pk);
+
+        return new OpenPGPPrimaryKey(this);
+    }
+
+    private OpenPGPSignature findCorrectKeySignature(Signatures candidates, PGPPublicKey issuer, PGPPublicKey target)
+    {
+        OpenPGPSignature correctSignature = null;
+        for (OpenPGPSignature sig : candidates.get())
+        {
+            if (sig.isTestedCorrect())
+            {
+                correctSignature = sig;
+                break;
+            }
+
+            if (!sig.isTested)
+            {
+                try
+                {
+                    boolean correct = sig.verifyKeySignature(issuer, target);
+                    if (correct)
+                    {
+                        correctSignature = sig;
+                        break;
+                    }
+                }
+                catch (PGPException e)
+                {
+                    continue;
+                }
+            }
+        }
+        return correctSignature;
     }
 
     private OpenPGPSubkey evaluateSubkey(PGPPublicKey rawSubkey, OpenPGPPrimaryKey primaryKey)
@@ -99,12 +152,12 @@ public class OpenPGPCertificate
     public OpenPGPCertificate evaluateFor(PGPSignature signature, PGPPublicKeyRing rawCert)
     {
         // TODO: Sanitize signature creation time
-        return new OpenPGPCertificate(rawCert, signature.getCreationTime());
+        return new OpenPGPCertificate(rawCert, signature.getCreationTime(), contentVerifierBuilderProvider);
     }
 
     public OpenPGPCertificate reevaluateAt(Date evaluationTime)
     {
-        return new OpenPGPCertificate(rawCert, evaluationTime);
+        return new OpenPGPCertificate(rawCert, evaluationTime, contentVerifierBuilderProvider);
     }
 
     public OpenPGPPrimaryKey getPrimaryKey()
@@ -162,28 +215,39 @@ public class OpenPGPCertificate
     public static class Signatures
     {
 
-        // descending by creation time (newest first)
-        private final List<PGPSignature> signatures = new ArrayList<>();
+        // Sort signatures by hard-revocation-ness. Hard revocation are sorted to the front of the list
+        private static final Comparator<OpenPGPSignature> hardRevocationComparator = (one, two) ->
+        {
+            boolean oneHard = one.signature.isHardRevocation();
+            boolean twoHard = two.signature.isHardRevocation();
+            return oneHard == twoHard ? 0 : (oneHard ? -1 : 1);
+        };
 
-        public static Signatures from(List<PGPSignature> unsorted)
+        // descending by creation time (newest first)
+        private final List<OpenPGPSignature> signatures = new ArrayList<>();
+
+        public static Signatures from(List<OpenPGPSignature> unsorted)
         {
             Signatures sigs = new Signatures(unsorted);
-            sigs.signatures.sort(Comparator.comparing(PGPSignature::getCreationTime).reversed());
+            sigs.signatures.sort(Comparator
+                    .comparing(OpenPGPSignature::getCreationTime)
+                    .reversed()
+                    .thenComparing(hardRevocationComparator));
             return sigs;
         }
 
-        public static Signatures on(PGPPublicKey key)
+        public static Signatures on(PGPPublicKey key, PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
         {
             Iterator<PGPSignature> iterator = key.getSignatures();
-            List<PGPSignature> list = new ArrayList<>();
+            List<OpenPGPSignature> list = new ArrayList<>();
             while (iterator.hasNext())
             {
-                list.add(iterator.next());
+                list.add(new OpenPGPSignature(iterator.next(), contentVerifierBuilderProvider));
             }
             return Signatures.from(list);
         }
 
-        private Signatures(List<PGPSignature> signatures)
+        private Signatures(List<OpenPGPSignature> signatures)
         {
             this.signatures.addAll(signatures);
         }
@@ -193,7 +257,7 @@ public class OpenPGPCertificate
          *
          * @return signatures
          */
-        public List<PGPSignature> get()
+        public List<OpenPGPSignature> get()
         {
             return Collections.unmodifiableList(signatures);
         }
@@ -203,47 +267,42 @@ public class OpenPGPCertificate
          *
          * @return signature or null
          */
-        public PGPSignature current()
+        public OpenPGPSignature current()
         {
             return signatures.isEmpty() ? null : signatures.get(0);
         }
 
-        public Signatures directKeySelfSignatures(OpenPGPPrimaryKey key)
-        {
-            return ofTypes(PGPSignature.DIRECT_KEY)
-                    .issuedBy(key.getKeyIdentifier())
-                    .wellformed()
-                    .createdAtOrBefore(key.certificate.getEvaluationTime())
-                    .correct(key);
-        }
-
-        private Signatures correct(OpenPGPPrimaryKey key)
-        {
-            return this; // TODO: Implement
-        }
-
         /**
          * Return a {@link Signatures list} containing all {@link PGPSignature PGPSignatures} whose creation time is
-         * before or equal to the passed in evaluationTime.
+         * before or equal to the passed in evaluationTime, or who are hard revocations.
          * If all {@link PGPSignature PGPSignatures} were created after the evaluationTime, return an
          * empty {@link Signatures list}.
          *
          * @param evaluationTime evaluation time
-         * @return list of signatures created before or at evaluation time
+         * @return list of signatures which were created before or at evaluation time or which are hard revocations
          */
         public Signatures createdAtOrBefore(Date evaluationTime)
         {
+            List<OpenPGPSignature> matching = new ArrayList<>();
             // Find index of most recent signature that was created before or at evaluation time
             //  and return sublist from this index
-            for (int i = 0; i < signatures.size(); i++)
+            for (OpenPGPSignature sig : signatures)
             {
-                PGPSignature sig = signatures.get(i);
+                // hard revocations are effective at any time
+                if (sig.signature.isHardRevocation())
+                {
+                    matching.add(sig);
+                    continue;
+                }
+
+                // sig was created at or before eval time
                 if (!sig.getCreationTime().after(evaluationTime))
                 {
-                    return new Signatures(signatures.subList(i, signatures.size()));
+                    matching.add(sig);
                 }
             }
-            return new Signatures(Collections.emptyList());
+
+            return new Signatures(matching);
         }
 
         public Signatures issuedBy(PGPPublicKey key)
@@ -253,10 +312,10 @@ public class OpenPGPCertificate
 
         public Signatures issuedBy(KeyIdentifier keyIdentifier)
         {
-            List<PGPSignature> matching = new ArrayList<>();
-            for (PGPSignature sig : signatures)
+            List<OpenPGPSignature> matching = new ArrayList<>();
+            for (OpenPGPSignature sig : signatures)
             {
-                if (KeyIdentifier.matches(sig.getKeyIdentifiers(), keyIdentifier, true))
+                if (KeyIdentifier.matches(sig.signature.getKeyIdentifiers(), keyIdentifier, true))
                 {
                     matching.add(sig);
                 }
@@ -271,10 +330,10 @@ public class OpenPGPCertificate
 
         public Signatures notIssuedBy(KeyIdentifier keyIdentifier)
         {
-            List<PGPSignature> matching = new ArrayList<>();
-            for (PGPSignature sig : signatures)
+            List<OpenPGPSignature> matching = new ArrayList<>();
+            for (OpenPGPSignature sig : signatures)
             {
-                if (!KeyIdentifier.matches(sig.getKeyIdentifiers(), keyIdentifier, true))
+                if (!KeyIdentifier.matches(sig.signature.getKeyIdentifiers(), keyIdentifier, true))
                 {
                     matching.add(sig);
                 }
@@ -284,12 +343,12 @@ public class OpenPGPCertificate
 
         public Signatures ofTypes(int... types)
         {
-            List<PGPSignature> matching = new ArrayList<>();
-            outer: for (PGPSignature sig : signatures)
+            List<OpenPGPSignature> matching = new ArrayList<>();
+            outer: for (OpenPGPSignature sig : signatures)
             {
                 for (int type : types)
                 {
-                    if (sig.getSignatureType() == type)
+                    if (sig.signature.getSignatureType() == type)
                     {
                         matching.add(sig);
                         continue outer;
@@ -301,15 +360,15 @@ public class OpenPGPCertificate
 
         public Signatures wellformed()
         {
-            List<PGPSignature> wellformed = new ArrayList<>();
-            for (PGPSignature sig : signatures)
+            List<OpenPGPSignature> wellformed = new ArrayList<>();
+            for (OpenPGPSignature sig : signatures)
             {
-                if (sig.getHashedSubPackets().getSignatureCreationTime() == null)
+                if (sig.signature.getHashedSubPackets().getSignatureCreationTime() == null)
                 {
                     continue; // Missing hashed creation time - malformed
                 }
 
-                NotationData[] hashedNotations = sig.getHashedSubPackets().getNotationDataOccurrences();
+                NotationData[] hashedNotations = sig.signature.getHashedSubPackets().getNotationDataOccurrences();
                 for (NotationData notation : hashedNotations)
                 {
                     if (!NotationPredicate.fromNotationRegistry(new NotationRegistry())
@@ -359,9 +418,145 @@ public class OpenPGPCertificate
     public static class OpenPGPUserId extends OpenPGPIdentityComponent
     {
         public OpenPGPUserId(String userId, OpenPGPPrimaryKey primaryKey)
+        {
+
+        }
     }
 
     public static class OpenPGPUserAttribute extends OpenPGPIdentityComponent
+    {
+
+    }
+
+    public static class OpenPGPSignature
+    {
+        private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
+        private final PGPSignature signature;
+        private boolean isTested = false;
+        private boolean isCorrect = false;
+
+        public OpenPGPSignature(PGPSignature signature, PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+        {
+            this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
+            this.signature = signature;
+        }
+
+        public boolean isTestedCorrect()
+        {
+            return isTested && isCorrect;
+        }
+
+        public boolean verifyKeySignature(PGPPublicKey issuer, PGPPublicKey target)
+                throws PGPException
+        {
+            this.isTested = true;
+            try
+            {
+                signature.init(contentVerifierBuilderProvider, issuer);
+                isCorrect = signature.verifyCertification(target);
+                return isCorrect;
+            }
+            catch (PGPException e)
+            {
+                this.isCorrect = false;
+                throw e;
+            }
+        }
+
+        public Date getCreationTime()
+        {
+            return signature.getCreationTime();
+        }
+
+        public Date getExpirationTime() {
+            return null;
+        }
+    }
+
+    public static class OpenPGPSignatureChain
+    {
+        private final List<Link> chainLinks = new ArrayList<>();
+
+        public Link getRoot()
+        {
+            return chainLinks.get(0);
+        }
+
+        public Link getHead()
+        {
+            return chainLinks.get(chainLinks.size() - 1);
+        }
+
+        /**
+         * Return the date since which this signature chain is valid.
+         * This is the creation time of the most recent link in the chain.
+         *
+         * @return most recent signature creation time
+         */
+        public Date getSince()
+        {
+            // Find most recent chain link
+            return chainLinks.stream()
+                    .map(it -> it.signature)
+                    .max(Comparator.comparing(OpenPGPSignature::getCreationTime))
+                    .map(OpenPGPSignature::getCreationTime)
+                    .orElse(null);
+        }
+
+        /**
+         * Return the date until which the chain link is valid.
+         * This is the earliest expiration time of any signature in the chain.
+         *
+         * @return earliest expiration time
+         */
+        public Date getUntil()
+        {
+            return getHead().until();
+        }
+
+        public static abstract class Link
+        {
+            protected final OpenPGPSignature signature;
+
+            public Link(OpenPGPSignature signature)
+            {
+                this.signature = signature;
+            }
+
+            public Date since()
+            {
+                return signature.getCreationTime();
+            }
+
+            public Date until()
+            {
+                return signature.getExpirationTime();
+            }
+        }
+
+        public static class Valid extends Link
+        {
+            public Valid(OpenPGPSignature signature) {
+                super(signature);
+            }
+        }
+
+        public static class Expired extends Link
+        {
+            public Expired(OpenPGPSignature signature) {
+                super(signature);
+            }
+        }
+
+        public static class Revoked extends Link
+        {
+            public Revoked(OpenPGPSignature signature) {
+                super(signature);
+            }
+        }
+    }
+
+    public static class MultiDimensionalLazyCachingTemporalSuperDataStructure
     {
 
     }
