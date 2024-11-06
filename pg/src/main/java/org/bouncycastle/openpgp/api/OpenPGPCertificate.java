@@ -374,6 +374,9 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * Component on an OpenPGP certificate.
+     */
     public static class OpenPGPCertificateComponent
     {
 
@@ -385,7 +388,8 @@ public class OpenPGPCertificate
      * @see <a href="https://openpgp.dev/book/certificates.html#layers-of-keys-in-openpgp">
      *     OpenPGP for Application Developers - Layers of keys in OpenPGP</a>
      */
-    public static class OpenPGPComponentKey extends OpenPGPCertificateComponent
+    public static class OpenPGPComponentKey
+            extends OpenPGPCertificateComponent
     {
         protected final PGPPublicKey rawPubkey;
         protected final OpenPGPCertificate certificate;
@@ -400,25 +404,13 @@ public class OpenPGPCertificate
         {
             return null; // TODO: Fix
         }
-
-        public Builder builder(PGPContentVerifierBuilderProvider verifierBuilderProvider)
-        {
-            return new Builder(verifierBuilderProvider);
-        }
-
-        public static class Builder
-        {
-            private final PGPContentVerifierBuilderProvider verifierBuilderProvider;
-
-            public Builder(PGPContentVerifierBuilderProvider verifierBuilderProvider)
-            {
-                this.verifierBuilderProvider = verifierBuilderProvider;
-            }
-
-        }
     }
 
-    public static class OpenPGPPrimaryKey extends OpenPGPComponentKey
+    /**
+     * The primary key of a {@link OpenPGPCertificate}.
+     */
+    public static class OpenPGPPrimaryKey
+            extends OpenPGPComponentKey
     {
         protected List<OpenPGPIdentityComponent> identityComponents;
 
@@ -428,7 +420,11 @@ public class OpenPGPCertificate
         }
     }
 
-    public static class OpenPGPSubkey extends OpenPGPComponentKey
+    /**
+     * A subkey on a {@link OpenPGPCertificate}.
+     */
+    public static class OpenPGPSubkey
+            extends OpenPGPComponentKey
     {
         public OpenPGPSubkey(PGPPublicKey rawPubkey, OpenPGPCertificate certificate)
         {
@@ -441,7 +437,12 @@ public class OpenPGPCertificate
         }
     }
 
-    public static class OpenPGPIdentityComponent extends OpenPGPCertificateComponent
+    /**
+     * An identity bound to the {@link OpenPGPPrimaryKey} of a {@link OpenPGPCertificate}.
+     * An identity may either be a {@link OpenPGPUserId} or (deprecated) {@link OpenPGPUserAttribute}.
+     */
+    public static class OpenPGPIdentityComponent
+            extends OpenPGPCertificateComponent
     {
         private final OpenPGPPrimaryKey primaryKey;
 
@@ -456,6 +457,9 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * A UserId.
+     */
     public static class OpenPGPUserId extends OpenPGPIdentityComponent
     {
         private final String userId;
@@ -472,7 +476,12 @@ public class OpenPGPCertificate
         }
     }
 
-    public static class OpenPGPUserAttribute extends OpenPGPIdentityComponent
+    /**
+     * A UserAttribute.
+     * Use of UserAttributes is deprecated in RFC9580.
+     */
+    public static class OpenPGPUserAttribute
+            extends OpenPGPIdentityComponent
     {
 
         private final PGPUserAttributeSubpacketVector userAttribute;
@@ -489,6 +498,9 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * An OpenPGP signature.
+     */
     public static class OpenPGPSignature
     {
         protected final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
@@ -524,6 +536,10 @@ public class OpenPGPCertificate
 
     }
 
+    /**
+     * An {@link OpenPGPSignature} made over data (e.g. a message).
+     * An {@link OpenPGPDataSignature} CANNOT live on a {@link OpenPGPCertificate}.
+     */
     public static class OpenPGPDataSignature
             extends OpenPGPSignature
     {
@@ -536,7 +552,7 @@ public class OpenPGPCertificate
     }
 
     /**
-     * OpenPGP Signature made over some {@link OpenPGPCertificateComponent}.
+     * OpenPGP Signature made over some {@link OpenPGPCertificateComponent} on a {@link OpenPGPCertificate}.
      */
     public static class OpenPGPComponentSignature
             extends OpenPGPSignature
@@ -565,6 +581,17 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * Chain of {@link OpenPGPSignature signatures}.
+     * Such a chain originates from a certificates primary key and points towards some certificate component that
+     * is bound to the certificate.
+     * As for example a subkey can only be bound by a primary key that holds either at least one
+     * direct-key self-signature or at least one user-id binding signature, multiple signatures may form
+     * a validity chain.
+     * An {@link OpenPGPSignatureChain} can either be a certification
+     * ({@link #isCertification()}), e.g. it represents a positive binding,
+     * or it can be a revocation ({@link #isRevocation()}) which invalidates a positive binding.
+     */
     public static class OpenPGPSignatureChain
     {
         private final List<Link> chainLinks = new ArrayList<>();
@@ -652,6 +679,9 @@ public class OpenPGPCertificate
                     evaluationDate.before(getUntil());
         }
 
+        /**
+         * Link in a {@link OpenPGPSignatureChain}.
+         */
         public static abstract class Link
         {
             protected final OpenPGPComponentSignature signature;
@@ -707,15 +737,27 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * Collection of multiple {@link OpenPGPSignatureChain} objects.
+     */
     public static class OpenPGPSignatureChains
     {
         private final List<OpenPGPSignatureChain> chains = new ArrayList<>();
 
+        /**
+         * Add a single chain to the collection.
+         * @param chain chain
+         */
         public void add(OpenPGPSignatureChain chain)
         {
             this.chains.add(chain);
         }
 
+        /**
+         * Return a positive certification chain for the component for the given evaluationTime.
+         * @param evaluationTime time for which validity of the {@link OpenPGPCertificateComponent} is checked.
+         * @return positive certification chain or null
+         */
         public OpenPGPSignatureChain getCertificationAt(Date evaluationTime)
         {
             for (OpenPGPSignatureChain chain : chains)
@@ -728,6 +770,11 @@ public class OpenPGPCertificate
             return null;
         }
 
+        /**
+         * Return a negative certification chain for the component for the given evaluationTime.
+         * @param evaluationTime time for which revocation-ness of the {@link OpenPGPCertificateComponent} is checked.
+         * @return negative certification chain or null
+         */
         public OpenPGPSignatureChain getRevocationAt(Date evaluationTime)
         {
             for (OpenPGPSignatureChain chain : chains)
@@ -740,6 +787,12 @@ public class OpenPGPCertificate
             return null;
         }
 
+        /**
+         * Returns true if for the given {@link OpenPGPCertificateComponent}, there is a valid, positive
+         * {@link OpenPGPSignatureChain} while at the same time there is no valid revoking chain.
+         * @param evaluationTime time at which the component is tested
+         * @return true if component it validly bound and not revoked at evaluation time
+         */
         public boolean isCertifiedAt(Date evaluationTime)
         {
             // Is certified AND NOT revoked
@@ -748,6 +801,12 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * Lazy data structure that holds a map containing {@link OpenPGPCertificateComponent components} and their
+     * {@link OpenPGPSignatureChains}.
+     * The idea is, that we can lazily evaluate temporal validity of components by checking required signatures
+     * and have the data structure as a cache in order to prevent repeated verification of the same signatures.
+     */
     public static class LazyTemporalSignatureChainCache
     {
         private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> boundComponents = new HashMap<>();
