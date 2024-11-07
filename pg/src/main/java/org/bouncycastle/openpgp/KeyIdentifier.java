@@ -347,6 +347,33 @@ public class KeyIdentifier
         return false;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null)
+        {
+            return false;
+        }
+        if (this == obj)
+        {
+            return true;
+        }
+        if (!(obj instanceof KeyIdentifier))
+        {
+            return false;
+        }
+        KeyIdentifier other = (KeyIdentifier) obj;
+        if (getFingerprint() != null && other.getFingerprint() != null)
+        {
+            return Arrays.constantTimeAreEqual(getFingerprint(), other.getFingerprint());
+        }
+        return getKeyId() == other.getKeyId();
+    }
+
+    @Override
+    public int hashCode() {
+        return (int) getKeyId();
+    }
+
     public String toString()
     {
         if (isWildcard())

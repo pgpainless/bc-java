@@ -2,7 +2,6 @@ package org.bouncycastle.openpgp.api;
 
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.openpgp.KeyIdentifier;
-import org.bouncycastle.openpgp.PGPEncryptedDataList;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
@@ -10,6 +9,7 @@ import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
+import org.bouncycastle.util.encoders.Hex;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,12 +37,14 @@ import java.util.Map;
  */
 public class OpenPGPCertificate
 {
+    private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
     protected Date evaluationTime;
 
     protected final PGPPublicKeyRing rawCert;
     protected final OpenPGPPrimaryKey primaryKey;
     protected final Map<KeyIdentifier, OpenPGPSubkey> subkeys;
-    protected final LazyTemporalSignatureChainCache certificationCache;
+
+    private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> componentSignatureChains = new HashMap<>();
 
     public OpenPGPCertificate(PGPPublicKeyRing rawCert,
                               PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
@@ -54,7 +56,7 @@ public class OpenPGPCertificate
                               Date evaluationTime,
                               PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
     {
-        this.certificationCache = new LazyTemporalSignatureChainCache(contentVerifierBuilderProvider);
+        this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
 
         this.rawCert = rawCert;
         this.evaluationTime = evaluationTime;
@@ -62,7 +64,7 @@ public class OpenPGPCertificate
         Iterator<PGPPublicKey> rawKeys = rawCert.getPublicKeys();
         PGPPublicKey rawPrimaryKey = rawKeys.next();
         this.primaryKey = new OpenPGPPrimaryKey(rawPrimaryKey, this);
-        certificationCache.cachePrimaryKey(primaryKey);
+        cachePrimaryKey(primaryKey);
 
         this.subkeys = new HashMap<>();
         while (rawKeys.hasNext())
@@ -70,7 +72,7 @@ public class OpenPGPCertificate
             PGPPublicKey rawSubkey = rawKeys.next();
             OpenPGPSubkey subkey = new OpenPGPSubkey(rawSubkey, this);
             subkeys.put(new KeyIdentifier(rawSubkey), subkey);
-            certificationCache.cacheSubkey(subkey);
+            cacheSubkey(subkey);
         }
     }
 
@@ -125,14 +127,116 @@ public class OpenPGPCertificate
         return rawCert;
     }
 
-    public boolean isBound(OpenPGPCertificateComponent component)
+    private void cachePrimaryKey(OpenPGPPrimaryKey primaryKey)
+    {
+        OpenPGPSignatureChains keySignatureChains = new OpenPGPSignatureChains(primaryKey);
+        Signatures keySignatures = Signatures.keySignaturesOn(primaryKey);
+
+        // Key Signatures
+        for (OpenPGPComponentSignature sig : keySignatures.get())
+        {
+            OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, primaryKey, primaryKey);
+            keySignatureChains.add(chain);
+        }
+        componentSignatureChains.put(primaryKey, keySignatureChains);
+
+        // Identities
+        for (OpenPGPIdentityComponent identity : primaryKey.identityComponents)
+        {
+            OpenPGPSignatureChains identityChains = new OpenPGPSignatureChains(identity);
+            Signatures bindings;
+
+            if (identity instanceof OpenPGPUserId)
+            {
+                bindings = Signatures.userIdSignaturesOn(
+                        primaryKey,
+                        ((OpenPGPUserId) identity).userId);
+            }
+            else
+            {
+                bindings = Signatures.userAttributeSignaturesOn(
+                        primaryKey,
+                        ((OpenPGPUserAttribute) identity).userAttribute);
+            }
+
+            for (OpenPGPComponentSignature sig : bindings.get())
+            {
+                OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, primaryKey, identity);
+                identityChains.add(chain);
+            }
+            componentSignatureChains.put(identity, identityChains);
+        }
+    }
+
+    private void cacheSubkey(OpenPGPSubkey subkey)
+    {
+        Signatures bindingSignatures = Signatures.keySignaturesOn(subkey);
+        OpenPGPSignatureChains subkeyChains = new OpenPGPSignatureChains(subkey);
+
+        for (OpenPGPComponentSignature sig : bindingSignatures.get())
+        {
+            OpenPGPComponentKey issuer = subkey.getCertificate().getComponentKey(sig.signature.getKeyIdentifiers());
+            OpenPGPSignatureChain issuerChain = getSignatureChainFor(issuer, primaryKey, sig.getCreationTime());
+            if (issuerChain != null)
+            {
+                subkeyChains.add(issuerChain.plus(sig, subkey));
+            }
+            else
+            {
+                subkeyChains.add(new OpenPGPSignatureChain(new OpenPGPSignatureChain.Certification(sig, null, subkey)));
+            }
+        }
+        this.componentSignatureChains.put(subkey, subkeyChains);
+    }
+
+    private OpenPGPSignatureChain getSignatureChainFor(OpenPGPCertificateComponent component,
+                                                       OpenPGPComponentKey origin,
+                                                       Date evaluationDate)
+    {
+        // Check if there are signatures at all for the component
+        OpenPGPSignatureChains chains = this.componentSignatureChains.get(component);
+        if (chains == null)
+        {
+            return null;
+        }
+
+        OpenPGPSignatureChains fromOrigin = chains.fromOrigin(origin);
+        if (fromOrigin == null)
+        {
+            return null;
+        }
+
+        // If there is a revocation, return it
+        OpenPGPSignatureChain revocation = fromOrigin.getRevocationAt(evaluationDate);
+        if (revocation != null)
+        {
+            return revocation;
+        }
+
+        // else return a certification
+        return fromOrigin.getCertificationAt(evaluationDate);
+    }
+
+    public OpenPGPSignatureChains getAllSignatureChainsFor(OpenPGPCertificateComponent component)
+    {
+        return componentSignatureChains.get(component);
+    }
+
+    public boolean isAuthenticated(OpenPGPCertificateComponent component)
+    {
+        return isAuthenticatedBy(component, getPrimaryKey());
+    }
+
+    public boolean isAuthenticatedBy(OpenPGPCertificateComponent component, OpenPGPComponentKey root)
     {
         try
         {
-            boolean valid = certificationCache.getSignatureChainFor(component, evaluationTime)
-                    .isValid(certificationCache.contentVerifierBuilderProvider);
-            System.out.println(certificationCache.allChains.get(component).toString());
-            return valid;
+            OpenPGPSignatureChain chain = getSignatureChainFor(component, root, evaluationTime);
+            if (chain != null)
+            {
+                return chain.isValid(contentVerifierBuilderProvider);
+            }
+            return false;
         }
         catch (PGPException e)
         {
@@ -143,6 +247,11 @@ public class OpenPGPCertificate
     public Map<KeyIdentifier, OpenPGPSubkey> getSubkeys()
     {
         return new HashMap<>(subkeys);
+    }
+
+    public List<OpenPGPCertificateComponent> getComponents()
+    {
+        return new ArrayList<>(componentSignatureChains.keySet());
     }
 
     /**
@@ -389,11 +498,12 @@ public class OpenPGPCertificate
         }
     }
 
-    private OpenPGPComponentKey getComponentKey(List<KeyIdentifier> keyIdentifiers) {
+    private OpenPGPComponentKey getComponentKey(List<KeyIdentifier> keyIdentifiers)
+    {
         // We take a list here, since signatures might contain multiple issuer subpackets annoyingly.
         // issuer is primary key
 
-        if (KeyIdentifier.matches(keyIdentifiers, primaryKey.getKeyIdentifier(), false))
+        if (KeyIdentifier.matches(keyIdentifiers, getPrimaryKey().getKeyIdentifier(), false))
         {
             return primaryKey;
         }
@@ -458,8 +568,9 @@ public class OpenPGPCertificate
             extends OpenPGPComponentKey
     {
         @Override
-        public String toString() {
-            return "PrimaryKey[" + getKeyIdentifier() + "]";
+        public String toString()
+        {
+            return "PrimaryKey[" + Long.toHexString(getKeyIdentifier().getKeyId()).toUpperCase() + "]";
         }
 
         protected final List<OpenPGPIdentityComponent> identityComponents;
@@ -483,8 +594,9 @@ public class OpenPGPCertificate
         }
 
         @Override
-        public String toString() {
-            return "Subkey[" + getKeyIdentifier() + "]";
+        public String toString()
+        {
+            return "Subkey[" + Long.toHexString(getKeyIdentifier().getKeyId()).toUpperCase() + "]";
         }
     }
 
@@ -524,7 +636,8 @@ public class OpenPGPCertificate
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "UserID[" + userId + "]";
         }
     }
@@ -551,8 +664,9 @@ public class OpenPGPCertificate
         }
 
         @Override
-        public String toString() {
-            return "UserAttribute";
+        public String toString()
+        {
+            return "UserAttribute" + userAttribute.toString();
         }
     }
 
@@ -580,7 +694,8 @@ public class OpenPGPCertificate
             return signature.getCreationTime();
         }
 
-        public Date getExpirationTime() {
+        public Date getExpirationTime()
+        {
             return null;
         }
 
@@ -612,18 +727,37 @@ public class OpenPGPCertificate
             extends OpenPGPSignature
     {
 
-        private OpenPGPComponentKey issuer;
+        private final OpenPGPComponentKey issuer;
         private final OpenPGPCertificateComponent target;
 
         @Override
         public String toString()
         {
-            String issuerInfo = issuer != null ?
-                    issuer.toString() :
-                    signature.getKeyIdentifiers().get(0).toString();
+            String issuerInfo = getIssuerDisplay();
             String period = getCreationTime() + (getExpirationTime() == null ? "" : ">" + getExpirationTime());
             String validity = isTested ? (isCorrect ? "✓" : "✗") : "❓";
-            return getType() + " " + issuerInfo + " -> " + target.toString() + " (" + period + ") " + validity;
+            return getType() + " " + Hex.toHexString(signature.getDigestPrefix()) +
+                    " " + issuerInfo + " -> " + target.toString() + " (" + period + ") " + validity;
+        }
+
+        private String getIssuerDisplay()
+        {
+            if (issuer != null)
+            {
+                return issuer.toString();
+            }
+
+            List<KeyIdentifier> issuerPackets = signature.getKeyIdentifiers();
+            if (issuerPackets.isEmpty())
+            {
+                return "External[unknown]";
+            }
+            KeyIdentifier identifier = issuerPackets.get(0);
+            if (identifier.isWildcard())
+            {
+                return "Anonymous";
+            }
+            return "External[" + Long.toHexString(identifier.getKeyId()).toUpperCase() + "]";
         }
 
         private String getType()
@@ -734,6 +868,7 @@ public class OpenPGPCertificate
                                           PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPException
         {
+            System.out.println("Test KeySig " + Hex.toHexString(signature.getDigestPrefix()));
             this.isTested = true;
             try
             {
@@ -761,6 +896,7 @@ public class OpenPGPCertificate
                                              PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPException
         {
+            System.out.println("Test UIDSig " + Hex.toHexString(signature.getDigestPrefix()));
             this.isTested = true;
             try
             {
@@ -780,6 +916,7 @@ public class OpenPGPCertificate
                                                     PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPException
         {
+            System.out.println("Test UAttrSig " + Hex.toHexString(signature.getDigestPrefix()));
             this.isTested = true;
             try
             {
@@ -798,6 +935,21 @@ public class OpenPGPCertificate
         {
             return PGPSignature.isRevocation(signature.getSignatureType());
         }
+
+        public OpenPGPComponentKey getAuthenticatedKeyComponent()
+        {
+            if (target instanceof OpenPGPIdentityComponent)
+            {
+                // Identity signatures indirectly authenticate the primary key
+                return ((OpenPGPIdentityComponent) target).getPrimaryKey();
+            }
+            if (target instanceof OpenPGPComponentKey)
+            {
+                // Key signatures authenticate the target key
+                return (OpenPGPComponentKey) target;
+            }
+            throw new IllegalArgumentException("Unknown target type.");
+        }
     }
 
     /**
@@ -815,51 +967,62 @@ public class OpenPGPCertificate
     {
         private final List<Link> chainLinks = new ArrayList<>();
 
-        public OpenPGPSignatureChain()
+        private OpenPGPSignatureChain(Link rootLink)
         {
-
+            this.chainLinks.add(rootLink);
         }
 
-        public static OpenPGPSignatureChain plus(OpenPGPSignatureChain base, OpenPGPComponentSignature sig, OpenPGPCertificateComponent targetComponent)
+        // copy constructor
+        private OpenPGPSignatureChain(OpenPGPSignatureChain copy)
         {
-            OpenPGPSignatureChain chain = new OpenPGPSignatureChain();
-            chain.chainLinks.addAll(base.chainLinks);
+            this.chainLinks.addAll(copy.chainLinks);
+        }
 
-            if (sig.isRevocation())
+        /**
+         * Return an NEW instance of the {@link OpenPGPSignatureChain} with the new link appended.
+         * @param sig signature
+         * @param targetComponent signature target
+         * @return new instance
+         */
+        public OpenPGPSignatureChain plus(OpenPGPComponentSignature sig, OpenPGPCertificateComponent targetComponent)
+        {
+            if (getHeadKey() != sig.issuer)
             {
-                chain.chainLinks.add(new Revocation(sig, chain.getHead().issuer, targetComponent));
+                throw new IllegalArgumentException("Chain head is not equal to link issuer.");
             }
-            else
-            {
-                chain.chainLinks.add(new Certification(sig, chain.getHead().issuer, targetComponent));
-            }
+
+            OpenPGPSignatureChain chain = new OpenPGPSignatureChain(this);
+
+            chain.chainLinks.add(Link.create(sig, sig.issuer, targetComponent));
+
             return chain;
         }
 
-        public static OpenPGPSignatureChain from(OpenPGPComponentSignature sig,
-                                                 OpenPGPComponentKey issuer,
-                                                 OpenPGPCertificateComponent targetComponent)
+        public static OpenPGPSignatureChain direct(OpenPGPComponentSignature sig,
+                                                   OpenPGPComponentKey issuer,
+                                                   OpenPGPCertificateComponent targetComponent)
         {
-            OpenPGPSignatureChain chain = new OpenPGPSignatureChain();
-            if (sig.isRevocation())
-            {
-                chain.chainLinks.add(new Revocation(sig, issuer, targetComponent));
-            }
-            else
-            {
-                chain.chainLinks.add(new Certification(sig, issuer, targetComponent));
-            }
-            return chain;
+            return new OpenPGPSignatureChain(Link.create(sig, issuer, targetComponent));
         }
 
-        public Link getRoot()
+        public Link getRootLink()
         {
             return chainLinks.get(0);
         }
 
-        public Link getHead()
+        public OpenPGPComponentKey getRootKey()
+        {
+            return getRootLink().issuer;
+        }
+
+        public Link getHeadLink()
         {
             return chainLinks.get(chainLinks.size() - 1);
+        }
+
+        public OpenPGPComponentKey getHeadKey()
+        {
+            return getHeadLink().signature.getAuthenticatedKeyComponent();
         }
 
         public boolean isCertification()
@@ -910,7 +1073,7 @@ public class OpenPGPCertificate
          */
         public Date getUntil()
         {
-            return getHead().until();
+            return getHeadLink().until();
         }
 
         public boolean isEffectiveAt(Date evaluationDate)
@@ -923,30 +1086,28 @@ public class OpenPGPCertificate
         public boolean isValid(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPException
         {
+            boolean correct = true;
             for (Link link : chainLinks)
             {
-                if (!(link instanceof Certification))
+                if (!link.signature.isTested)
                 {
-                    return false;
+                    link.verify(contentVerifierBuilderProvider);
                 }
 
-                if (link.signature.isTestedCorrect())
+                if (!link.signature.isCorrect)
                 {
-                    continue;
-                }
-
-                if (!link.verify(contentVerifierBuilderProvider))
-                {
-                    return false;
+                    correct = false;
                 }
             }
-            return true;
+            return correct;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             StringBuilder b = new StringBuilder();
-            b.append("Chain (").append(getSince()).append(">").append(getUntil()).append(")\n");
+            String until = getUntil() == null ? "EndOfTime" : getUntil().toString();
+            b.append("From ").append(getSince()).append(" until ").append(until).append("\n");
             for (Link link : chainLinks)
             {
                 b.append("  ").append(link.toString()).append("\n");
@@ -993,6 +1154,20 @@ public class OpenPGPCertificate
             {
                 return signature.toString();
             }
+
+            public static Link create(OpenPGPComponentSignature signature,
+                                      OpenPGPComponentKey issuer,
+                                      OpenPGPCertificateComponent target)
+            {
+                if (signature.isRevocation())
+                {
+                    return new Revocation(signature, issuer, target);
+                }
+                else
+                {
+                    return new Certification(signature, issuer, target);
+                }
+            }
         }
 
         /**
@@ -1038,35 +1213,6 @@ public class OpenPGPCertificate
                 super(signature, issuer, target);
             }
         }
-
-        /**
-         * "Broken" signature chain link.
-         */
-        public static class Broken
-                extends Link
-        {
-
-            /**
-             * Broken signature.
-             * A signature might be broken due to a number of reasons, e.g. malformed-ness, missing required subpackets,
-             * use of illegal algorithms, etc.
-             * @param signature broken signature
-             * @param issuer issuer (might be null for 3rd-party sigs)
-             * @param target signed component
-             */
-            public Broken(OpenPGPComponentSignature signature,
-                          OpenPGPComponentKey issuer,
-                          OpenPGPCertificateComponent target)
-            {
-                super(signature, issuer, target);
-            }
-
-            @Override
-            public String toString()
-            {
-                return "Broken " + super.toString();
-            }
-        }
     }
 
     /**
@@ -1074,7 +1220,13 @@ public class OpenPGPCertificate
      */
     public static class OpenPGPSignatureChains
     {
+        private final OpenPGPCertificateComponent targetComponent;
         private final List<OpenPGPSignatureChain> chains = new ArrayList<>();
+
+        public OpenPGPSignatureChains(OpenPGPCertificateComponent component)
+        {
+            this.targetComponent = component;
+        }
 
         /**
          * Add a single chain to the collection.
@@ -1145,108 +1297,28 @@ public class OpenPGPCertificate
         }
 
         @Override
-        public String toString() {
-            StringBuilder b = new StringBuilder()
-                    .append(chains.size()).append(" Chains:").append("\n");
+        public String toString()
+        {
+            StringBuilder b = new StringBuilder(targetComponent.toString())
+                    .append(" is bound with ").append(chains.size()).append(" chains:").append("\n");
             for (OpenPGPSignatureChain chain : chains)
             {
                 b.append(chain.toString());
             }
             return b.toString();
         }
-    }
 
-    /**
-     * Lazy data structure that holds a map containing {@link OpenPGPCertificateComponent components} and their
-     * {@link OpenPGPSignatureChains}.
-     * The idea is, that we can lazily evaluate temporal validity of components by checking required signatures
-     * and have the data structure as a cache in order to prevent repeated verification of the same signatures.
-     * The {@link LazyTemporalSignatureChainCache} can be handed over when evaluating an {@link OpenPGPCertificate}
-     * at a different point in time ({@link #setEvaluationDateFor(PGPSignature)} or {@link #setEvaluationDate(Date)}).
-     */
-    public static class LazyTemporalSignatureChainCache
-    {
-        private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
-        private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> allChains = new HashMap<>();
-
-        public LazyTemporalSignatureChainCache(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider) {
-            this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
-        }
-
-        public void cachePrimaryKey(OpenPGPPrimaryKey primaryKey)
+        public OpenPGPSignatureChains fromOrigin(OpenPGPComponentKey root)
         {
-            OpenPGPSignatureChains keySignatureChains = new OpenPGPSignatureChains();
-            Signatures keySignatures = Signatures.keySignaturesOn(primaryKey);
-
-            // Key Signatures
-            for (OpenPGPComponentSignature sig : keySignatures.get())
+            OpenPGPSignatureChains chainsFromRoot = new OpenPGPSignatureChains(root);
+            for (OpenPGPSignatureChain chain : chains)
             {
-                OpenPGPSignatureChain chain = OpenPGPSignatureChain.from(sig, primaryKey, primaryKey);
-                keySignatureChains.add(chain);
-            }
-            allChains.put(primaryKey, keySignatureChains);
-
-            // Identities
-            for (OpenPGPIdentityComponent identity : primaryKey.identityComponents)
-            {
-                OpenPGPSignatureChains identityChains = new OpenPGPSignatureChains();
-                Signatures bindings;
-
-                if (identity instanceof OpenPGPUserId)
+                if (chain.getRootKey() == root)
                 {
-                    bindings = Signatures.userIdSignaturesOn(
-                            primaryKey,
-                            ((OpenPGPUserId) identity).userId);
+                    chainsFromRoot.add(chain);
                 }
-                else
-                {
-                    bindings = Signatures.userAttributeSignaturesOn(
-                            primaryKey,
-                            ((OpenPGPUserAttribute) identity).userAttribute);
-                }
-
-                for (OpenPGPComponentSignature sig : bindings.get())
-                {
-                    OpenPGPSignatureChain chain = OpenPGPSignatureChain.from(sig, primaryKey, identity);
-                    identityChains.add(chain);
-                }
-                allChains.put(identity, identityChains);
             }
-        }
-
-        public void cacheSubkey(OpenPGPSubkey subkey)
-        {
-            Signatures bindingSignatures = Signatures.keySignaturesOn(subkey);
-            OpenPGPSignatureChains subkeyChains = new OpenPGPSignatureChains();
-
-            for (OpenPGPComponentSignature sig : bindingSignatures.get())
-            {
-                OpenPGPComponentKey issuer = subkey.getCertificate().getComponentKey(sig.signature.getKeyIdentifiers());
-                OpenPGPSignatureChain issuerChain = getSignatureChainFor(issuer, sig.getCreationTime());
-                OpenPGPSignatureChain subkeyChain = OpenPGPSignatureChain.plus(issuerChain, sig, subkey);
-                subkeyChains.add(subkeyChain);
-            }
-            this.allChains.put(subkey, subkeyChains);
-        }
-
-        public OpenPGPSignatureChain getSignatureChainFor(OpenPGPCertificateComponent component, Date evaluationDate)
-        {
-            // Check if there are signatures at all for the component
-            OpenPGPSignatureChains chains = this.allChains.get(component);
-            if (chains == null)
-            {
-                return null;
-            }
-
-            // If there is a revocation, return it
-            OpenPGPSignatureChain revocation = chains.getRevocationAt(evaluationDate);
-            if (revocation != null)
-            {
-                return revocation;
-            }
-
-            // else return a certification
-            return chains.getCertificationAt(evaluationDate);
+            return chainsFromRoot;
         }
     }
 }
