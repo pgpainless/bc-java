@@ -3,6 +3,7 @@ package org.bouncycastle.openpgp.api.test;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
+import org.bouncycastle.crypto.io.SignerOutputStream;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
@@ -53,6 +54,7 @@ public class OpenPGPCertificateTest
 
         OpenPGPCertificate certificate = new OpenPGPCertificate(publicKeys, new BcPGPContentVerifierBuilderProvider());
         System.out.println(certificate.isBound(certificate.getPrimaryKey()));
+        System.out.println(certificate.isBound(certificate.getSubkeys().values().iterator().next()));
         certificate.getRawCertificate();
     }
 
