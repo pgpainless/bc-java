@@ -8,6 +8,7 @@ import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
+import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
@@ -28,11 +29,11 @@ public class OpenPGPCertificateTest
     public void performTest()
             throws Exception
     {
-        //baseCertificateTest();
         testBaseCasePrimaryKeySigns();
         testBaseCaseSubkeySigns();
         testPKSignsPKRevokedNoSubpacket();
         testSKSignsPKRevokedNoSubpacket();
+        testPKSignsPKRevocationSuperseded();
     }
 
     private void testBaseCasePrimaryKeySigns()
@@ -566,6 +567,142 @@ public class OpenPGPCertificateTest
         signatureValidityTest(cert, t0, t1, t2, t3);
     }
 
+    private void testPKSignsPKRevocationSuperseded() throws IOException {
+        // https://sequoia-pgp.gitlab.io/openpgp-interoperability-test-suite/results.html#Key_revocation_test__primary_key_signs_and_is_revoked__revoked__superseded
+        String CERT = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n" +
+                "\n" +
+                "xsBNBFpJegABCACzr1V+GxVkrtfDjihYK+HtyEIcO52uw7O2kd7JbduYp4RK17jy\n" +
+                "75N3EnsgmiIkSxXCWr+rTtonNs1zCJeUa/gwnNfs7mVgjL2rMOZU/KZ4MP0yOYU5\n" +
+                "u5FjNPWz8hpFQ9GKqfdj0Op61h1pCQO45IjUQ3dCDj9Rfn44zHMB1ZrbmIH9nTR1\n" +
+                "YIGHWmdm0LItb2WxIkwzWBAJ5acTlsmLyZZEQ1+8NDqktyzwFoQqTJvLU4StY2k6\n" +
+                "h18ZKZdPyrdLoEyOuWkvjxmbhDk1Gt5KiS/yy7mrzIPLr0dmJe4vc8WLV+bXoyNE\n" +
+                "x3H8o9CFcYehLfyqsy40lg92d6Kp96ww8dZ5ABEBAAHCwM8EIAEKAIMFglwqrYAJ\n" +
+                "EAitUcrkcPAGRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9y\n" +
+                "Z1X0jZPeNNpSsn78ulDPJNHa0QaeI5oAUdBGbIKSOT0uEx0BS2V5IGlzIHN1cGVy\n" +
+                "c2VkZWQWIQTjLLbaggKRt+dtsagIrVHK5HDwBgAAr2QIAKAY5bHFbRkoItYBJBN1\n" +
+                "aV1jjrpYdwLM+0LHf8GcRCeO1Pt9I1J021crwTw14sTCxi6WH4qbQSBxRqAEej/A\n" +
+                "wfk1kmkm4WF7zTUT+fXIHDJxFJJXqFZ+LWldYYEVqSi02gpbYkyLm9hxoLDoAxS2\n" +
+                "bj/sFaH4Bxr/eUCqjOiEsGzdY1m65+cp5jv8cJK05jwqxO5/3KZcF/ShA7AN3dJi\n" +
+                "NAokoextBtXBWlGvrDIfFafOy/uCnsO6NeORWbgZ88TOXPD816ff5Y8kMwkDkIk2\n" +
+                "9dK4m0aL/MDI+Fgx78zRYwn5xHbTMaFz+hex+gjo4grx3KYXeoxBAchUuTsVNoo4\n" +
+                "kbfCwMQEHwEKAHgFgl4L4QAJEAitUcrkcPAGRxQAAAAAAB4AIHNhbHRAbm90YXRp\n" +
+                "b25zLnNlcXVvaWEtcGdwLm9yZ4csZe1ah1tj2AjxfdDMsH2wvSEwZjb/73ICKnm7\n" +
+                "BySQAhUKApsDAh4BFiEE4yy22oICkbfnbbGoCK1RyuRw8AYAAGYFCACiKnCb2NBZ\n" +
+                "a/Jj1aJe4R2rxPZj2ERXWe3bJKNPKT7K0rVDkTw1JRiTfCsuAY2lY9sKJdhQZl+a\n" +
+                "zXm64vvTc6hEGRQ/+XssDlE2DIn8C34HDc495ZnryHNB8Dd5l1HdjqxfGIY6HBPJ\n" +
+                "Udx0dedwP42Oisg9t5KsC8zld/+MIRgzkp+Dg0LXJVnDuwWEPoo2N6WhAr5ReLvX\n" +
+                "xALX5ht9Lb3lP0DASZvAKy9BO/wRCr294J8dg/CowAfloyf0Ko+JjyjanmZn3acy\n" +
+                "5CGkVN2mc+PFUekGZDDy5ooYkgXO/CmApuTNvabct+A7IVVdWWM5SWb90JvaV9SW\n" +
+                "ji6nQphVm7StwsDEBB8BCgB4BYJaSXoACRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0\n" +
+                "QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5vcmfVZdjLYZxDX2hvy3aGrsE4i0avLDMz\n" +
+                "f3e9kVHmaD6PAgIVCgKbAwIeARYhBOMsttqCApG3522xqAitUcrkcPAGAABQYwgA\n" +
+                "rfIRxq95npUKAOPXs25nZlvy+xQbrmsTxHhAYW8eGFcz82QwumoqrR8VfrojxM+e\n" +
+                "CZdTI85nM5kzznYDU2+cMhsZVm5+VhGZy3e3QH4J/E31D7t1opCvj5g1eRJ4Lgyw\n" +
+                "B+cYGcZBYp/bQT9SUYuhZH2OXCR04qSbpVUCIApnhBHxKNtOlqjAkHeaOdW/8XeP\n" +
+                "sbfvrtVOLGYgrZXfY7Nqy3+Wzbdm8UvVPFXH+uHEzTgyvYbnJBYkjORmCqUKs860\n" +
+                "PL8ekeg+sL4PHSRj1UUfwcQD55q0m3Vtew2KiIUi4wKi5LceDtprjoO5utU/1YfE\n" +
+                "AiNMeSQHXKq83dpazvjrUs0SanVsaWV0QGV4YW1wbGUub3JnwsDEBBMBCgB4BYJa\n" +
+                "SXoACRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBn\n" +
+                "cC5vcmc6Rix7CeIfWwnaQjk3bBrkAiY7jS9N+shuRdHZ0gKKsgIVCgKbAwIeARYh\n" +
+                "BOMsttqCApG3522xqAitUcrkcPAGAACf9QgAsxtfAbyGbtofjrXTs9lsKEWvGgk0\n" +
+                "2fSYyKjPbyaRqh72MlIlUXwqq1ih2TJc3vwF8aNVDrcb9DnBabdt2M1vI3PUaeG3\n" +
+                "1BmakC/XZCNCrbbJkyd/vdMLqw7prLrp0auVNNhLYxOK9usXbClNxluo4i/lSFVo\n" +
+                "5B9ai+ne1kKKiplzqy2qqhdeplomcwGHbB1CkZ04DmCMbSSFAGxYqUC/bBm0bolC\n" +
+                "ebw/KIz9sEojNKt6mvsFN67/hMYeJS0HVlwwc6i8iKSzC2D53iywhtvkdiKECXQe\n" +
+                "XDf9zNXAn1wpK01SLJ0iig7cDFrtoqkfPYzbNfC0bt34fNx9iz3w9aEH8c7ATQRa\n" +
+                "SsuAAQgAu5yau9psltmWiUn7fsRSqbQInO0iWnu4DK9IXB3ghNYMcii3JJEjHzgI\n" +
+                "xGf3GiJEjzubyRQaX5J/p7yB1fOH8z7FYUuax1saGf9c1/b02N9gyXNlHam31hNa\n" +
+                "aL3ffFczI95p7MNrTtroTt5oZqsc+i+oKLZn7X0YAI4tEYwhSnUQYB/F7YqkkI4e\n" +
+                "V+7CxZPA8pBhXiAOK/zn416PsZ6JS5wsM65yCtOHcAAIBnKDnC+bQi+f1WZesSoc\n" +
+                "y/rXx3QEQmodDu3ojhS+VxcYGeZCUcFF0FyZBIkGjHIVQLyOfjP3FRJ4qFXMz9/Y\n" +
+                "IVoM4Y6guTERMTEj/KDG4BP7RfJHTQARAQABwsI8BBgBCgHwBYJeC+EACRAIrVHK\n" +
+                "5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5vcmfcAa1Z\n" +
+                "PWTtg60w3Oo4dt4Fa8cKFYbZYsqDSHV5pwEfMwKbAsC8oAQZAQoAbwWCXgvhAAkQ\n" +
+                "EPy8/w6Op5FHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2VxdW9pYS1wZ3Aub3Jn\n" +
+                "L6I2+VyN5T1FoVgj3cdnMLYCpcB5i/FRSCVKybuLzrgWIQTOphDQhPpR8hHhxGwQ\n" +
+                "/Lz/Do6nkQAArk8H/AhjM9lqbffFL6RRR4HTjelspy4A3nyTicCljrDuXDUh23Gf\n" +
+                "LvajTR5h16ZBqAF7cpb9rrlz1C1WcS5JLVxzXAe7f+KOfXu+eyLhpTzZ8VT3pK3h\n" +
+                "HGaYwlVlXrBZP0JXgL8hm6hDSXZQZtcpsnQ1uIHC9ONxUB4liNFhTqQCQYdQJFiF\n" +
+                "s1umUbo/C4KdzlDI08bM3CqEKat9vUFuGG68mDg0CrRZEWt946L5i8kZmBUkSShI\n" +
+                "m2k5e2qE/muYeM6qKQNsxlx3VIf5eUhtxCi9fg7SjvHkdUSFstYcxAdaohWCFCEs\n" +
+                "DJI12hzcKQazSjvtKF4BNBKgX/wLsbVQnYLd9ggWIQTjLLbaggKRt+dtsagIrVHK\n" +
+                "5HDwBgAANjMH/1MY7DJyxkiTjc/jzmnVxqtHOZDCSmUqk0eh/6BHs+ostWqkGC6+\n" +
+                "7dfxDnptwcqandYey4KF2ajt4nOwu0xQw/NEF3i81h7IiewY7G+YT69DUd+DvVUQ\n" +
+                "emfKNYVOrMqoH7QU5o4YojdJiDeIp2d/JyJrqyof78JFAHnNZgHC2T2zo9E54dnO\n" +
+                "TY9VNUNCOUct5Rby0GXjTIURO0f485eGuZxVWdLRllDYOiCrQHPSHhrxHVXVMbYJ\n" +
+                "oroPy+IyaJanVoAWgyipBmmIDV8aINM2RLMsGkuPTRtITI2ZlGOQN7xgy4LqWzjP\n" +
+                "nrzMXfwBEDx/nrwdG6zEGMK8AkVkMT5uJJvCwjwEGAEKAfAFglro/4AJEAitUcrk\n" +
+                "cPAGRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ/Q0Z6WD\n" +
+                "H2+8/F1xEEuiApsjnn2lGNZ2DeIaklJzdqQOApsCwLygBBkBCgBvBYJa6P+ACRAQ\n" +
+                "/Lz/Do6nkUcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5vcmfr\n" +
+                "VATyX3tgcM2z41fqYquxVhJRavN6+w2SU4xEG++SqBYhBM6mENCE+lHyEeHEbBD8\n" +
+                "vP8OjqeRAABGVggAsB8M2KI5cxXKKgVHL1dEfzg9halVavktfcT6ZVC/+aDp94tv\n" +
+                "BCL16Guhq4ccN7DATrWx430/GecY6E77qvhDzmCclSbdLbiZmsrVX9kCmTfrJzFQ\n" +
+                "64KfvIS5GgbL21+ZJ+pKW2HOMBGn6sgAPmTqM5UsDCpsEKDt5CJcJr3sTc8D9NhE\n" +
+                "nc0dKsQ91+n9ms3W5tyyE6r9pyM6ThBCMhbQkR7hE9XWAQeO1ILSFGnie0aFcTU0\n" +
+                "Oo0wL1MaiSyA/8XpKq23xfx1kNS9hQkdq0aWehNoTJdCt1Nq1cWABy2rQR0x+qhG\n" +
+                "WowfsAjnBautxvet28t2kPCAIMniYpWc89BwfhYhBOMsttqCApG3522xqAitUcrk\n" +
+                "cPAGAACq1gf/Q7H9Re5SWk+UOn/NQPRedf544YJ/YdQnve/hSaPGL33cUzf4yxzF\n" +
+                "ILnK19Ird5f8/mTT1pg99L3ixE3N5031JJKwFpCB69Rsysg88ZLDL2VLc3xdsAQd\n" +
+                "UbVaCqeRHKwtMtpBvbAFvF9plwam0SSXHHr/JkYm5ufXN6I8ib/nwr1bFbf/Se0W\n" +
+                "uk9RG4ne9JUBCrGxakyVd+OgLLhvzOmJa7fDC0uUZhTKFbjMxLhaas4HFYiRbfz2\n" +
+                "T0xz9gyDytDWsEFM+XoKHlEH8Fx/U2B5/8N0Q+pIFoEuOmBO+5EPvPIlxNByHgia\n" +
+                "NIuKt1Mu+UAb2Spl6D5zbDfX/3vqxdhYHw==\n" +
+                "=9epL\n" +
+                "-----END PGP PUBLIC KEY BLOCK-----\n";
+        TestSignature t0 = new TestSignature("-----BEGIN PGP SIGNATURE-----\n" +
+                "\n" +
+                "wsC7BAABCgBvBYJYaEaACRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9u\n" +
+                "cy5zZXF1b2lhLXBncC5vcmeoPMfalw2oS7uyOKnOXJSN8Gx7pr/BMlo3Xn8nTgx6\n" +
+                "ORYhBOMsttqCApG3522xqAitUcrkcPAGAABXbAf/WfWaQYNuATAKwxYrJx4fd5kt\n" +
+                "0M6sn1q7wK1MIxursG2+FuKafV25O9+pde8Nog77OEgegwk+HokOVFpVXfOzHQjs\n" +
+                "8dwWTtTQlX5NIBNvtqS7cvCKhjsqaHKgmzsenMjCEbpDZ3C5CoqcYicykqEU/Ia0\n" +
+                "ZGC4lzRByrgNy/w+/iLN748S707bzBLVc/sE73k9N5pANAlE+cA/sHI1Gp2WxJR9\n" +
+                "t2Fk4x6/85PEnF1RHI16p/wSEeuRaBpyw9QGZBbVDVt5wvgttxZjteGGSwBM3WI/\n" +
+                "gPfC0LW+JQ2W+dwY0PN/7yuARVRhXpKiBI4xqp7x3OanQX6quU77g3B8nXAt3A==\n" +
+                "=StqT\n" +
+                "-----END PGP SIGNATURE-----\n", false, "Signature predates primary key");
+        TestSignature t1 = new TestSignature("-----BEGIN PGP SIGNATURE-----\n" +
+                "\n" +
+                "wsC7BAABCgBvBYJa564ACRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9u\n" +
+                "cy5zZXF1b2lhLXBncC5vcmfM0EN4Ei0bQv6UO9BRq2wtUfV948cRynRMBb8TSGCG\n" +
+                "tBYhBOMsttqCApG3522xqAitUcrkcPAGAAAlNwf+L0KQK9i/xmYKOMV2EX13QUoZ\n" +
+                "vvb/pHGZaCQ9JtvEF2l2DT0DqByZ+tOv5Y4isU+un7CraoyvyajAwR0Yqk937B6C\n" +
+                "HQHKMkmIl+5R4/xqSoWYmOidbrgilojPMBEhB3INQ8/THjjFijtLzitVhnWBd7+u\n" +
+                "s0kcqnWnOdx2By4aDe+UEiyCfSE02e/0tIsM71RqiU91zH6dl6+q8nml7PsYuTFV\n" +
+                "V09oQTbBuuvUe+YgN/uvyKVIsA64lQ+YhqEeIA8Quek7fHhW+du9OIhSPsbYodyx\n" +
+                "VWMTXwSWKGNvZNAkpmgUYqFjS2Cx5ZUWblZLjrNKBwnnmt50qvUN7+o2pjlnfA==\n" +
+                "=UuXb\n" +
+                "-----END PGP SIGNATURE-----\n", true);
+        TestSignature t2 = new TestSignature("-----BEGIN PGP SIGNATURE-----\n" +
+                "\n" +
+                "wsC7BAABCgBvBYJdP4iACRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9u\n" +
+                "cy5zZXF1b2lhLXBncC5vcmfFzYGoiuSjN+gz1IDD4ZvRXGuPTHks0/pIiGY90mrZ\n" +
+                "WxYhBOMsttqCApG3522xqAitUcrkcPAGAABGPAf/ck7tJAFoPIDd9fTPZANpNGoW\n" +
+                "Fq6VuNfy/nLjz2gkHFX/lLAxQ0N3McIdRA++Ik/omb0lis3R2DVNgwqNm2OF34HE\n" +
+                "qxmPmrQHBgk2q0fDH4NCE0XnYQjQT65V99IfiaQu+oS3Mq8MuYsDYvRVvRKMwt49\n" +
+                "fcDnvFtAtCqEETdv6wV5cUZmdQ3L9NU9bApJ0jk+EHVdpfTUIbOYYGnsIe/4Aa0d\n" +
+                "jgzu4Em79ynosOn//953XJ7OO8LCDi1EKt+nFuZARUlt/Jwwull6zzp7HUPw6HPt\n" +
+                "Upp7os8TIPC4STwoSeEKaxEkrbMGFnDcoDajnKKRt5+MkB24Oq7PHvnzgnPpVg==\n" +
+                "=Ljv7\n" +
+                "-----END PGP SIGNATURE-----\n", false, "Key is revoked at this time");
+        TestSignature t3 = new TestSignature("-----BEGIN PGP SIGNATURE-----\n" +
+                "\n" +
+                "wsC7BAABCgBvBYJmhTYiCRAIrVHK5HDwBkcUAAAAAAAeACBzYWx0QG5vdGF0aW9u\n" +
+                "cy5zZXF1b2lhLXBncC5vcmfbjQf/zfoJQT0hhna4RDjOESBLgGaCbc5HLeo751F4\n" +
+                "NxYhBOMsttqCApG3522xqAitUcrkcPAGAABqBQgAkkNmYf6yLPvox+ZayrLtMb9D\n" +
+                "ghgt0nau72DSazsJ6SAq2QqIdr0RRhRa2gCETkp4PpeoDWmIvoVj35ZnfyeO/jqy\n" +
+                "HECvRwO0WPA5FXQM6uG7s40vDTRFjlJMpPyHWnn2igcR64iDxBGmc40xi9CcmJP9\n" +
+                "tmA26+1Nzj1LcfNvknKZ2UIOmnXiZY0QssIdyqsmJrdFpXs4UCLUzdXkfFLoxksU\n" +
+                "mk4B6hig2IKMj5mnbWy/JQSXtjjI+HHmtzgWfXs7d9iQ61CklbtCOiPeWxvoqlGG\n" +
+                "oK1wV1olcSar/RPKTlMmQpAg9dztQgrNs1oF7EF3i9kwNP7I5JzekPiOLH6oMw==\n" +
+                "=5KMU\n" +
+                "-----END PGP SIGNATURE-----\n", true);
+
+        signatureValidityTest(CERT, t0, t1, t2, t3);
+
+    }
+
     private void signatureValidityTest(String cert, TestSignature... testSignatures)
             throws IOException
     {
@@ -585,41 +722,44 @@ public class OpenPGPCertificateTest
         for (TestSignature test : testSignatures)
         {
             PGPSignature signature = test.getSignature();
-            certificate.setEvaluationDateFor(signature);
             OpenPGPCertificate.OpenPGPComponentKey signingKey = certificate.getKeyComponent(signature.getKeyIdentifiers());
 
-            boolean valid = certificate.isAuthenticated(signingKey);
+            boolean valid = certificate.isAuthenticated(signingKey, signature.getCreationTime());
             if (valid != test.isExpectValid())
             {
-                System.out.println("Expectation mismatch. Expected " + test.isExpectValid() + ", but got " + valid);
+                StringBuilder sb = new StringBuilder("Key validity mismatch. Expected " + signingKey.toString() +
+                        (test.isExpectValid() ? (" to be valid at ") : (" to be invalid at ")) + UTCUtil.format(signature.getCreationTime()));
                 if (test.getMsg() != null)
                 {
-                    System.out.println(test.getMsg());
+                    sb.append(" because:\n").append(test.getMsg());
                 }
-                System.out.println(certificate.getAllSignatureChainsFor(signingKey));
+                sb.append("\n").append(certificate.getAllSignatureChainsFor(signingKey));
+                fail(sb.toString());
             }
         }
     }
 
     public static class TestSignature
     {
-        private final String armoredSignature;
+        private final PGPSignature signature;
         private final boolean expectValid;
         private final String msg;
 
         public TestSignature(String armoredSignature, boolean expectValid)
+                throws IOException
         {
             this(armoredSignature, expectValid, null);
         }
 
         public TestSignature(String armoredSignature, boolean expectValid, String msg)
+                throws IOException
         {
-            this.armoredSignature = armoredSignature;
+            this.signature = parseSignature(armoredSignature);
             this.expectValid = expectValid;
             this.msg = msg;
         }
 
-        public PGPSignature getSignature()
+        private static PGPSignature parseSignature(String armoredSignature)
                 throws IOException
         {
             ByteArrayInputStream bIn = new ByteArrayInputStream(armoredSignature.getBytes(StandardCharsets.UTF_8));
@@ -634,6 +774,11 @@ public class OpenPGPCertificateTest
             bIn.close();
 
             return sigs.get(0);
+        }
+
+        public PGPSignature getSignature()
+        {
+            return signature;
         }
 
         public boolean isExpectValid()

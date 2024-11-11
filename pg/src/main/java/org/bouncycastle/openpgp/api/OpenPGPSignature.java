@@ -53,6 +53,25 @@ public class OpenPGPSignature
         return new Date(getCreationTime().getTime() + 1000 * exp);
     }
 
+    public boolean isEffectiveAt(Date evaluationTime)
+    {
+        if (isHardRevocation())
+        {
+            // hard revocation is valid at all times
+            return true;
+        }
+
+        // creation <= eval < expiration
+        Date creation = getCreationTime();
+        Date expiration = getExpirationTime();
+        return !evaluationTime.before(creation) && (expiration == null || evaluationTime.before(expiration));
+    }
+
+    public boolean isHardRevocation()
+    {
+        return signature.isHardRevocation();
+    }
+
     public boolean isCertification()
     {
         return signature.isCertification();
