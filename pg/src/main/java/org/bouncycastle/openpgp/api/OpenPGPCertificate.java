@@ -58,13 +58,13 @@ public class OpenPGPCertificate
         this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
 
         this.rawCert = rawCert;
+        this.subkeys = new HashMap<>();
 
         Iterator<PGPPublicKey> rawKeys = rawCert.getPublicKeys();
         PGPPublicKey rawPrimaryKey = rawKeys.next();
         this.primaryKey = new OpenPGPPrimaryKey(rawPrimaryKey, this);
         cachePrimaryKey(primaryKey);
 
-        this.subkeys = new HashMap<>();
         while (rawKeys.hasNext())
         {
             PGPPublicKey rawSubkey = rawKeys.next();
@@ -102,7 +102,7 @@ public class OpenPGPCertificate
         // Key Signatures
         for (OpenPGPComponentSignature sig : keySignatures)
         {
-            OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, primaryKey, primaryKey);
+            OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, sig.issuer, primaryKey);
             keySignatureChains.add(chain);
         }
         componentSignatureChains.put(primaryKey, keySignatureChains);
@@ -115,16 +115,16 @@ public class OpenPGPCertificate
 
             if (identity instanceof OpenPGPUserId)
             {
-                bindings = primaryKey.getUserIdSignatures(((OpenPGPUserId) identity).userId);
+                bindings = primaryKey.getUserIdSignatures((OpenPGPUserId) identity);
             }
             else
             {
-                bindings = primaryKey.getUserAttributeSignatures(((OpenPGPUserAttribute) identity).userAttribute);
+                bindings = primaryKey.getUserAttributeSignatures((OpenPGPUserAttribute) identity);
             }
 
             for (OpenPGPComponentSignature sig : bindings)
             {
-                OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, primaryKey, identity);
+                OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, sig.getIssuer(), identity);
                 identityChains.add(chain);
             }
             componentSignatureChains.put(identity, identityChains);
@@ -138,7 +138,13 @@ public class OpenPGPCertificate
 
         for (OpenPGPComponentSignature sig : bindingSignatures)
         {
-            OpenPGPComponentKey issuer = subkey.getCertificate().getKeyComponent(sig.signature.getKeyIdentifiers());
+            List<KeyIdentifier> issuerIdentifiers = sig.signature.getKeyIdentifiers();
+            OpenPGPComponentKey issuer = subkey.getCertificate().getKeyComponent(issuerIdentifiers);
+            if (issuer == null)
+            {
+                continue; // external key
+            }
+
             OpenPGPSignatureChains issuerChains = getAllSignatureChainsFor(issuer);
             if (!issuerChains.chains.isEmpty())
             {
@@ -162,9 +168,19 @@ public class OpenPGPCertificate
     {
         // Check if there are signatures at all for the component
         OpenPGPSignatureChains chains = this.componentSignatureChains.get(component);
-        if (chains == null)
+        if (chains.chains.isEmpty())
         {
-            return null;
+            if (component == getPrimaryKey())
+            {
+                for (OpenPGPIdentityComponent identity : getPrimaryKey().identityComponents)
+                {
+                    OpenPGPSignatureChains identityChains = getAllSignatureChainsFor(identity);
+                    for (OpenPGPSignatureChain identityChain : identityChains.chains)
+                    {
+                        chains.add(identityChain);
+                    }
+                }
+            }
         }
 
         OpenPGPSignatureChains fromOrigin = chains.fromOrigin(origin);
@@ -202,8 +218,13 @@ public class OpenPGPCertificate
         }
         catch (PGPException e)
         {
-            throw new RuntimeException(e);
+            return false;
         }
+    }
+
+    public OpenPGPSignatureChain getCertificationFor(OpenPGPCertificateComponent component, Date evaluationTime)
+    {
+        return getSignatureChainFor(component, getPrimaryKey(), evaluationTime);
     }
 
     public Map<KeyIdentifier, OpenPGPSubkey> getSubkeys()
@@ -352,7 +373,7 @@ public class OpenPGPCertificate
                                           PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPException
         {
-            System.out.println("Test KeySignature " + Hex.toHexString(signature.getDigestPrefix()));
+            System.out.println("Test KeySignature " + this);
             this.isTested = true;
             try
             {
@@ -532,22 +553,6 @@ public class OpenPGPCertificate
         {
             return rawPubkey.getCreationTime();
         }
-
-        protected List<OpenPGPComponentSignature> getKeySignatures()
-        {
-            Iterator<PGPSignature> iterator = rawPubkey.getSignatures();
-            List<OpenPGPCertificate.OpenPGPComponentSignature> list = new ArrayList<>();
-            while (iterator.hasNext())
-            {
-                PGPSignature sig = iterator.next();
-                // try to find issuer for self-signature
-                OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
-                        .getKeyComponent(sig.getKeyIdentifiers());
-
-                list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, this));
-            }
-            return list;
-        }
     }
 
     /**
@@ -574,15 +579,36 @@ public class OpenPGPCertificate
         {
             super(rawPubkey, certificate);
             this.identityComponents = new ArrayList<>();
+
+            Iterator<String> userIds = rawPubkey.getUserIDs();
+            while (userIds.hasNext())
+            {
+                identityComponents.add(new OpenPGPUserId(userIds.next(), this));
+            }
+
+            Iterator<PGPUserAttributeSubpacketVector> userAttributes = rawPubkey.getUserAttributes();
+            while (userAttributes.hasNext())
+            {
+                identityComponents.add(new OpenPGPUserAttribute(userAttributes.next(), this));
+            }
         }
 
-        public List<OpenPGPComponentSignature> getUserIdSignatures(String userId)
+        protected List<OpenPGPComponentSignature> getKeySignatures()
         {
-            Iterator<PGPSignature> iterator = rawPubkey.getSignaturesForID(userId);
+            Iterator<PGPSignature> iterator = rawPubkey.getSignatures();
             List<OpenPGPCertificate.OpenPGPComponentSignature> list = new ArrayList<>();
             while (iterator.hasNext())
             {
                 PGPSignature sig = iterator.next();
+                int type = sig.getSignatureType();
+                if (type != PGPSignature.DIRECT_KEY && type != PGPSignature.KEY_REVOCATION)
+                {
+                    continue;
+                }
+                else
+                {
+                    System.out.println("KEY SIGNAUTRE");
+                }
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
                         .getKeyComponent(sig.getKeyIdentifiers());
@@ -592,9 +618,9 @@ public class OpenPGPCertificate
             return list;
         }
 
-        public List<OpenPGPComponentSignature> getUserAttributeSignatures(PGPUserAttributeSubpacketVector userAttribute)
+        protected List<OpenPGPComponentSignature> getUserIdSignatures(OpenPGPUserId identity)
         {
-            Iterator<PGPSignature> iterator = rawPubkey.getSignaturesForUserAttribute(userAttribute);
+            Iterator<PGPSignature> iterator = rawPubkey.getSignaturesForID(identity.getUserId());
             List<OpenPGPCertificate.OpenPGPComponentSignature> list = new ArrayList<>();
             while (iterator.hasNext())
             {
@@ -603,7 +629,23 @@ public class OpenPGPCertificate
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
                         .getKeyComponent(sig.getKeyIdentifiers());
 
-                list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, this));
+                list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, identity));
+            }
+            return list;
+        }
+
+        protected List<OpenPGPComponentSignature> getUserAttributeSignatures(OpenPGPUserAttribute identity)
+        {
+            Iterator<PGPSignature> iterator = rawPubkey.getSignaturesForUserAttribute(identity.getUserAttribute());
+            List<OpenPGPCertificate.OpenPGPComponentSignature> list = new ArrayList<>();
+            while (iterator.hasNext())
+            {
+                PGPSignature sig = iterator.next();
+                // try to find issuer for self-signature
+                OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
+                        .getKeyComponent(sig.getKeyIdentifiers());
+
+                list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, identity));
             }
             return list;
         }
@@ -630,6 +672,27 @@ public class OpenPGPCertificate
         public String toDetailString()
         {
             return "Subkey[" + getKeyIdentifier() + "] (" + utcFormat.format(getCreationTime()) + ")";
+        }
+
+        protected List<OpenPGPComponentSignature> getKeySignatures()
+        {
+            Iterator<PGPSignature> iterator = rawPubkey.getSignatures();
+            List<OpenPGPCertificate.OpenPGPComponentSignature> list = new ArrayList<>();
+            while (iterator.hasNext())
+            {
+                PGPSignature sig = iterator.next();
+                int type = sig.getSignatureType();
+                if (type != PGPSignature.SUBKEY_BINDING && type != PGPSignature.SUBKEY_REVOCATION)
+                {
+                    continue;
+                }
+                // try to find issuer for self-signature
+                OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
+                        .getKeyComponent(sig.getKeyIdentifiers());
+
+                list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, this));
+            }
+            return list;
         }
     }
 
