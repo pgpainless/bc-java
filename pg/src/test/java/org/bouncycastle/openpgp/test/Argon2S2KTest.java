@@ -185,7 +185,7 @@ public class Argon2S2KTest
 
         PGPEncryptedDataGenerator encGen = new PGPEncryptedDataGenerator(
             new BcPGPDataEncryptorBuilder(SymmetricKeyAlgorithmTags.AES_256));
-        encGen.addMethod(new BcPBEKeyEncryptionMethodGenerator(password.toCharArray(), S2K.Argon2Params.universallyRecommendedParameters()));
+        encGen.addMethod(new BcPBEKeyEncryptionMethodGenerator(password.toCharArray(), S2K.Argon2Params.memoryConstrainedParameters()));
         PGPLiteralDataGenerator litGen = new PGPLiteralDataGenerator();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
