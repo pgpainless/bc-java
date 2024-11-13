@@ -28,6 +28,7 @@ import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
+import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
 
@@ -42,6 +43,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 public class OpenPGPMessageGenerator
 {
@@ -78,13 +80,23 @@ public class OpenPGPMessageGenerator
     private HashAlgorithmNegotiator hashAlgorithmNegotiator =
             (key, subkey) -> HashAlgorithmTags.SHA512;
 
-    // TODO: Implement properly
-    private SubkeySelector encryptionKeySelector =
-            keyRing -> Collections.singletonList(KeyIdentifier.wildcard());
+    private SubkeySelector encryptionKeySelector = keyRing ->
+    {
+        OpenPGPCertificate certificate = new OpenPGPCertificate(keyRing, new BcPGPContentVerifierBuilderProvider());
+        List<OpenPGPCertificate.OpenPGPComponentKey> encryptionKeys = certificate.getEncryptionKeys();
+        return encryptionKeys.stream()
+                .map(OpenPGPCertificate.OpenPGPComponentKey::getKeyIdentifier)
+                .collect(Collectors.toList());
+    };
 
-    // TODO: Implement properly
-    private SubkeySelector signingKeySelector =
-            keyRing -> Collections.singletonList(KeyIdentifier.wildcard());
+    private SubkeySelector signingKeySelector = keyRing ->
+    {
+        OpenPGPCertificate certificate = new OpenPGPCertificate(keyRing, new BcPGPContentVerifierBuilderProvider());
+        List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = certificate.getSigningKeys();
+        return signingKeys.stream()
+                .map(OpenPGPCertificate.OpenPGPComponentKey::getKeyIdentifier)
+                .collect(Collectors.toList());
+    };
 
     // Literal Data metadata
     private Date fileModificationDate = null;

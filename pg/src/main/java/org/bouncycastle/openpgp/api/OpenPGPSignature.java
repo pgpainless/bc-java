@@ -20,6 +20,11 @@ public class OpenPGPSignature
         this.signature = signature;
     }
 
+    public PGPSignature getSignature()
+    {
+        return signature;
+    }
+
     public boolean isTestedCorrect()
     {
         return isTested && isCorrect;
