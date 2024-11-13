@@ -722,9 +722,9 @@ public class OpenPGPCertificateTest
         for (TestSignature test : testSignatures)
         {
             PGPSignature signature = test.getSignature();
-            OpenPGPCertificate.OpenPGPComponentKey signingKey = certificate.getKeyComponent(signature.getKeyIdentifiers());
+            OpenPGPCertificate.OpenPGPComponentKey signingKey = certificate.getIssuerKeyComponentFor(signature);
 
-            boolean valid = certificate.isAuthenticated(signingKey, signature.getCreationTime());
+            boolean valid = certificate.isBound(signingKey, signature.getCreationTime());
             if (valid != test.isExpectValid())
             {
                 StringBuilder sb = new StringBuilder("Key validity mismatch. Expected " + signingKey.toString() +

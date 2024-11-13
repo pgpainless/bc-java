@@ -1,16 +1,23 @@
 package org.bouncycastle.openpgp.api;
 
+import org.bouncycastle.bcpg.SignaturePacket;
+import org.bouncycastle.bcpg.SignatureSubpacket;
+import org.bouncycastle.bcpg.SignatureSubpacketTags;
+import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureException;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
+import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.encoders.Hex;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.TreeSet;
 
 /**
@@ -38,20 +44,20 @@ import java.util.TreeSet;
  */
 public class OpenPGPCertificate
 {
-    private static final SimpleDateFormat utcFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
     private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
 
     protected final PGPPublicKeyRing rawCert;
     protected final OpenPGPPrimaryKey primaryKey;
     protected final Map<KeyIdentifier, OpenPGPSubkey> subkeys;
 
-    private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> componentSignatureChains = new HashMap<>();
+    private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> componentSignatureChains;
 
-    static
-    {
-        utcFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-    }
-
+    /**
+     * Instantiate an {@link OpenPGPCertificate} from a parsed {@link PGPPublicKeyRing}.
+     *
+     * @param rawCert public key ring
+     * @param contentVerifierBuilderProvider provider for signature verifiers
+     */
     public OpenPGPCertificate(PGPPublicKeyRing rawCert,
                               PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
     {
@@ -59,18 +65,20 @@ public class OpenPGPCertificate
 
         this.rawCert = rawCert;
         this.subkeys = new HashMap<>();
+        this.componentSignatureChains = new HashMap<>();
 
         Iterator<PGPPublicKey> rawKeys = rawCert.getPublicKeys();
+
         PGPPublicKey rawPrimaryKey = rawKeys.next();
         this.primaryKey = new OpenPGPPrimaryKey(rawPrimaryKey, this);
-        cachePrimaryKey(primaryKey);
+        processPrimaryKey(primaryKey);
 
         while (rawKeys.hasNext())
         {
             PGPPublicKey rawSubkey = rawKeys.next();
             OpenPGPSubkey subkey = new OpenPGPSubkey(rawSubkey, this);
             subkeys.put(new KeyIdentifier(rawSubkey), subkey);
-            cacheSubkey(subkey);
+            processSubkey(subkey);
         }
     }
 
@@ -84,6 +92,53 @@ public class OpenPGPCertificate
         return primaryKey;
     }
 
+    public Map<KeyIdentifier, OpenPGPSubkey> getSubkeys()
+    {
+        return new HashMap<>(subkeys);
+    }
+
+    /**
+     * Return a {@link List} containing all {@link OpenPGPCertificateComponent components} of the certificate.
+     * Components are primary key, subkeys and identities (user-ids, user attributes).
+     *
+     * @return list of components
+     */
+    public List<OpenPGPCertificateComponent> getComponents()
+    {
+        return new ArrayList<>(componentSignatureChains.keySet());
+    }
+
+    public OpenPGPComponentKey getKeyComponent(KeyIdentifier identifier)
+    {
+        return getKeyComponent(Collections.singletonList(identifier));
+    }
+
+    private OpenPGPComponentKey getKeyComponent(List<KeyIdentifier> keyIdentifiers)
+    {
+        // We take a list here, since signatures might contain multiple issuer subpackets annoyingly.
+        // issuer is primary key
+
+        if (KeyIdentifier.matches(keyIdentifiers, getPrimaryKey().getKeyIdentifier(), false))
+        {
+            return primaryKey;
+        }
+
+        for (KeyIdentifier subkeyIdentifier : subkeys.keySet())
+        {
+            if (KeyIdentifier.matches(keyIdentifiers, subkeyIdentifier, false))
+            {
+                return subkeys.get(subkeyIdentifier);
+            }
+        }
+
+        return null; // external issuer
+    }
+
+    public OpenPGPComponentKey getIssuerKeyComponentFor(PGPSignature signature)
+    {
+        return getKeyComponent(signature.getKeyIdentifiers());
+    }
+
     /**
      * Return the {@link PGPPublicKeyRing} that this certificate is based on.
      *
@@ -94,7 +149,39 @@ public class OpenPGPCertificate
         return rawCert;
     }
 
-    private void cachePrimaryKey(OpenPGPPrimaryKey primaryKey)
+    private OpenPGPSignatureChain getSignatureChainFor(OpenPGPCertificateComponent component,
+                                                       OpenPGPComponentKey origin,
+                                                       Date evaluationDate)
+    {
+        // Check if there are signatures at all for the component
+        OpenPGPSignatureChains chainsForComponent = this.componentSignatureChains.get(component);
+        if (component == getPrimaryKey() && chainsForComponent.isEmpty())
+        {
+            // If cert has no direct-key signatures, consider UID bindings instead
+            // TODO: Only consider current primary user id?
+            for (OpenPGPIdentityComponent identity : getPrimaryKey().identityComponents)
+            {
+                chainsForComponent.addAll(getAllSignatureChainsFor(identity));
+            }
+        }
+
+        // Isolate chains which originate from the passed origin key component
+        OpenPGPSignatureChains fromOrigin = chainsForComponent.fromOrigin(origin);
+        if (fromOrigin == null)
+        {
+            return null;
+        }
+
+        // Return chain that currently takes precedence
+        return fromOrigin.getChainAt(evaluationDate);
+    }
+
+    public OpenPGPSignatureChains getAllSignatureChainsFor(OpenPGPCertificateComponent component)
+    {
+        return componentSignatureChains.get(component);
+    }
+
+    private void processPrimaryKey(OpenPGPPrimaryKey primaryKey)
     {
         OpenPGPSignatureChains keySignatureChains = new OpenPGPSignatureChains(primaryKey);
         List<OpenPGPComponentSignature> keySignatures = primaryKey.getKeySignatures();
@@ -124,14 +211,14 @@ public class OpenPGPCertificate
 
             for (OpenPGPComponentSignature sig : bindings)
             {
-                OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, sig.getIssuer(), identity);
+                OpenPGPSignatureChain chain = OpenPGPSignatureChain.direct(sig, sig.getIssuerComponent(), identity);
                 identityChains.add(chain);
             }
             componentSignatureChains.put(identity, identityChains);
         }
     }
 
-    private void cacheSubkey(OpenPGPSubkey subkey)
+    private void processSubkey(OpenPGPSubkey subkey)
     {
         List<OpenPGPComponentSignature> bindingSignatures = subkey.getKeySignatures();
         OpenPGPSignatureChains subkeyChains = new OpenPGPSignatureChains(subkey);
@@ -162,100 +249,48 @@ public class OpenPGPCertificate
         this.componentSignatureChains.put(subkey, subkeyChains);
     }
 
-    private OpenPGPSignatureChain getSignatureChainFor(OpenPGPCertificateComponent component,
-                                                       OpenPGPComponentKey origin,
-                                                       Date evaluationDate)
+    /**
+     * Return true, if the passed in component is - at evaluation time - properly bound to the certificate.
+     *
+     * @param component OpenPGP certificate component
+     * @param evaluationTime evaluation time
+     * @return true if component is bound at evaluation time, false otherwise
+     */
+    public boolean isBound(OpenPGPCertificateComponent component,
+                           Date evaluationTime)
     {
-        // Check if there are signatures at all for the component
-        OpenPGPSignatureChains chains = this.componentSignatureChains.get(component);
-        if (chains.chains.isEmpty())
-        {
-            if (component == getPrimaryKey())
-            {
-                for (OpenPGPIdentityComponent identity : getPrimaryKey().identityComponents)
-                {
-                    OpenPGPSignatureChains identityChains = getAllSignatureChainsFor(identity);
-                    for (OpenPGPSignatureChain identityChain : identityChains.chains)
-                    {
-                        chains.add(identityChain);
-                    }
-                }
-            }
-        }
-
-        OpenPGPSignatureChains fromOrigin = chains.fromOrigin(origin);
-        if (fromOrigin == null)
-        {
-            return null;
-        }
-
-        return fromOrigin.getChainAt(evaluationDate);
+        return isBoundBy(component, getPrimaryKey(), evaluationTime);
     }
 
-    public OpenPGPSignatureChains getAllSignatureChainsFor(OpenPGPCertificateComponent component)
-    {
-        return componentSignatureChains.get(component);
-    }
-
-    public boolean isAuthenticated(OpenPGPCertificateComponent component, Date evaluationTime)
-    {
-        return isAuthenticatedBy(component, getPrimaryKey(), evaluationTime);
-    }
-
-    public boolean isAuthenticatedBy(OpenPGPCertificateComponent component, OpenPGPComponentKey root, Date evaluationTime)
+    public boolean isBoundBy(OpenPGPCertificateComponent component,
+                             OpenPGPComponentKey root,
+                             Date evaluationTime)
     {
         try
         {
             OpenPGPSignatureChain chain = getSignatureChainFor(component, root, evaluationTime);
-            if (chain != null)
+            if (chain == null)
             {
-                if (chain.isValid(contentVerifierBuilderProvider))
-                {
-                    return !chain.isRevocation();
-                }
+                // Component is not bound at all
+                return false;
             }
+
+            // Chain needs to be valid (signatures correct)
+            if (chain.isValid(contentVerifierBuilderProvider))
+            {
+                // Chain needs to not contain a revocation signature, otherwise the component is considered revoked
+                return !chain.isRevocation();
+            }
+
+            // Signature is not correct
             return false;
         }
         catch (PGPException e)
         {
+            // Signature verification failed (signature broken?)
+            e.printStackTrace();
             return false;
         }
-    }
-
-    public OpenPGPSignatureChain getCertificationFor(OpenPGPCertificateComponent component, Date evaluationTime)
-    {
-        return getSignatureChainFor(component, getPrimaryKey(), evaluationTime);
-    }
-
-    public Map<KeyIdentifier, OpenPGPSubkey> getSubkeys()
-    {
-        return new HashMap<>(subkeys);
-    }
-
-    public List<OpenPGPCertificateComponent> getComponents()
-    {
-        return new ArrayList<>(componentSignatureChains.keySet());
-    }
-
-    public OpenPGPComponentKey getKeyComponent(List<KeyIdentifier> keyIdentifiers)
-    {
-        // We take a list here, since signatures might contain multiple issuer subpackets annoyingly.
-        // issuer is primary key
-
-        if (KeyIdentifier.matches(keyIdentifiers, getPrimaryKey().getKeyIdentifier(), false))
-        {
-            return primaryKey;
-        }
-
-        for (KeyIdentifier subkeyIdentifier : subkeys.keySet())
-        {
-            if (KeyIdentifier.matches(keyIdentifiers, subkeyIdentifier, false))
-            {
-                return subkeys.get(subkeyIdentifier);
-            }
-        }
-
-        return null; // external issuer
     }
 
     /**
@@ -280,7 +315,7 @@ public class OpenPGPCertificate
 
         public boolean isAuthenticatedAt(Date evaluationTime)
         {
-            return certificate.isAuthenticated(this, evaluationTime);
+            return certificate.isBound(this, evaluationTime);
         }
     }
 
@@ -310,138 +345,27 @@ public class OpenPGPCertificate
             this.target = target;
         }
 
-        public OpenPGPComponentKey getIssuer()
+        public OpenPGPComponentKey getIssuerComponent()
         {
             return issuer;
         }
 
-        public OpenPGPCertificateComponent getTarget()
+        public OpenPGPCertificateComponent getTargetComponent()
         {
             return target;
         }
 
-        public boolean verify(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
-                throws PGPException
-        {
-            if (issuer == null)
-            {
-                // No issuer available
-                return false;
-            }
-
-            // Direct-Key signature
-            if (target == issuer)
-            {
-                return verifyKeySignature(
-                        issuer,
-                        issuer,
-                        contentVerifierBuilderProvider);
-            }
-
-            // Subkey binding signature
-            if (target instanceof OpenPGPSubkey)
-            {
-                return verifyKeySignature(
-                        issuer,
-                        (OpenPGPSubkey) target,
-                        contentVerifierBuilderProvider);
-            }
-
-            // User-ID binding
-            if (target instanceof OpenPGPUserId)
-            {
-                return verifyUserIdSignature(
-                        issuer,
-                        (OpenPGPUserId) target,
-                        contentVerifierBuilderProvider);
-            }
-
-            // User-Attribute binding
-            if (target instanceof OpenPGPUserAttribute)
-            {
-                return verifyUserAttributeSignature(
-                        issuer,
-                        (OpenPGPUserAttribute) target,
-                        contentVerifierBuilderProvider);
-            }
-
-            return false;
-        }
-
-        public boolean verifyKeySignature(OpenPGPComponentKey issuer,
-                                          OpenPGPComponentKey target,
-                                          PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
-                throws PGPException
-        {
-            System.out.println("Test KeySignature " + this);
-            this.isTested = true;
-            try
-            {
-                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
-                if (issuer == target)
-                {
-                    isCorrect = signature.verifyCertification(target.rawPubkey);
-                }
-                else
-                {
-                    isCorrect = signature.verifyCertification(issuer.rawPubkey, target.rawPubkey);
-                }
-                return isCorrect;
-            }
-            catch (PGPException e)
-            {
-                this.isCorrect = false;
-                throw e;
-            }
-        }
-
-
-        public boolean verifyUserIdSignature(OpenPGPComponentKey issuer,
-                                             OpenPGPUserId target,
-                                             PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
-                throws PGPException
-        {
-            System.out.println("Test UIDSignature " + Hex.toHexString(signature.getDigestPrefix()));
-            this.isTested = true;
-            try
-            {
-                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
-                isCorrect = signature.verifyCertification(target.getUserId(), target.getPrimaryKey().rawPubkey);
-                return isCorrect;
-            }
-            catch (PGPException e)
-            {
-                this.isCorrect = false;
-                throw e;
-            }
-        }
-
-        public boolean verifyUserAttributeSignature(OpenPGPComponentKey issuer,
-                                                    OpenPGPUserAttribute target,
-                                                    PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
-                throws PGPException
-        {
-            System.out.println("Test UAttrSignature " + Hex.toHexString(signature.getDigestPrefix()));
-            this.isTested = true;
-            try
-            {
-                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
-                isCorrect = signature.verifyCertification(target.getUserAttribute(), target.getPrimaryKey().rawPubkey);
-                return isCorrect;
-            }
-            catch (PGPException e)
-            {
-                this.isCorrect = false;
-                throw e;
-            }
-        }
-
-        public boolean isRevocation()
-        {
-            return PGPSignature.isRevocation(signature.getSignatureType());
-        }
-
-        public OpenPGPComponentKey getAuthenticatedKeyComponent()
+        /**
+         * Return the {@link OpenPGPComponentKey} that this signature is calculated over.
+         * Contrary to {@link #getTargetComponent()}, which returns the actual target, this method returns the
+         * {@link OpenPGPComponentKey} "closest" to the target.
+         * For a subkey-binding signature, this is the target subkey, while for an identity-binding signature
+         * (binding for a user-id or attribute) the return value is the {@link OpenPGPComponentKey} which
+         * carries the identity.
+         *
+         * @return target key component of the signature
+         */
+        public OpenPGPComponentKey getTargetKeyComponent()
         {
             if (target instanceof OpenPGPIdentityComponent)
             {
@@ -456,12 +380,219 @@ public class OpenPGPCertificate
             throw new IllegalArgumentException("Unknown target type.");
         }
 
+        public void verify(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+                throws PGPException
+        {
+            if (issuer == null)
+            {
+                // No issuer available
+                throw new MissingIssuerCertException("Issuer certificate unavailable.");
+            }
+
+            sanitize(issuer);
+
+            // Direct-Key signature
+            if (target == issuer)
+            {
+                verifyKeySignature(
+                        issuer,
+                        issuer,
+                        contentVerifierBuilderProvider);
+            }
+
+            // Subkey binding signature
+            else if (target instanceof OpenPGPSubkey)
+            {
+                verifyKeySignature(
+                        issuer,
+                        (OpenPGPSubkey) target,
+                        contentVerifierBuilderProvider);
+            }
+
+            // User-ID binding
+            else if (target instanceof OpenPGPUserId)
+            {
+                verifyUserIdSignature(
+                        issuer,
+                        (OpenPGPUserId) target,
+                        contentVerifierBuilderProvider);
+            }
+
+            // User-Attribute binding
+            else if (target instanceof OpenPGPUserAttribute)
+            {
+                verifyUserAttributeSignature(
+                        issuer,
+                        (OpenPGPUserAttribute) target,
+                        contentVerifierBuilderProvider);
+            }
+
+            else
+            {
+                throw new PGPSignatureException("Unexpected signature type: " + getType());
+            }
+        }
+
+        public void verifyKeySignature(OpenPGPComponentKey issuer,
+                                       OpenPGPComponentKey target,
+                                       PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+                throws PGPException
+        {
+            this.isTested = true;
+            try
+            {
+                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
+                if (issuer == target)
+                {
+                    isCorrect = signature.verifyCertification(target.rawPubkey);
+                }
+                else
+                {
+                    isCorrect = signature.verifyCertification(issuer.rawPubkey, target.rawPubkey);
+                }
+                System.out.println("Test KeySignature " + this);
+                if (!isCorrect)
+                {
+                    throw new IncorrectPGPSignatureException("Key Signature is not correct.");
+                }
+            }
+            catch (PGPException e)
+            {
+                this.isCorrect = false;
+                throw new PGPSignatureException("Key Signature could not be verified.", e);
+            }
+        }
+
+        public void verifyUserIdSignature(OpenPGPComponentKey issuer,
+                                          OpenPGPUserId target,
+                                          PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+                throws PGPException
+        {
+            this.isTested = true;
+            try
+            {
+                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
+                isCorrect = signature.verifyCertification(target.getUserId(), target.getPrimaryKey().rawPubkey);
+                System.out.println("Test UIDSignature " + this);
+                if (!isCorrect)
+                {
+                    throw new IncorrectPGPSignatureException("UserID Signature is not correct.");
+                }
+            }
+            catch (PGPException e)
+            {
+                this.isCorrect = false;
+                System.out.println("Test UIDSignature " + this);
+                throw new PGPSignatureException("UserID Signature could not be verified.", e);
+            }
+        }
+
+        public void verifyUserAttributeSignature(OpenPGPComponentKey issuer,
+                                                 OpenPGPUserAttribute target,
+                                                 PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+                throws PGPException
+        {
+            this.isTested = true;
+            try
+            {
+                signature.init(contentVerifierBuilderProvider, issuer.rawPubkey);
+                isCorrect = signature.verifyCertification(target.getUserAttribute(), target.getPrimaryKey().rawPubkey);
+                System.out.println("Test UAttrSignature " + this);
+                if (!isCorrect)
+                {
+                    throw new IncorrectPGPSignatureException("UserAttribute Signature is not correct.");
+                }
+            }
+            catch (PGPException e)
+            {
+                this.isCorrect = false;
+                System.out.println("Test UAttrSignature " + this);
+                throw new PGPSignatureException("Could not verify UserAttribute Signature.", e);
+            }
+        }
+
+        private void sanitize(OpenPGPComponentKey issuer)
+                throws MalformedPGPSignatureException
+        {
+            PGPSignatureSubpacketVector hashed = signature.getHashedSubPackets();
+            if (hashed == null)
+            {
+                throw new MalformedPGPSignatureException("Missing hashed signature subpacket area.");
+            }
+            PGPSignatureSubpacketVector unhashed = signature.getUnhashedSubPackets();
+
+            if (hashed.getSignatureCreationTime() == null)
+            {
+                // Signatures MUST have hashed creation time subpacket
+                throw new MalformedPGPSignatureException("Signature does not have a hashed SignatureCreationTime subpacket.");
+            }
+
+            if (hashed.getSignatureCreationTime().before(issuer.getCreationTime()))
+            {
+                throw new MalformedPGPSignatureException("Signature predates issuer key creation time.");
+            }
+
+            for (NotationData notation : hashed.getNotationDataOccurrences())
+            {
+                if (notation.isCritical())
+                {
+                    throw new MalformedPGPSignatureException("Critical unknown NotationData encountered: " + notation.getNotationName());
+                }
+            }
+
+            for (SignatureSubpacket unknownSubpacket : hashed.toArray())
+            {
+                // SignatureSubpacketInputStream returns unknown subpackets as SignatureSubpacket
+                if (unknownSubpacket.isCritical() &&
+                        unknownSubpacket.getClass().equals(SignatureSubpacket.class))
+                {
+                    throw new MalformedPGPSignatureException("Critical hashed unknown SignatureSubpacket encountered: "
+                            + unknownSubpacket.getType());
+                }
+            }
+
+            switch (signature.getVersion())
+            {
+                case SignaturePacket.VERSION_4:
+                    if (hashed.getIssuerFingerprint() == null &&
+                            unhashed.getIssuerFingerprint() == null &&
+                            hashed.getSubpacket(SignatureSubpacketTags.ISSUER_KEY_ID) == null &&
+                            unhashed.getSubpacket(SignatureSubpacketTags.ISSUER_KEY_ID) == null)
+                    {
+                        throw new MalformedPGPSignatureException("Missing IssuerKeyID and IssuerFingerprint subpacket.");
+                    }
+                    break;
+
+                case SignaturePacket.VERSION_5:
+                    // TODO: Implement
+                    break;
+
+                case SignaturePacket.VERSION_6:
+                    if (hashed.getSubpacket(SignatureSubpacketTags.ISSUER_KEY_ID) != null)
+                    {
+                        throw new MalformedPGPSignatureException("v6 signature MUST NOT contain IssuerKeyID subpacket.");
+                    }
+                    if (hashed.getIssuerFingerprint() == null && unhashed.getIssuerFingerprint() == null)
+                    {
+                        throw new MalformedPGPSignatureException("v6 signature MUST contain IssuerFingerprint subpacket.");
+                    }
+                    break;
+
+                default:
+            }
+        }
+
+        public boolean isRevocation()
+        {
+            return PGPSignature.isRevocation(signature.getSignatureType());
+        }
+
         @Override
         public String toString()
         {
             String issuerInfo = getIssuerDisplay();
-            String period = utcFormat.format(getCreationTime()) +
-                    (getExpirationTime() == null ? "" : ">" + utcFormat.format(getExpirationTime()));
+            String period = UTCUtil.format(getCreationTime()) +
+                    (getExpirationTime() == null ? "" : ">" + UTCUtil.format(getExpirationTime()));
             String validity = isTested ? (isCorrect ? "✓" : "✗") : "❓";
             return getType() + (signature.isHardRevocation() ? "(hard)" : "") + " " + Hex.toHexString(signature.getDigestPrefix()) +
                     " " + issuerInfo + " -> " + target.toString() + " (" + period + ") " + validity;
@@ -570,7 +701,7 @@ public class OpenPGPCertificate
         @Override
         public String toDetailString()
         {
-            return "PrimaryKey[" + getKeyIdentifier() + "] (" + utcFormat.format(getCreationTime()) + ")";
+            return "PrimaryKey[" + getKeyIdentifier() + "] (" + UTCUtil.format(getCreationTime()) + ")";
         }
 
         protected final List<OpenPGPIdentityComponent> identityComponents;
@@ -604,10 +735,6 @@ public class OpenPGPCertificate
                 if (type != PGPSignature.DIRECT_KEY && type != PGPSignature.KEY_REVOCATION)
                 {
                     continue;
-                }
-                else
-                {
-                    System.out.println("KEY SIGNAUTRE");
                 }
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
@@ -671,7 +798,7 @@ public class OpenPGPCertificate
         @Override
         public String toDetailString()
         {
-            return "Subkey[" + getKeyIdentifier() + "] (" + utcFormat.format(getCreationTime()) + ")";
+            return "Subkey[" + getKeyIdentifier() + "] (" + UTCUtil.format(getCreationTime()) + ")";
         }
 
         protected List<OpenPGPComponentSignature> getKeySignatures()
@@ -812,14 +939,14 @@ public class OpenPGPCertificate
         public OpenPGPSignatureChain plus(OpenPGPComponentSignature sig,
                                           OpenPGPCertificateComponent targetComponent)
         {
-            if (getHeadKey() != sig.getIssuer())
+            if (getHeadKey() != sig.getIssuerComponent())
             {
                 throw new IllegalArgumentException("Chain head is not equal to link issuer.");
             }
 
             OpenPGPSignatureChain chain = new OpenPGPSignatureChain(this);
 
-            chain.chainLinks.add(Link.create(sig, sig.getIssuer(), targetComponent));
+            chain.chainLinks.add(Link.create(sig, sig.getIssuerComponent(), targetComponent));
 
             return chain;
         }
@@ -848,7 +975,7 @@ public class OpenPGPCertificate
 
         public OpenPGPComponentKey getHeadKey()
         {
-            return getHeadLink().signature.getAuthenticatedKeyComponent();
+            return getHeadLink().signature.getTargetKeyComponent();
         }
 
         public boolean isCertification()
@@ -961,8 +1088,8 @@ public class OpenPGPCertificate
         public String toString()
         {
             StringBuilder b = new StringBuilder();
-            String until = getUntil() == null ? "EndOfTime" : utcFormat.format(getUntil());
-            b.append("From ").append(utcFormat.format(getSince())).append(" until ").append(until).append("\n");
+            String until = getUntil() == null ? "EndOfTime" : UTCUtil.format(getUntil());
+            b.append("From ").append(UTCUtil.format(getSince())).append(" until ").append(until).append("\n");
             for (Link link : chainLinks)
             {
                 b.append("  ").append(link.toString()).append("\n");
@@ -1017,7 +1144,8 @@ public class OpenPGPCertificate
             public boolean verify(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                     throws PGPException
             {
-                return signature.verify(contentVerifierBuilderProvider);
+                signature.verify(contentVerifierBuilderProvider);
+                return true;
             }
 
             @Override
@@ -1126,6 +1254,16 @@ public class OpenPGPCertificate
         public void add(OpenPGPSignatureChain chain)
         {
             this.chains.add(chain);
+        }
+
+        public void addAll(OpenPGPSignatureChains otherChains)
+        {
+            this.chains.addAll(otherChains.chains);
+        }
+
+        public boolean isEmpty()
+        {
+            return chains.isEmpty();
         }
 
         /**
