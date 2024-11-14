@@ -1,5 +1,9 @@
 package org.bouncycastle.openpgp.api;
 
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.FingerprintUtil;
+import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.SignaturePacket;
 import org.bouncycastle.bcpg.SignatureSubpacket;
@@ -21,6 +25,8 @@ import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.Iterable;
 import org.bouncycastle.util.encoders.Hex;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -186,6 +192,66 @@ public class OpenPGPCertificate
         return rawCert;
     }
 
+    public KeyIdentifier getKeyIdentifier()
+    {
+        return primaryKey.getKeyIdentifier();
+    }
+
+    public byte[] getFingerprint()
+    {
+        return primaryKey.rawPubkey.getFingerprint();
+    }
+
+    public String toAsciiArmoredString()
+            throws IOException
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ArmoredOutputStream.Builder armorBuilder = ArmoredOutputStream.builder()
+                .clearHeaders();
+
+        for (String slice : fingerprintComments())
+        {
+            armorBuilder.addComment(slice);
+        }
+
+        for (OpenPGPUserId userId : getPrimaryKey().getUserIDs())
+        {
+            armorBuilder.addComment(userId.getUserId());
+        }
+
+        ArmoredOutputStream aOut = armorBuilder.build(bOut);
+        BCPGOutputStream pOut = new BCPGOutputStream(aOut, PacketFormat.CURRENT);
+
+        // Make sure we export a TPK
+        List<PGPPublicKey> list = new ArrayList<>();
+        for (Iterator<PGPPublicKey> it = getPGPKeyRing().getPublicKeys(); it.hasNext(); ) {
+            list.add(it.next());
+        }
+        PGPPublicKeyRing publicKeys = new PGPPublicKeyRing(list);
+
+        publicKeys.encode(pOut, true);
+        pOut.close();
+        aOut.close();
+        return bOut.toString();
+    }
+
+    protected List<String> fingerprintComments()
+    {
+        // TODO: Implement slicing in ArmoredOutputStream.Builder instead?
+        String prettyPrinted = FingerprintUtil.prettifyFingerprint(getFingerprint());
+
+        int availableCommentCharsPerLine = 64 - "Comment: ".length(); // ASCII armor width - header len
+        List<String> slices = new ArrayList<>();
+
+        while (prettyPrinted.length() > availableCommentCharsPerLine)
+        {
+            slices.add(prettyPrinted.substring(0, availableCommentCharsPerLine));
+            prettyPrinted = prettyPrinted.substring(availableCommentCharsPerLine).trim();
+        }
+        slices.add(prettyPrinted);
+        return slices;
+    }
+
     private OpenPGPSignatureChain getSignatureChainFor(OpenPGPCertificateComponent component,
                                                        OpenPGPComponentKey origin,
                                                        Date evaluationDate)
@@ -333,7 +399,6 @@ public class OpenPGPCertificate
         catch (PGPException e)
         {
             // Signature verification failed (signature broken?)
-            e.printStackTrace();
             return false;
         }
     }
@@ -417,9 +482,9 @@ public class OpenPGPCertificate
     }
 
     /**
-     * Return {@link OpenPGPSignatureChains} that contain preference information
+     * Return {@link OpenPGPSignatureChains} that contain preference information.
      *
-     * @return
+     * @return signature chain containing certificate-wide preferences (typically DK signature)
      */
     private OpenPGPSignatureChain getPreferenceSignature(Date evaluationTime)
     {
@@ -572,15 +637,15 @@ public class OpenPGPCertificate
          */
         public OpenPGPComponentKey getTargetKeyComponent()
         {
-            if (target instanceof OpenPGPIdentityComponent)
+            if (getTargetComponent() instanceof OpenPGPIdentityComponent)
             {
                 // Identity signatures indirectly authenticate the primary key
-                return ((OpenPGPIdentityComponent) target).getPrimaryKey();
+                return ((OpenPGPIdentityComponent) getTargetComponent()).getPrimaryKey();
             }
-            if (target instanceof OpenPGPComponentKey)
+            if (getTargetComponent() instanceof OpenPGPComponentKey)
             {
                 // Key signatures authenticate the target key
-                return (OpenPGPComponentKey) target;
+                return (OpenPGPComponentKey) getTargetComponent();
             }
             throw new IllegalArgumentException("Unknown target type.");
         }
@@ -589,7 +654,7 @@ public class OpenPGPCertificate
          * Verify this signature.
          *
          * @param contentVerifierBuilderProvider provider for verifiers
-         * @throws PGPException if the signature cannot be verified successfully
+         * @throws PGPSignatureException if the signature cannot be verified successfully
          */
         public void verify(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
                 throws PGPSignatureException

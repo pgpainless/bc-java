@@ -85,11 +85,14 @@ public class OpenPGPCertificateTest
                 "-----END PGP PRIVATE KEY BLOCK-----";
         OpenPGPKey key = readKey(armoredKey);
 
+        isTrue("Test key has no identities", key.getIdentities().isEmpty());
+
         OpenPGPCertificate.OpenPGPPrimaryKey primaryKey = key.getPrimaryKey();
         isEquals("Primary key identifier mismatch",
                 new KeyIdentifier("CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9"),
                 primaryKey.getKeyIdentifier());
         isTrue("Primary key is expected to be signing key", primaryKey.isSigningKey());
+        isTrue("Primary key is expected to be certification key", primaryKey.isCertificationKey());
 
         List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
         isEquals("Expected exactly 1 signing key", 1, signingKeys.size());
