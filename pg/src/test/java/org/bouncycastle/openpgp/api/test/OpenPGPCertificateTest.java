@@ -44,6 +44,28 @@ public class OpenPGPCertificateTest
         testPKSignsPKRevocationSuperseded();
     }
 
+    private OpenPGPCertificate readCertificate(String armored)
+            throws IOException
+    {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
+        PGPPublicKeyRing publicKeys = (PGPPublicKeyRing) objFac.nextObject();
+        return new OpenPGPCertificate(publicKeys, new BcPGPContentVerifierBuilderProvider());
+    }
+
+    private OpenPGPKey readKey(String armored)
+            throws IOException
+    {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
+        PGPSecretKeyRing secretKey = (PGPSecretKeyRing) objFac.nextObject();
+        return new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider());
+    }
+
     private void testOpenPGPv6Key()
             throws IOException
     {
@@ -61,42 +83,43 @@ public class OpenPGPCertificateTest
                 "M0g12vYxoWM8Y81W+bHBw805I8kWVkXU6vFOi+HWvv/ira7ofJu16NnoUkhclkUr\n" +
                 "k0mXubZvyl4GBg==\n" +
                 "-----END PGP PRIVATE KEY BLOCK-----";
-        ByteArrayInputStream bIn = new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-        PGPSecretKeyRing secretKey = (PGPSecretKeyRing) objFac.nextObject();
-        OpenPGPKey key = new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider());
+        OpenPGPKey key = readKey(armoredKey);
 
         OpenPGPCertificate.OpenPGPPrimaryKey primaryKey = key.getPrimaryKey();
-        isEquals(
+        isEquals("Primary key identifier mismatch",
                 new KeyIdentifier("CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9"),
                 primaryKey.getKeyIdentifier());
+        isTrue("Primary key is expected to be signing key", primaryKey.isSigningKey());
 
         List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
-        isEquals(1, signingKeys.size());
+        isEquals("Expected exactly 1 signing key", 1, signingKeys.size());
         OpenPGPCertificate.OpenPGPPrimaryKey signingKey = (OpenPGPCertificate.OpenPGPPrimaryKey) signingKeys.get(0);
-        isEquals(primaryKey, signingKey);
+        isEquals("Signing key is expected to be the same as primary key", primaryKey, signingKey);
 
         Features signingKeyFeatures = signingKey.getFeatures();
         // Features are extracted from direct-key signature
-        isEquals(Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
+        isEquals("Signing key features mismatch. Expect features to be extracted from DK signature.",
+                Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
                 signingKeyFeatures.getFeatures());
 
         List<OpenPGPCertificate.OpenPGPComponentKey> encryptionKeys = key.getEncryptionKeys();
-        isEquals(1, encryptionKeys.size());
+        isEquals("Expected exactly 1 encryption key", 1, encryptionKeys.size());
         OpenPGPCertificate.OpenPGPSubkey encryptionKey = (OpenPGPCertificate.OpenPGPSubkey) encryptionKeys.get(0);
-        isEquals(
+        isTrue("Subkey MUST be encryption key", encryptionKey.isEncryptionKey());
+        isEquals("Encryption subkey identifier mismatch",
                 new KeyIdentifier("12C83F1E706F6308FE151A417743A1F033790E93E9978488D1DB378DA9930885"),
                 encryptionKey.getKeyIdentifier());
 
         KeyFlags encryptionKeyFlags = encryptionKey.getKeyFlags();
         // Key Flags are extracted from subkey-binding signature
-        isEquals(KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE, encryptionKeyFlags.getFlags());
+        isEquals("Encryption key flag mismatch. Expected key flags to be extracted from SB sig.",
+                KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE,
+                encryptionKeyFlags.getFlags());
 
         Features encryptionKeyFeatures = encryptionKey.getFeatures();
         // Features are extracted from direct-key signature
-        isEquals(Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
+        isEquals("Encryption key features mismatch. Expected features to be extracted from DK sig.",
+                Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
                 encryptionKeyFeatures.getFeatures());
     }
 
@@ -631,7 +654,9 @@ public class OpenPGPCertificateTest
         signatureValidityTest(cert, t0, t1, t2, t3);
     }
 
-    private void testPKSignsPKRevocationSuperseded() throws IOException {
+    private void testPKSignsPKRevocationSuperseded()
+            throws IOException
+    {
         // https://sequoia-pgp.gitlab.io/openpgp-interoperability-test-suite/results.html#Key_revocation_test__primary_key_signs_and_is_revoked__revoked__superseded
         String CERT = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n" +
                 "\n" +
@@ -764,31 +789,19 @@ public class OpenPGPCertificateTest
                 "-----END PGP SIGNATURE-----\n", true);
 
         signatureValidityTest(CERT, t0, t1, t2, t3);
-
     }
 
     private void signatureValidityTest(String cert, TestSignature... testSignatures)
             throws IOException
     {
-        ByteArrayInputStream bIn = new ByteArrayInputStream(cert.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-
-        PGPPublicKeyRing publicKeys = (PGPPublicKeyRing) objFac.nextObject();
-
-        pIn.close();
-        aIn.close();
-        bIn.close();
-
-        OpenPGPCertificate certificate = new OpenPGPCertificate(publicKeys, new BcPGPContentVerifierBuilderProvider());
+        OpenPGPCertificate certificate = readCertificate(cert);
 
         for (TestSignature test : testSignatures)
         {
             PGPSignature signature = test.getSignature();
-            OpenPGPCertificate.OpenPGPComponentKey signingKey = certificate.getIssuerKeyComponentFor(signature);
+            OpenPGPCertificate.OpenPGPComponentKey signingKey = certificate.getSigningKeyFor(signature);
 
-            boolean valid = certificate.isBound(signingKey, signature.getCreationTime());
+            boolean valid = signingKey.isBoundAt(signature.getCreationTime());
             if (valid != test.isExpectValid())
             {
                 StringBuilder sb = new StringBuilder("Key validity mismatch. Expected " + signingKey.toString() +
@@ -797,7 +810,7 @@ public class OpenPGPCertificateTest
                 {
                     sb.append(" because:\n").append(test.getMsg());
                 }
-                sb.append("\n").append(certificate.getAllSignatureChainsFor(signingKey));
+                sb.append("\n").append(signingKey.getSignatureChains());
                 fail(sb.toString());
             }
         }

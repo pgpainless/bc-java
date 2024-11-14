@@ -119,7 +119,14 @@ public class OpenPGPCertificate
         return new ArrayList<>(componentSignatureChains.keySet());
     }
 
-    public List<OpenPGPComponentKey> getKeyComponents()
+    /**
+     * Return all {@link OpenPGPComponentKey OpenPGPComponentKeys} in the certificate.
+     * The return value is a {@link List} containing the {@link OpenPGPPrimaryKey} and all
+     * {@link OpenPGPSubkey OpenPGPSubkeys}.
+     *
+     * @return list of all component keys
+     */
+    public List<OpenPGPComponentKey> getKeys()
     {
         List<OpenPGPComponentKey> keys = new ArrayList<>();
         keys.add(getPrimaryKey());
@@ -133,7 +140,7 @@ public class OpenPGPCertificate
      * @param identifier key identifier
      * @return component key
      */
-    public OpenPGPComponentKey getKeyComponent(KeyIdentifier identifier)
+    public OpenPGPComponentKey getKey(KeyIdentifier identifier)
     {
         if (identifier.matches(getPrimaryKey().rawPubkey))
         {
@@ -149,7 +156,7 @@ public class OpenPGPCertificate
      * @param signature signature
      * @return issuer (sub-)key
      */
-    public OpenPGPComponentKey getIssuerKeyComponentFor(PGPSignature signature)
+    public OpenPGPComponentKey getSigningKeyFor(PGPSignature signature)
     {
         List<KeyIdentifier> keyIdentifiers = signature.getKeyIdentifiers();
         // issuer is primary key
@@ -174,7 +181,7 @@ public class OpenPGPCertificate
      *
      * @return underlying key ring
      */
-    public PGPKeyRing getKeyRing()
+    public PGPKeyRing getPGPKeyRing()
     {
         return rawCert;
     }
@@ -206,7 +213,7 @@ public class OpenPGPCertificate
         return fromOrigin.getChainAt(evaluationDate);
     }
 
-    public OpenPGPSignatureChains getAllSignatureChainsFor(OpenPGPCertificateComponent component)
+    private OpenPGPSignatureChains getAllSignatureChainsFor(OpenPGPCertificateComponent component)
     {
         return componentSignatureChains.get(component);
     }
@@ -255,7 +262,7 @@ public class OpenPGPCertificate
 
         for (OpenPGPComponentSignature sig : bindingSignatures)
         {
-            OpenPGPComponentKey issuer = subkey.getCertificate().getIssuerKeyComponentFor(sig.getSignature());
+            OpenPGPComponentKey issuer = subkey.getCertificate().getSigningKeyFor(sig.getSignature());
             if (issuer == null)
             {
                 continue; // external key
@@ -285,7 +292,7 @@ public class OpenPGPCertificate
      * @param evaluationTime evaluation time
      * @return true if component is bound at evaluation time, false otherwise
      */
-    public boolean isBound(OpenPGPCertificateComponent component,
+    private boolean isBound(OpenPGPCertificateComponent component,
                            Date evaluationTime)
     {
         return isBoundBy(component, getPrimaryKey(), evaluationTime);
@@ -300,7 +307,7 @@ public class OpenPGPCertificate
      * @param evaluationTime evaluation time
      * @return true if component is bound at evaluation time, originating at root, false otherwise
      */
-    public boolean isBoundBy(OpenPGPCertificateComponent component,
+    private boolean isBoundBy(OpenPGPCertificateComponent component,
                              OpenPGPComponentKey root,
                              Date evaluationTime)
     {
@@ -331,16 +338,27 @@ public class OpenPGPCertificate
         }
     }
 
+    /**
+     * Return a {@link List} containing all currently marked, valid encryption keys.
+     *
+     * @return encryption keys
+     */
     public List<OpenPGPComponentKey> getEncryptionKeys()
     {
         return getEncryptionKeys(new Date());
     }
 
+    /**
+     * Return a list of all keys that are - at evaluation time - valid encryption keys.
+     *
+     * @param evaluationTime evaluation time
+     * @return encryption keys
+     */
     public List<OpenPGPComponentKey> getEncryptionKeys(Date evaluationTime)
     {
         List<OpenPGPComponentKey> encryptionKeys = new ArrayList<>();
 
-        for (OpenPGPComponentKey key : getKeyComponents())
+        for (OpenPGPComponentKey key : getKeys())
         {
             if (!isBound(key, evaluationTime))
             {
@@ -359,16 +377,27 @@ public class OpenPGPCertificate
         return encryptionKeys;
     }
 
+    /**
+     * Return a {@link List} containing all currently valid marked signing keys.
+     *
+     * @return list of signing keys
+     */
     public List<OpenPGPComponentKey> getSigningKeys()
     {
         return getSigningKeys(new Date());
     }
 
+    /**
+     * Return a list of all keys that - at evaluation time - are validly marked as signing keys.
+     *
+     * @param evaluationTime evaluation time
+     * @return list of signing keys
+     */
     public List<OpenPGPComponentKey> getSigningKeys(Date evaluationTime)
     {
         List<OpenPGPComponentKey> signingKeys = new ArrayList<>();
 
-        for (OpenPGPComponentKey key : getKeyComponents())
+        for (OpenPGPComponentKey key : getKeys())
         {
             if (!isBound(key, evaluationTime))
             {
@@ -389,9 +418,10 @@ public class OpenPGPCertificate
 
     /**
      * Return {@link OpenPGPSignatureChains} that contain preference information
+     *
      * @return
      */
-    private OpenPGPSignatureChain getPreferenceBinding(Date evaluationTime)
+    private OpenPGPSignatureChain getPreferenceSignature(Date evaluationTime)
     {
         OpenPGPSignatureChain directKeyBinding = getPrimaryKey().getSignatureChains()
                 .fromOrigin(getPrimaryKey())
@@ -425,6 +455,11 @@ public class OpenPGPCertificate
         }
 
         return uidBindings.isEmpty() ? null : uidBindings.get(0);
+    }
+
+    public List<OpenPGPIdentityComponent> getIdentities()
+    {
+        return new ArrayList<>(primaryKey.identityComponents);
     }
 
     /**
@@ -891,7 +926,7 @@ public class OpenPGPCertificate
         }
 
         /**
-         * Return true if the key is currently marked as encryption key.
+         * Return true, if the key is currently marked as encryption key.
          *
          * @return true if the key is an encryption key, false otherwise
          */
@@ -900,6 +935,12 @@ public class OpenPGPCertificate
             return isEncryptionKey(new Date());
         }
 
+        /**
+         * Return true, if the is - at evaluation time - marked as an encryption key.
+         *
+         * @param evaluationTime evaluation time
+         * @return true if key is an encryption key at evaluation time, false otherwise
+         */
         public boolean isEncryptionKey(Date evaluationTime)
         {
             if (!rawPubkey.isEncryptionKey())
@@ -919,13 +960,25 @@ public class OpenPGPCertificate
                     (flags & KeyFlags.ENCRYPT_STORAGE) == KeyFlags.ENCRYPT_STORAGE;
         }
 
+        /**
+         * Return true, if the key is currently marked as a signing key for message signing.
+         *
+         * @return true, if key is currently signing key
+         */
         public boolean isSigningKey()
         {
             return isSigningKey(new Date());
         }
 
+        /**
+         * Return true, if the key is - at evaluation time - marked as signing key for message signing.
+         *
+         * @param evaluationTime evaluation time
+         * @return true if key is signing key at evaluation time
+         */
         public boolean isSigningKey(Date evaluationTime)
         {
+            // TODO: Replace with https://github.com/bcgit/bc-java/pull/1857/files#diff-36f593d586240aec2546daad96d16b5debd3463202a3d5d82c0b2694572c8426R14-R30
             int alg = rawPubkey.getAlgorithm();
             if (alg != PublicKeyAlgorithmTags.RSA_GENERAL &&
                     alg != PublicKeyAlgorithmTags.RSA_SIGN &&
@@ -949,11 +1002,63 @@ public class OpenPGPCertificate
             return (flags & KeyFlags.SIGN_DATA) == KeyFlags.SIGN_DATA;
         }
 
+        /**
+         * Return true, if the key is currently marked as certification key that can sign 3rd-party certificates.
+         *
+         * @return true, if key is certification key
+         */
+        public boolean isCertificationKey()
+        {
+            return isCertificationKey(new Date());
+        }
+
+        /**
+         * Return true, if the key is - at evaluation time - marked as certification key that can sign 3rd-party
+         * certificates.
+         *
+         * @param evaluationTime evaluation time
+         * @return true if key is certification key at evaluation time
+         */
+        public boolean isCertificationKey(Date evaluationTime)
+        {
+            // TODO: Replace with https://github.com/bcgit/bc-java/pull/1857/files#diff-36f593d586240aec2546daad96d16b5debd3463202a3d5d82c0b2694572c8426R14-R30
+            int alg = rawPubkey.getAlgorithm();
+            if (alg != PublicKeyAlgorithmTags.RSA_GENERAL &&
+                    alg != PublicKeyAlgorithmTags.RSA_SIGN &&
+                    alg != PublicKeyAlgorithmTags.DSA &&
+                    alg != PublicKeyAlgorithmTags.ECDSA &&
+                    alg != PublicKeyAlgorithmTags.EDDSA_LEGACY &&
+                    alg != PublicKeyAlgorithmTags.Ed25519 &&
+                    alg != PublicKeyAlgorithmTags.Ed448)
+            {
+                // Key is not signing-capable by algorithm
+                return false;
+            }
+
+            KeyFlags keyFlags = getKeyFlags(evaluationTime);
+            if (keyFlags == null)
+            {
+                return false;
+            }
+
+            int flags = keyFlags.getFlags();
+            return (flags & KeyFlags.CERTIFY_OTHER) == KeyFlags.CERTIFY_OTHER;
+        }
+
+        /**
+         * Return the {@link KeyFlags} signature subpacket that currently applies to the key.
+         * @return key flags subpacket
+         */
         public KeyFlags getKeyFlags()
         {
             return getKeyFlags(new Date());
         }
 
+        /**
+         * Return the {@link KeyFlags} signature subpacket that - at evaluation time - applies to the key.
+         * @param evaluationTime evaluation time
+         * @return key flags subpacket
+         */
         public KeyFlags getKeyFlags(Date evaluationTime)
         {
             SignatureSubpacket subpacket = getApplyingSubpacket(
@@ -965,11 +1070,20 @@ public class OpenPGPCertificate
             return null;
         }
 
+        /**
+         * Return the {@link Features} signature subpacket that currently applies to the key.
+         * @return feature signature subpacket
+         */
         public Features getFeatures()
         {
             return getFeatures(new Date());
         }
 
+        /**
+         * Return the {@link Features} signature subpacket that - at evaluation time - applies to the key.
+         * @param evaluationTime evaluation time
+         * @return features subpacket
+         */
         public Features getFeatures(Date evaluationTime)
         {
             SignatureSubpacket subpacket = getApplyingSubpacket(evaluationTime, SignatureSubpacketTags.FEATURES);
@@ -980,6 +1094,21 @@ public class OpenPGPCertificate
             return null;
         }
 
+        /**
+         * Return the {@link SignatureSubpacket} instance of the given subpacketType, which currently applies to
+         * the key. Since subpackets from the Direct-Key signature apply to all subkeys of a certificate,
+         * this method first inspects the signature that immediately applies to this key (e.g. a subkey-binding
+         * signature), and - if the queried subpacket is found in there, returns that instance.
+         * Otherwise, indirectly applying signatures (e.g. Direct-Key signatures) are queried.
+         * That way, preferences from the direct-key signature are considered, but per-key overwrites take precedence.
+         *
+         * @see <a href="https://openpgp.dev/book/adv/verification.html#attribute-shadowing">
+         *     OpenPGP for application developers - Attribute Shadowing</a>
+         *
+         * @param evaluationTime evaluation time
+         * @param subpacketType subpacket type that is being searched for
+         * @return subpacket from directly or indirectly applying signature
+         */
         private SignatureSubpacket getApplyingSubpacket(Date evaluationTime, int subpacketType)
         {
             OpenPGPSignatureChain binding = getSignatureChains().getChainAt(evaluationTime);
@@ -1018,7 +1147,7 @@ public class OpenPGPCertificate
             {
                 // If the subkey binding signature doesn't carry the desired subpacket,
                 //  check direct-key or primary uid sig instead
-                OpenPGPSignatureChain preferenceBinding = getCertificate().getPreferenceBinding(evaluationTime);
+                OpenPGPSignatureChain preferenceBinding = getCertificate().getPreferenceSignature(evaluationTime);
                 if (preferenceBinding == null)
                 {
                     // No direct-key / primary uid sig found -> No subpacket
@@ -1026,6 +1155,7 @@ public class OpenPGPCertificate
                 }
                 hashedSubpackets = preferenceBinding.getHeadLink().getSignature().getSignature().getHashedSubPackets();
             }
+            // else -> attribute from DK sig is shadowed by SB sig
 
             // Extract subpacket from hashed area
             return hashedSubpackets.getSubpacket(subpacketType);
@@ -1120,7 +1250,7 @@ public class OpenPGPCertificate
                 }
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
-                        .getIssuerKeyComponentFor(sig);
+                        .getSigningKeyFor(sig);
 
                 list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, this));
             }
@@ -1136,7 +1266,7 @@ public class OpenPGPCertificate
                 PGPSignature sig = iterator.next();
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
-                        .getIssuerKeyComponentFor(sig);
+                        .getSigningKeyFor(sig);
 
                 list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, identity));
             }
@@ -1152,7 +1282,7 @@ public class OpenPGPCertificate
                 PGPSignature sig = iterator.next();
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
-                        .getIssuerKeyComponentFor(sig);
+                        .getSigningKeyFor(sig);
 
                 list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, identity));
             }
@@ -1197,7 +1327,7 @@ public class OpenPGPCertificate
                 }
                 // try to find issuer for self-signature
                 OpenPGPCertificate.OpenPGPComponentKey issuer = getCertificate()
-                        .getIssuerKeyComponentFor(sig);
+                        .getSigningKeyFor(sig);
 
                 list.add(new OpenPGPCertificate.OpenPGPComponentSignature(sig, issuer, this));
             }

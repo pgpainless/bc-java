@@ -36,12 +36,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -586,7 +584,7 @@ public class OpenPGPMessageGenerator
             Set<PGPPublicKey> encryptionKeys = new LinkedHashSet<>();
             for (KeyIdentifier identifier : subkeySelector.select(certificate))
             {
-                Iterator<PGPPublicKey> selected = certificate.getKeyRing().getPublicKeys(identifier);
+                Iterator<PGPPublicKey> selected = certificate.getPGPKeyRing().getPublicKeys(identifier);
                 while (selected.hasNext())
                 {
                     encryptionKeys.add(selected.next());
