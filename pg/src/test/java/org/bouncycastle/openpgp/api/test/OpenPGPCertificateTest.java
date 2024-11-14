@@ -2,12 +2,17 @@ package org.bouncycastle.openpgp.api.test;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
+import org.bouncycastle.bcpg.sig.Features;
+import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
+import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
@@ -15,6 +20,7 @@ import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class OpenPGPCertificateTest
         extends AbstractPacketTest
@@ -29,11 +35,69 @@ public class OpenPGPCertificateTest
     public void performTest()
             throws Exception
     {
+        testOpenPGPv6Key();
+
         testBaseCasePrimaryKeySigns();
         testBaseCaseSubkeySigns();
         testPKSignsPKRevokedNoSubpacket();
         testSKSignsPKRevokedNoSubpacket();
         testPKSignsPKRevocationSuperseded();
+    }
+
+    private void testOpenPGPv6Key()
+            throws IOException
+    {
+        String armoredKey = "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" +
+                "\n" +
+                "xUsGY4d/4xsAAAAg+U2nu0jWCmHlZ3BqZYfQMxmZu52JGggkLq2EVD34laMAGXKB\n" +
+                "exK+cH6NX1hs5hNhIB00TrJmosgv3mg1ditlsLfCsQYfGwoAAABCBYJjh3/jAwsJ\n" +
+                "BwUVCg4IDAIWAAKbAwIeCSIhBssYbE8GCaaX5NUt+mxyKwwfHifBilZwj2Ul7Ce6\n" +
+                "2azJBScJAgcCAAAAAK0oIBA+LX0ifsDm185Ecds2v8lwgyU2kCcUmKfvBXbAf6rh\n" +
+                "RYWzuQOwEn7E/aLwIwRaLsdry0+VcallHhSu4RN6HWaEQsiPlR4zxP/TP7mhfVEe\n" +
+                "7XWPxtnMUMtf15OyA51YBMdLBmOHf+MZAAAAIIaTJINn+eUBXbki+PSAld2nhJh/\n" +
+                "LVmFsS+60WyvXkQ1AE1gCk95TUR3XFeibg/u/tVY6a//1q0NWC1X+yui3O24wpsG\n" +
+                "GBsKAAAALAWCY4d/4wKbDCIhBssYbE8GCaaX5NUt+mxyKwwfHifBilZwj2Ul7Ce6\n" +
+                "2azJAAAAAAQBIKbpGG2dWTX8j+VjFM21J0hqWlEg+bdiojWnKfA5AQpWUWtnNwDE\n" +
+                "M0g12vYxoWM8Y81W+bHBw805I8kWVkXU6vFOi+HWvv/ira7ofJu16NnoUkhclkUr\n" +
+                "k0mXubZvyl4GBg==\n" +
+                "-----END PGP PRIVATE KEY BLOCK-----";
+        ByteArrayInputStream bIn = new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8));
+        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
+        BCPGInputStream pIn = new BCPGInputStream(aIn);
+        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
+        PGPSecretKeyRing secretKey = (PGPSecretKeyRing) objFac.nextObject();
+        OpenPGPKey key = new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider());
+
+        OpenPGPCertificate.OpenPGPPrimaryKey primaryKey = key.getPrimaryKey();
+        isEquals(
+                new KeyIdentifier("CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9"),
+                primaryKey.getKeyIdentifier());
+
+        List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
+        isEquals(1, signingKeys.size());
+        OpenPGPCertificate.OpenPGPPrimaryKey signingKey = (OpenPGPCertificate.OpenPGPPrimaryKey) signingKeys.get(0);
+        isEquals(primaryKey, signingKey);
+
+        Features signingKeyFeatures = signingKey.getFeatures();
+        // Features are extracted from direct-key signature
+        isEquals(Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
+                signingKeyFeatures.getFeatures());
+
+        List<OpenPGPCertificate.OpenPGPComponentKey> encryptionKeys = key.getEncryptionKeys();
+        isEquals(1, encryptionKeys.size());
+        OpenPGPCertificate.OpenPGPSubkey encryptionKey = (OpenPGPCertificate.OpenPGPSubkey) encryptionKeys.get(0);
+        isEquals(
+                new KeyIdentifier("12C83F1E706F6308FE151A417743A1F033790E93E9978488D1DB378DA9930885"),
+                encryptionKey.getKeyIdentifier());
+
+        KeyFlags encryptionKeyFlags = encryptionKey.getKeyFlags();
+        // Key Flags are extracted from subkey-binding signature
+        isEquals(KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE, encryptionKeyFlags.getFlags());
+
+        Features encryptionKeyFeatures = encryptionKey.getFeatures();
+        // Features are extracted from direct-key signature
+        isEquals(Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
+                encryptionKeyFeatures.getFeatures());
     }
 
     private void testBaseCasePrimaryKeySigns()

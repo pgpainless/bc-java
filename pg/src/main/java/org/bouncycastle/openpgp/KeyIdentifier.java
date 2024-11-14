@@ -22,6 +22,11 @@ public class KeyIdentifier
     private final byte[] fingerprint;
     private final long keyId;
 
+    public KeyIdentifier(String hexEncoded)
+    {
+        this(Hex.decode(hexEncoded));
+    }
+
     /**
      * Create a new {@link KeyIdentifier} based on a keys fingerprint.
      * For fingerprints matching the format of a v4, v5 or v6 key, the constructor will
