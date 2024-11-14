@@ -345,7 +345,7 @@ public class OpenPGPCertificate
             else
             {
                 subkeyChains.add(new OpenPGPSignatureChain(
-                        new OpenPGPSignatureChain.Certification(sig, null, subkey)));
+                        new OpenPGPSignatureChain.Certification(sig, issuer, subkey)));
             }
         }
         this.componentSignatureChains.put(subkey, subkeyChains);
@@ -1922,7 +1922,8 @@ public class OpenPGPCertificate
             OpenPGPSignatureChains chainsFromRoot = new OpenPGPSignatureChains(root);
             for (OpenPGPSignatureChain chain : chains)
             {
-                if (chain.getRootKey() == root)
+                OpenPGPComponentKey chainRoot = chain.getRootKey();
+                if (chainRoot == root)
                 {
                     chainsFromRoot.add(chain);
                 }

@@ -6,6 +6,7 @@ import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.S2K;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.bcpg.sig.Features;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
@@ -63,11 +64,40 @@ public class OpenPGPMessageGenerator
             {
                 if (configuration.recipients.isEmpty() && configuration.passphrases.isEmpty())
                 {
+                    // No encryption at all
                     return MessageEncryption.unencrypted();
+                }
+                else if (configuration.recipients.isEmpty())
+                {
+                    // sym. encryption using OCB/AES256
+                    return MessageEncryption.aead(SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB);
                 }
                 else
                 {
-                    return MessageEncryption.aead(SymmetricKeyAlgorithmTags.AES_256, AEADAlgorithmTags.OCB);
+                    boolean seipd2Supported = configuration.recipients
+                            .stream()
+                            // ignore keys that can't encrypt at all
+                            .filter(recipient -> !recipient.certificate.getEncryptionKeys().isEmpty())
+                            // Make sure all recipients have at least one key that can do SEIPD2
+                            .allMatch(recipient -> recipient.certificate.getEncryptionKeys()
+                                    .stream()
+                                    // if some recipient only has keys which DO NOT support SEIPD2 -> downgrade to SEIPD1
+                                    .anyMatch(subkey -> {
+                                        Features features = subkey.getFeatures();
+                                        return features != null && features.supportsFeature(Features.FEATURE_SEIPD_V2);
+                                    })
+                            );
+
+                    if (seipd2Supported)
+                    {
+                        // TODO: Algorithm selection
+                        return MessageEncryption.aead(SymmetricKeyAlgorithmTags.AES_128, AEADAlgorithmTags.OCB);
+                    }
+                    else
+                    {
+                        // TODO: Algorithm selection
+                        return MessageEncryption.integrityProtected(SymmetricKeyAlgorithmTags.AES_128);
+                    }
                 }
             };
 
