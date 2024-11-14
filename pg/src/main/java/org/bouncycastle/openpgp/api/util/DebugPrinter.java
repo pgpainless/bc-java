@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-public class CertificatePrinter
+public class DebugPrinter
 {
 
     public static void main(String[] args)
