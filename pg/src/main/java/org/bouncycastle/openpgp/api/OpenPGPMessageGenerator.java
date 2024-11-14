@@ -41,6 +41,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -80,18 +81,16 @@ public class OpenPGPMessageGenerator
     private HashAlgorithmNegotiator hashAlgorithmNegotiator =
             (key, subkey) -> HashAlgorithmTags.SHA512;
 
-    private SubkeySelector encryptionKeySelector = keyRing ->
+    private SubkeySelector encryptionKeySelector = certificate ->
     {
-        OpenPGPCertificate certificate = new OpenPGPCertificate(keyRing, new BcPGPContentVerifierBuilderProvider());
         List<OpenPGPCertificate.OpenPGPComponentKey> encryptionKeys = certificate.getEncryptionKeys();
         return encryptionKeys.stream()
                 .map(OpenPGPCertificate.OpenPGPComponentKey::getKeyIdentifier)
                 .collect(Collectors.toList());
     };
 
-    private SubkeySelector signingKeySelector = keyRing ->
+    private SubkeySelector signingKeySelector = certificate ->
     {
-        OpenPGPCertificate certificate = new OpenPGPCertificate(keyRing, new BcPGPContentVerifierBuilderProvider());
         List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = certificate.getSigningKeys();
         return signingKeys.stream()
                 .map(OpenPGPCertificate.OpenPGPComponentKey::getKeyIdentifier)
@@ -526,7 +525,7 @@ public class OpenPGPMessageGenerator
 
     public interface HashAlgorithmNegotiator
     {
-        int negotiateHashAlgorithm(PGPSecretKeyRing key, PGPSecretKey subkey);
+        int negotiateHashAlgorithm(OpenPGPKey key, PGPSecretKey subkey);
     }
 
     public static class Configuration
@@ -555,7 +554,7 @@ public class OpenPGPMessageGenerator
      */
     static class Recipient
     {
-        private final PGPPublicKeyRing certificate;
+        private final OpenPGPCertificate certificate;
         private final SubkeySelector subkeySelector;
 
         /**
@@ -565,6 +564,11 @@ public class OpenPGPMessageGenerator
          * @param subkeySelector selector to select encryption-capable subkeys from the certificate
          */
         public Recipient(PGPPublicKeyRing certificate, SubkeySelector subkeySelector)
+        {
+            this(new OpenPGPCertificate(certificate, new BcPGPContentVerifierBuilderProvider()), subkeySelector);
+        }
+
+        public Recipient(OpenPGPCertificate certificate, SubkeySelector subkeySelector)
         {
             this.certificate = certificate;
             this.subkeySelector = subkeySelector;
@@ -582,7 +586,7 @@ public class OpenPGPMessageGenerator
             Set<PGPPublicKey> encryptionKeys = new LinkedHashSet<>();
             for (KeyIdentifier identifier : subkeySelector.select(certificate))
             {
-                Iterator<PGPPublicKey> selected = certificate.getPublicKeys(identifier);
+                Iterator<PGPPublicKey> selected = certificate.getKeyRing().getPublicKeys(identifier);
                 while (selected.hasNext())
                 {
                     encryptionKeys.add(selected.next());
@@ -597,7 +601,7 @@ public class OpenPGPMessageGenerator
      */
     static class Signer
     {
-        private final PGPSecretKeyRing signingKey;
+        private final OpenPGPKey signingKey;
         private final PBESecretKeyDecryptorProvider decryptorProvider;
         private final SubkeySelector subkeySelector;
 
@@ -609,6 +613,13 @@ public class OpenPGPMessageGenerator
          * @param subkeySelector selector to select the signing subkey
          */
         public Signer(PGPSecretKeyRing signingKey,
+                      PBESecretKeyDecryptorProvider decryptorProvider,
+                      SubkeySelector subkeySelector)
+        {
+            this(new OpenPGPKey(signingKey, new BcPGPContentVerifierBuilderProvider()), decryptorProvider, subkeySelector);
+        }
+
+        public Signer(OpenPGPKey signingKey,
                       PBESecretKeyDecryptorProvider decryptorProvider,
                       SubkeySelector subkeySelector)
         {
@@ -624,7 +635,7 @@ public class OpenPGPMessageGenerator
             Set<PGPSecretKey> signingKeys = new LinkedHashSet<>();
             for (KeyIdentifier identifier : subkeySelector.select(signingKey))
             {
-                Iterator<PGPSecretKey> selected = signingKey.getSecretKeys(identifier);
+                Iterator<PGPSecretKey> selected = signingKey.getRawKey().getSecretKeys(identifier);
                 while (selected.hasNext())
                 {
                     signingKeys.add(selected.next());
@@ -754,10 +765,10 @@ public class OpenPGPMessageGenerator
          * Given a {@link PGPKeyRing}, select a subset of the key rings (sub-)keys and return their
          * {@link KeyIdentifier KeyIdentifiers}.
          *
-         * @param keyRing OpenPGP key or certificate
+         * @param certificate OpenPGP key or certificate
          * @return non-null list of identifiers
          */
-        List<KeyIdentifier> select(PGPKeyRing keyRing);
+        List<KeyIdentifier> select(OpenPGPCertificate certificate);
     }
 
     public interface PBESecretKeyDecryptorProvider

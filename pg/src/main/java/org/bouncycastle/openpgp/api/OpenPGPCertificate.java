@@ -4,6 +4,7 @@ import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.SignaturePacket;
 import org.bouncycastle.bcpg.SignatureSubpacket;
 import org.bouncycastle.bcpg.SignatureSubpacketTags;
+import org.bouncycastle.bcpg.sig.Features;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.openpgp.KeyIdentifier;
@@ -960,6 +961,21 @@ public class OpenPGPCertificate
             if (subpacket != null)
             {
                 return (KeyFlags) subpacket;
+            }
+            return null;
+        }
+
+        public Features getFeatures()
+        {
+            return getFeatures(new Date());
+        }
+
+        public Features getFeatures(Date evaluationTime)
+        {
+            SignatureSubpacket subpacket = getApplyingSubpacket(evaluationTime, SignatureSubpacketTags.FEATURES);
+            if (subpacket != null)
+            {
+                return (Features) subpacket;
             }
             return null;
         }
