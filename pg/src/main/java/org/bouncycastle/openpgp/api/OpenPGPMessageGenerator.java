@@ -633,7 +633,7 @@ public class OpenPGPMessageGenerator
             Set<PGPSecretKey> signingKeys = new LinkedHashSet<>();
             for (KeyIdentifier identifier : subkeySelector.select(signingKey))
             {
-                Iterator<PGPSecretKey> selected = signingKey.getRawKey().getSecretKeys(identifier);
+                Iterator<PGPSecretKey> selected = signingKey.getPGPKeyRing().getSecretKeys(identifier);
                 while (selected.hasNext())
                 {
                     signingKeys.add(selected.next());

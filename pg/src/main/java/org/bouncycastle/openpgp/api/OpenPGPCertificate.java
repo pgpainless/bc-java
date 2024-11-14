@@ -829,18 +829,17 @@ public class OpenPGPCertificate
                 return issuer.toString();
             }
 
-            List<KeyIdentifier> issuerPackets = signature.getKeyIdentifiers();
-            if (issuerPackets.isEmpty())
+            KeyIdentifier issuerIdentifier = getKeyIdentifier();
+            if (issuerIdentifier == null)
             {
                 return "External[unknown]";
             }
 
-            KeyIdentifier identifier = issuerPackets.get(0);
-            if (identifier.isWildcard())
+            if (issuerIdentifier.isWildcard())
             {
                 return "Anonymous";
             }
-            return "External[" + Long.toHexString(identifier.getKeyId()).toUpperCase() + "]";
+            return "External[" + Long.toHexString(issuerIdentifier.getKeyId()).toUpperCase() + "]";
         }
 
         private String getType()

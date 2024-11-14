@@ -27,9 +27,52 @@ public class OpenPGPSignature
         return signature;
     }
 
+    /**
+     * Return a {@link List} of possible {@link KeyIdentifier} candidates.
+     *
+     * @return key identifier candidates
+     */
     public List<KeyIdentifier> getKeyIdentifiers()
     {
         return signature.getKeyIdentifiers();
+    }
+
+    /**
+     * Return the most expressive {@link KeyIdentifier} from available candidates.
+     *
+     * @return most expressive key identifier
+     */
+    public KeyIdentifier getKeyIdentifier()
+    {
+        List<KeyIdentifier> identifiers = getKeyIdentifiers();
+        if (identifiers.isEmpty())
+        {
+            return null;
+        }
+        if (identifiers.size() == 1)
+        {
+            return identifiers.get(0);
+        }
+
+        // Find most expressive identifier
+        for (KeyIdentifier identifier : identifiers)
+        {
+            if (!identifier.isWildcard() && identifier.getFingerprint() != null)
+            {
+                return identifier;
+            }
+        }
+
+        // Find non-wildcard identifier
+        for (KeyIdentifier identifier : identifiers)
+        {
+            if (!identifier.isWildcard())
+            {
+                return identifier;
+            }
+        }
+        // else return first identifier
+        return identifiers.get(0);
     }
 
     public boolean isTestedCorrect()
