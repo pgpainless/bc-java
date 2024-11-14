@@ -490,8 +490,9 @@ public class OpenPGPCertificate
     {
         OpenPGPSignatureChain directKeyBinding = getPrimaryKey().getSignatureChains()
                 .fromOrigin(getPrimaryKey())
-                .getChainAt(evaluationTime);
-        if (directKeyBinding.isCertification())
+                .getCertificationAt(evaluationTime);
+
+        if (directKeyBinding != null)
         {
             return directKeyBinding;
         }
@@ -501,12 +502,12 @@ public class OpenPGPCertificate
         {
             OpenPGPSignatureChain uidBinding = getAllSignatureChainsFor(userId)
                     .fromOrigin(getPrimaryKey())
-                    .getChainAt(evaluationTime);
-            if (uidBinding == null || uidBinding.isRevocation())
+                    .getCertificationAt(evaluationTime);
+
+            if (uidBinding != null)
             {
-                continue;
+                uidBindings.add(uidBinding);
             }
-            uidBindings.add(uidBinding);
         }
 
         uidBindings.sort(Comparator.comparing(OpenPGPSignatureChain::getSince).reversed());
@@ -1175,16 +1176,10 @@ public class OpenPGPCertificate
          */
         private SignatureSubpacket getApplyingSubpacket(Date evaluationTime, int subpacketType)
         {
-            OpenPGPSignatureChain binding = getSignatureChains().getChainAt(evaluationTime);
+            OpenPGPSignatureChain binding = getSignatureChains().getCertificationAt(evaluationTime);
             if (binding == null)
             {
                 // is not bound
-                return null;
-            }
-
-            if (binding.isRevocation())
-            {
-                // is revoked
                 return null;
             }
 
