@@ -1,9 +1,11 @@
 package org.bouncycastle.openpgp.api;
 
+import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * An OpenPGP signature.
@@ -23,6 +25,11 @@ public class OpenPGPSignature
     public PGPSignature getSignature()
     {
         return signature;
+    }
+
+    public List<KeyIdentifier> getKeyIdentifiers()
+    {
+        return signature.getKeyIdentifiers();
     }
 
     public boolean isTestedCorrect()
