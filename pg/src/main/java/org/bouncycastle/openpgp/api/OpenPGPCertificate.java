@@ -341,63 +341,18 @@ public class OpenPGPCertificate
 
         for (OpenPGPComponentKey key : getKeyComponents())
         {
-            if (!key.rawPubkey.isEncryptionKey())
+            if (!isBound(key, evaluationTime))
             {
-                // Skip keys that are not encryption-capable by algorithm
+                // Key is not bound
                 continue;
             }
 
-            OpenPGPSignatureChain subkeyBinding = key.getSignatureChains().getChainAt(evaluationTime);
-            if (subkeyBinding == null)
+            if (!key.isEncryptionKey(evaluationTime))
             {
-                // is not bound
                 continue;
             }
 
-            if (subkeyBinding.isRevocation())
-            {
-                // is revoked
-                continue;
-            }
-
-            // Check signatures
-            try
-            {
-                if (!subkeyBinding.isValid(contentVerifierBuilderProvider))
-                {
-                    // Binding is incorrect
-                    continue;
-                }
-            }
-            catch (PGPSignatureException e)
-            {
-                // Binding cannot be verified
-                continue;
-            }
-
-            // e.g. subkey binding signature
-            OpenPGPComponentSignature targetSignature = subkeyBinding.getHeadLink().getSignature();
-
-            PGPSignatureSubpacketVector hashedSubpackets = targetSignature.getSignature().getHashedSubPackets();
-            if (hashedSubpackets == null || !hashedSubpackets.hasSubpacket(SignatureSubpacketTags.KEY_FLAGS))
-            {
-                // If the subkey binding signature doesn't carry key flags, check direct-key or primary uid sig instead
-                OpenPGPSignatureChain preferenceBinding = getPreferenceBinding(evaluationTime);
-                if (preferenceBinding == null)
-                {
-                    // No direct-key / primary uid sig found -> subkey cannot encrypt
-                    continue;
-                }
-                hashedSubpackets = preferenceBinding.getHeadLink().getSignature().getSignature().getHashedSubPackets();
-            }
-
-            // Key Flag from
-            int flag = hashedSubpackets.getKeyFlags();
-            if ((flag & KeyFlags.ENCRYPT_STORAGE) == KeyFlags.ENCRYPT_STORAGE ||
-                    (flag & KeyFlags.ENCRYPT_COMMS) == KeyFlags.ENCRYPT_COMMS)
-            {
-                encryptionKeys.add(key);
-            }
+            encryptionKeys.add(key);
         }
 
         return encryptionKeys;
@@ -414,69 +369,18 @@ public class OpenPGPCertificate
 
         for (OpenPGPComponentKey key : getKeyComponents())
         {
-            int alg = key.rawPubkey.getAlgorithm();
-            if (alg != PublicKeyAlgorithmTags.RSA_GENERAL &&
-                    alg != PublicKeyAlgorithmTags.RSA_SIGN &&
-                    alg != PublicKeyAlgorithmTags.DSA &&
-                    alg != PublicKeyAlgorithmTags.ECDSA &&
-                    alg != PublicKeyAlgorithmTags.EDDSA_LEGACY &&
-                    alg != PublicKeyAlgorithmTags.Ed25519 &&
-                    alg != PublicKeyAlgorithmTags.Ed448)
+            if (!isBound(key, evaluationTime))
             {
-                // Skip keys that are not signing-capable by algorithm
+                // Key is not bound
                 continue;
             }
 
-            OpenPGPSignatureChain subkeyBinding = key.getSignatureChains().getChainAt(evaluationTime);
-            if (subkeyBinding == null)
+            if (!key.isSigningKey(evaluationTime))
             {
-                // is not bound
                 continue;
             }
 
-            if (subkeyBinding.isRevocation())
-            {
-                // is revoked
-                continue;
-            }
-
-            // Check signatures
-            try
-            {
-                if (!subkeyBinding.isValid(contentVerifierBuilderProvider))
-                {
-                    // Binding is incorrect
-                    continue;
-                }
-            }
-            catch (PGPSignatureException e)
-            {
-                // Binding cannot be verified
-                continue;
-            }
-
-            // e.g. subkey binding signature
-            OpenPGPComponentSignature targetSignature = subkeyBinding.getHeadLink().getSignature();
-
-            PGPSignatureSubpacketVector hashedSubpackets = targetSignature.getSignature().getHashedSubPackets();
-            if (hashedSubpackets == null || !hashedSubpackets.hasSubpacket(SignatureSubpacketTags.KEY_FLAGS))
-            {
-                // If the subkey binding signature doesn't carry key flags, check direct-key or primary uid sig instead
-                OpenPGPSignatureChain preferenceBinding = getPreferenceBinding(evaluationTime);
-                if (preferenceBinding == null)
-                {
-                    // No direct-key / primary uid sig found -> subkey cannot sign
-                    continue;
-                }
-                hashedSubpackets = preferenceBinding.getHeadLink().getSignature().getSignature().getHashedSubPackets();
-            }
-
-            // Key Flag from
-            int flag = hashedSubpackets.getKeyFlags();
-            if ((flag & KeyFlags.SIGN_DATA) == KeyFlags.SIGN_DATA)
-            {
-                signingKeys.add(key);
-            }
+            signingKeys.add(key);
         }
 
         return signingKeys;
@@ -984,6 +888,132 @@ public class OpenPGPCertificate
         {
             return rawPubkey.getCreationTime();
         }
+
+        /**
+         * Return true if the key is currently marked as encryption key.
+         *
+         * @return true if the key is an encryption key, false otherwise
+         */
+        public boolean isEncryptionKey()
+        {
+            return isEncryptionKey(new Date());
+        }
+
+        public boolean isEncryptionKey(Date evaluationTime)
+        {
+            if (!rawPubkey.isEncryptionKey())
+            {
+                // Skip keys that are not encryption-capable by algorithm
+                return false;
+            }
+
+            KeyFlags keyFlags = getKeyFlags(evaluationTime);
+            if (keyFlags == null)
+            {
+                return false;
+            }
+
+            int flags = keyFlags.getFlags();
+            return (flags & KeyFlags.ENCRYPT_COMMS) == KeyFlags.ENCRYPT_COMMS ||
+                    (flags & KeyFlags.ENCRYPT_STORAGE) == KeyFlags.ENCRYPT_STORAGE;
+        }
+
+        public boolean isSigningKey()
+        {
+            return isSigningKey(new Date());
+        }
+
+        public boolean isSigningKey(Date evaluationTime)
+        {
+            int alg = rawPubkey.getAlgorithm();
+            if (alg != PublicKeyAlgorithmTags.RSA_GENERAL &&
+                    alg != PublicKeyAlgorithmTags.RSA_SIGN &&
+                    alg != PublicKeyAlgorithmTags.DSA &&
+                    alg != PublicKeyAlgorithmTags.ECDSA &&
+                    alg != PublicKeyAlgorithmTags.EDDSA_LEGACY &&
+                    alg != PublicKeyAlgorithmTags.Ed25519 &&
+                    alg != PublicKeyAlgorithmTags.Ed448)
+            {
+                // Key is not signing-capable by algorithm
+                return false;
+            }
+
+            KeyFlags keyFlags = getKeyFlags(evaluationTime);
+            if (keyFlags == null)
+            {
+                return false;
+            }
+
+            int flags = keyFlags.getFlags();
+            return (flags & KeyFlags.SIGN_DATA) == KeyFlags.SIGN_DATA;
+        }
+
+        public KeyFlags getKeyFlags()
+        {
+            return getKeyFlags(new Date());
+        }
+
+        public KeyFlags getKeyFlags(Date evaluationTime)
+        {
+            SignatureSubpacket subpacket = getApplyingSubpacket(
+                    evaluationTime, SignatureSubpacketTags.KEY_FLAGS);
+            if (subpacket != null)
+            {
+                return (KeyFlags) subpacket;
+            }
+            return null;
+        }
+
+        private SignatureSubpacket getApplyingSubpacket(Date evaluationTime, int subpacketType)
+        {
+            OpenPGPSignatureChain binding = getSignatureChains().getChainAt(evaluationTime);
+            if (binding == null)
+            {
+                // is not bound
+                return null;
+            }
+
+            if (binding.isRevocation())
+            {
+                // is revoked
+                return null;
+            }
+
+            // Check signatures
+            try
+            {
+                if (!binding.isValid())
+                {
+                    // Binding is incorrect
+                    return null;
+                }
+            }
+            catch (PGPSignatureException e)
+            {
+                // Binding cannot be verified
+                return null;
+            }
+
+            // find signature "closest to the key", e.g. subkey binding signature
+            OpenPGPComponentSignature keySignature = binding.getHeadLink().getSignature();
+
+            PGPSignatureSubpacketVector hashedSubpackets = keySignature.getSignature().getHashedSubPackets();
+            if (hashedSubpackets == null || !hashedSubpackets.hasSubpacket(subpacketType))
+            {
+                // If the subkey binding signature doesn't carry the desired subpacket,
+                //  check direct-key or primary uid sig instead
+                OpenPGPSignatureChain preferenceBinding = getCertificate().getPreferenceBinding(evaluationTime);
+                if (preferenceBinding == null)
+                {
+                    // No direct-key / primary uid sig found -> No subpacket
+                    return null;
+                }
+                hashedSubpackets = preferenceBinding.getHeadLink().getSignature().getSignature().getHashedSubPackets();
+            }
+
+            // Extract subpacket from hashed area
+            return hashedSubpackets.getSubpacket(subpacketType);
+        }
     }
 
     /**
@@ -1396,6 +1426,12 @@ public class OpenPGPCertificate
             Date since = getSince();
             Date until = getUntil();
             return !evaluationDate.before(since) && (until == null || evaluationDate.before(until));
+        }
+
+        public boolean isValid()
+                throws PGPSignatureException
+        {
+            return isValid(getRootKey().getCertificate().contentVerifierBuilderProvider);
         }
 
         public boolean isValid(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
