@@ -1,12 +1,11 @@
 package org.bouncycastle.openpgp.api;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public class NotationRegistry
 {
-
-    private final List<String> knownNotations = new ArrayList<>();
+    private final Set<String> knownNotations = new HashSet<>();
 
     public boolean isNotationKnown(String notationName)
     {
