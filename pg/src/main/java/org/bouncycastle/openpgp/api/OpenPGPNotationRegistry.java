@@ -3,7 +3,7 @@ package org.bouncycastle.openpgp.api;
 import java.util.HashSet;
 import java.util.Set;
 
-public class NotationRegistry
+public class OpenPGPNotationRegistry
 {
     private final Set<String> knownNotations = new HashSet<>();
 
