@@ -15,6 +15,7 @@ import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
+import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
 import java.io.ByteArrayInputStream;
@@ -63,7 +64,7 @@ public class OpenPGPCertificateTest
         BCPGInputStream pIn = new BCPGInputStream(aIn);
         PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
         PGPSecretKeyRing secretKey = (PGPSecretKeyRing) objFac.nextObject();
-        return new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider());
+        return new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider(), new BcPBESecretKeyDecryptorBuilderProvider());
     }
 
     private void testOpenPGPv6Key()
@@ -91,7 +92,12 @@ public class OpenPGPCertificateTest
         isEquals("Primary key identifier mismatch",
                 new KeyIdentifier("CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9"),
                 primaryKey.getKeyIdentifier());
+        OpenPGPKey.OpenPGPSecretKey secretPrimaryKey = key.getSecretKey(primaryKey);
+        isTrue("Secret Primary key MUST have reference to its public component",
+                primaryKey == secretPrimaryKey.getPublicKey());
         isTrue("Primary key is expected to be signing key", primaryKey.isSigningKey());
+        isTrue("Primary secret key is expected to be signing key", secretPrimaryKey.isSigningKey());
+        isTrue("Primary secret key is expected to be certification key", secretPrimaryKey.isCertificationKey());
         isTrue("Primary key is expected to be certification key", primaryKey.isCertificationKey());
 
         List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();

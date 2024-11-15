@@ -28,6 +28,7 @@ import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
+import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
@@ -644,7 +645,7 @@ public class OpenPGPMessageGenerator
                       PBESecretKeyDecryptorProvider decryptorProvider,
                       SubkeySelector subkeySelector)
         {
-            this(new OpenPGPKey(signingKey, new BcPGPContentVerifierBuilderProvider()), decryptorProvider, subkeySelector);
+            this(new OpenPGPKey(signingKey, new BcPGPContentVerifierBuilderProvider(), new BcPBESecretKeyDecryptorBuilderProvider()), decryptorProvider, subkeySelector);
         }
 
         public Signer(OpenPGPKey signingKey,
