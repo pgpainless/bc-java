@@ -1,5 +1,6 @@
 package org.bouncycastle.openpgp.api;
 
+import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPEncryptedData;
@@ -12,6 +13,7 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSessionKey;
 import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
@@ -37,35 +39,59 @@ public class OpenPGPMessageProcessor
     public static int MAX_RECURSION = 16;
 
     // Source of certificates for signature verification
-    private final OpenPGPCertificateSource certificateSource;
+    private OpenPGPCertificateSource certificateSource = new OpenPGPCertificatePool();
     // Source of decryption keys
-    private final OpenPGPKeySource keySource;
-    private final KeyPasswordCallback keyPasswordCallback;
-    private final MessagePassphraseCallback messagePassphraseCallback;
+    private OpenPGPKeySource keySource;
+    private KeyPasswordCallback keyPasswordCallback;
+    private MessagePassphraseCallback messagePassphraseCallback;
 
-    private final PGPSessionKey sessionKey;
-    private final char[] messagePassphrase;
+    private PGPSessionKey sessionKey;
+    private char[] messagePassphrase;
 
-    private final PGPObjectFactoryProvider objectFactoryProvider;
-    private final DataDecryptorFactoryBuilderProvider decryptorFactoryProvider;
+    private PGPObjectFactoryProvider objectFactoryProvider = BcPGPObjectFactory::new;
 
-    public OpenPGPMessageProcessor(OpenPGPCertificateSource certificateSource,
-                                   OpenPGPKeySource keySource,
-                                   KeyPasswordCallback keyPasswordCallback,
-                                   MessagePassphraseCallback messagePassphraseCallback,
-                                   PGPSessionKey sessionKey,
-                                   char[] messagePassphrase,
-                                   PGPObjectFactoryProvider objectFactoryProvider,
-                                   DataDecryptorFactoryBuilderProvider decryptorFactoryProvider)
+    private DataDecryptorFactoryBuilderProvider decryptorFactoryProvider = new BcDataDecryptorFactoryBuilderProvider(
+            new BcPGPDigestCalculatorProvider());
+
+    public OpenPGPMessageProcessor()
+    {
+
+    }
+
+    public OpenPGPMessageProcessor setCertificateSource(OpenPGPCertificateSource certificateSource)
     {
         this.certificateSource = certificateSource;
+        return this;
+    }
+
+    public OpenPGPMessageProcessor setKeySource(OpenPGPKeySource keySource)
+    {
         this.keySource = keySource;
-        this.keyPasswordCallback = keyPasswordCallback;
-        this.messagePassphraseCallback = messagePassphraseCallback;
-        this.sessionKey = sessionKey;
+        return this;
+    }
+
+    public OpenPGPMessageProcessor setKeyPasswordCallback(KeyPasswordCallback callback)
+    {
+        this.keyPasswordCallback = callback;
+        return this;
+    }
+
+    public OpenPGPMessageProcessor setMessagePassphraseCallback(MessagePassphraseCallback callback)
+    {
+        this.messagePassphraseCallback = callback;
+        return this;
+    }
+
+    public OpenPGPMessageProcessor setMessagePassphrase(char[] messagePassphrase)
+    {
         this.messagePassphrase = messagePassphrase;
-        this.objectFactoryProvider = objectFactoryProvider;
-        this.decryptorFactoryProvider = decryptorFactoryProvider;
+        return this;
+    }
+
+    public OpenPGPMessageProcessor setSessionKey(PGPSessionKey sessionKey)
+    {
+        this.sessionKey = sessionKey;
+        return this;
     }
 
     public InputStream process(InputStream messageIn)
@@ -88,7 +114,8 @@ public class OpenPGPMessageProcessor
             else if (o instanceof PGPCompressedData)
             {
                 PGPCompressedData compData = (PGPCompressedData) o;
-                packetInputStream = compData.getInputStream();
+                InputStream decompIn = compData.getDataStream();
+                packetInputStream = new BCPGInputStream(decompIn);
             }
             else if (o instanceof PGPLiteralData)
             {

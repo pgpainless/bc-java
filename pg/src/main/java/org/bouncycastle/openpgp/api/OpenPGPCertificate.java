@@ -194,6 +194,20 @@ public class OpenPGPCertificate
         return rawCert;
     }
 
+    public PGPPublicKeyRing getPGPPublicKeyRing()
+    {
+        if (rawCert instanceof PGPPublicKeyRing)
+        {
+            return (PGPPublicKeyRing) rawCert;
+        }
+
+        List<PGPPublicKey> list = new ArrayList<>();
+        for (Iterator<PGPPublicKey> it = rawCert.getPublicKeys(); it.hasNext(); ) {
+            list.add(it.next());
+        }
+        return new PGPPublicKeyRing(list);
+    }
+
     public KeyIdentifier getKeyIdentifier()
     {
         return primaryKey.getKeyIdentifier();
