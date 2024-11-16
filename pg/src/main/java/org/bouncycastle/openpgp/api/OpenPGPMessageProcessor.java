@@ -93,7 +93,7 @@ public class OpenPGPMessageProcessor
         int depth = 0;
         do
         {
-            PGPObjectFactory objectFactory = implementation.objectFactory(packetInputStream);
+            PGPObjectFactory objectFactory = implementation.pgpObjectFactory(packetInputStream);
             Object o = objectFactory.nextObject();
 
             // TODO: This is a brittle prototype implementation. Implement properly!

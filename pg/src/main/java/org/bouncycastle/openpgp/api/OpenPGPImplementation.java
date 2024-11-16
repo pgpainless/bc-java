@@ -8,7 +8,6 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSessionKey;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
@@ -22,7 +21,7 @@ import java.io.InputStream;
 
 public abstract class OpenPGPImplementation
 {
-    public abstract PGPObjectFactory objectFactory(InputStream inputStream);
+    public abstract PGPObjectFactory pgpObjectFactory(InputStream inputStream);
 
     public abstract PGPContentVerifierBuilderProvider pgpContentVerifierBuilderProvider();
 

@@ -52,7 +52,7 @@ public class JcaOpenPGPImplementation
     }
 
     @Override
-    public PGPObjectFactory objectFactory(InputStream inputStream)
+    public PGPObjectFactory pgpObjectFactory(InputStream inputStream)
     {
         return new JcaPGPObjectFactory(inputStream);
     }

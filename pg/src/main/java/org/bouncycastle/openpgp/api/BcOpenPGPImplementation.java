@@ -34,7 +34,7 @@ public class BcOpenPGPImplementation
         extends OpenPGPImplementation
 {
     @Override
-    public PGPObjectFactory objectFactory(InputStream inputStream)
+    public PGPObjectFactory pgpObjectFactory(InputStream inputStream)
     {
         return new BcPGPObjectFactory(inputStream);
     }
