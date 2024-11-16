@@ -601,7 +601,7 @@ public class OpenPGPMessageGenerator
          */
         public Recipient(PGPPublicKeyRing certificate, SubkeySelector subkeySelector, OpenPGPImplementation implementation)
         {
-            this(new OpenPGPCertificate(certificate, implementation.pgpContentVerifierBuilderProvider()), subkeySelector);
+            this(new OpenPGPCertificate(certificate, implementation), subkeySelector);
         }
 
         public Recipient(OpenPGPCertificate certificate, SubkeySelector subkeySelector)
@@ -653,9 +653,7 @@ public class OpenPGPMessageGenerator
                       SubkeySelector subkeySelector,
                       OpenPGPImplementation implementation)
         {
-            this(new OpenPGPKey(signingKey,
-                    implementation.pgpContentVerifierBuilderProvider(),
-                    implementation.pbeSecretKeyDecryptorBuilderProvider()),
+            this(new OpenPGPKey(signingKey, implementation),
                     decryptorProvider, subkeySelector);
         }
 

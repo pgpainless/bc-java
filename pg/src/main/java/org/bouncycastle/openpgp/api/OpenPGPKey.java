@@ -14,7 +14,6 @@ import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilderProvider;
-import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,17 +35,7 @@ public class OpenPGPKey
 
     public OpenPGPKey(PGPSecretKeyRing rawKey, OpenPGPImplementation implementation)
     {
-        this(
-                rawKey,
-                implementation.pgpContentVerifierBuilderProvider(),
-                implementation.pbeSecretKeyDecryptorBuilderProvider());
-    }
-
-    public OpenPGPKey(PGPSecretKeyRing rawKey,
-                      PGPContentVerifierBuilderProvider contentVerifierBuilderProvider,
-                      PBESecretKeyDecryptorBuilderProvider decryptorBuilderProvider)
-    {
-        super(rawKey, contentVerifierBuilderProvider);
+        super(rawKey, implementation);
 
         this.secretKeys = new HashMap<>();
         for (OpenPGPComponentKey key : getKeys())
@@ -58,7 +47,7 @@ public class OpenPGPKey
                 continue;
             }
 
-            secretKeys.put(identifier, new OpenPGPSecretKey(key, secretKey, decryptorBuilderProvider));
+            secretKeys.put(identifier, new OpenPGPSecretKey(key, secretKey, implementation.pbeSecretKeyDecryptorBuilderProvider()));
         }
     }
 

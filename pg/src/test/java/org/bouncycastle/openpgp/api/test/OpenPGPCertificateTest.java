@@ -7,16 +7,13 @@ import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPPublicKeyRing;
-import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
+import org.bouncycastle.openpgp.api.BcOpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -45,28 +42,6 @@ public class OpenPGPCertificateTest
         testPKSignsPKRevocationSuperseded();
     }
 
-    private OpenPGPCertificate readCertificate(String armored)
-            throws IOException
-    {
-        ByteArrayInputStream bIn = new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-        PGPPublicKeyRing publicKeys = (PGPPublicKeyRing) objFac.nextObject();
-        return new OpenPGPCertificate(publicKeys, new BcPGPContentVerifierBuilderProvider());
-    }
-
-    private OpenPGPKey readKey(String armored)
-            throws IOException
-    {
-        ByteArrayInputStream bIn = new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-        PGPSecretKeyRing secretKey = (PGPSecretKeyRing) objFac.nextObject();
-        return new OpenPGPKey(secretKey, new BcPGPContentVerifierBuilderProvider(), new BcPBESecretKeyDecryptorBuilderProvider());
-    }
-
     private void testOpenPGPv6Key()
             throws IOException
     {
@@ -84,7 +59,7 @@ public class OpenPGPCertificateTest
                 "M0g12vYxoWM8Y81W+bHBw805I8kWVkXU6vFOi+HWvv/ira7ofJu16NnoUkhclkUr\n" +
                 "k0mXubZvyl4GBg==\n" +
                 "-----END PGP PRIVATE KEY BLOCK-----";
-        OpenPGPKey key = readKey(armoredKey);
+        OpenPGPKey key = OpenPGPKey.fromAsciiArmor(armoredKey, new BcOpenPGPImplementation());
 
         isTrue("Test key has no identities", key.getIdentities().isEmpty());
 
@@ -803,7 +778,7 @@ public class OpenPGPCertificateTest
     private void signatureValidityTest(String cert, TestSignature... testSignatures)
             throws IOException
     {
-        OpenPGPCertificate certificate = readCertificate(cert);
+        OpenPGPCertificate certificate = OpenPGPCertificate.fromAsciiArmor(cert, new BcOpenPGPImplementation());
 
         for (TestSignature test : testSignatures)
         {

@@ -61,7 +61,7 @@ import java.util.TreeSet;
  */
 public class OpenPGPCertificate
 {
-    private final PGPContentVerifierBuilderProvider contentVerifierBuilderProvider;
+    private final OpenPGPImplementation implementation;
 
     private final PGPKeyRing rawCert;
     private final OpenPGPPrimaryKey primaryKey;
@@ -76,21 +76,15 @@ public class OpenPGPCertificate
         this(rawCert, new BcOpenPGPImplementation());
     }
 
-    public OpenPGPCertificate(PGPKeyRing rawCert, OpenPGPImplementation implementation)
-    {
-        this(rawCert, implementation.pgpContentVerifierBuilderProvider());
-    }
-
     /**
      * Instantiate an {@link OpenPGPCertificate} from a parsed {@link PGPPublicKeyRing}.
      *
      * @param rawCert public key ring
-     * @param contentVerifierBuilderProvider provider for signature verifiers
+     * @param implementation OpenPGP implementation
      */
-    public OpenPGPCertificate(PGPKeyRing rawCert,
-                              PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
+    public OpenPGPCertificate(PGPKeyRing rawCert, OpenPGPImplementation implementation)
     {
-        this.contentVerifierBuilderProvider = contentVerifierBuilderProvider;
+        this.implementation = implementation;
 
         this.rawCert = rawCert;
         this.subkeys = new HashMap<>();
@@ -459,7 +453,7 @@ public class OpenPGPCertificate
             }
 
             // Chain needs to be valid (signatures correct)
-            if (chain.isValid(contentVerifierBuilderProvider))
+            if (chain.isValid(implementation.pgpContentVerifierBuilderProvider()))
             {
                 // Chain needs to not contain a revocation signature, otherwise the component is considered revoked
                 return !chain.isRevocation();
@@ -1727,7 +1721,7 @@ public class OpenPGPCertificate
         public boolean isValid()
                 throws PGPSignatureException
         {
-            return isValid(getRootKey().getCertificate().contentVerifierBuilderProvider);
+            return isValid(getRootKey().getCertificate().implementation.pgpContentVerifierBuilderProvider());
         }
 
         public boolean isValid(PGPContentVerifierBuilderProvider contentVerifierBuilderProvider)
