@@ -12,7 +12,6 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
@@ -81,7 +80,7 @@ public class OpenPGPKey
         ByteArrayInputStream bIn = new ByteArrayInputStream(bytes);
         InputStream decoderStream = PGPUtil.getDecoderStream(bIn);
         BCPGInputStream pIn = BCPGInputStream.wrap(decoderStream);
-        PGPObjectFactory objectFactory = new BcPGPObjectFactory(pIn);
+        PGPObjectFactory objectFactory = implementation.pgpObjectFactory(pIn);
         PGPSecretKeyRing keyRing = (PGPSecretKeyRing) objectFactory.nextObject();
         return new OpenPGPKey(keyRing, implementation);
     }

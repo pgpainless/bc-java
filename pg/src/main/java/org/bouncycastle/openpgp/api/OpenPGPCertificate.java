@@ -24,7 +24,6 @@ import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.Iterable;
 import org.bouncycastle.util.encoders.Hex;
@@ -131,7 +130,7 @@ public class OpenPGPCertificate
         ByteArrayInputStream bIn = new ByteArrayInputStream(bytes);
         InputStream decoderStream = PGPUtil.getDecoderStream(bIn);
         BCPGInputStream pIn = BCPGInputStream.wrap(decoderStream);
-        PGPObjectFactory objectFactory = new BcPGPObjectFactory(pIn);
+        PGPObjectFactory objectFactory = implementation.pgpObjectFactory(pIn);
         PGPPublicKeyRing keyRing = (PGPPublicKeyRing) objectFactory.nextObject();
         return new OpenPGPCertificate(keyRing, implementation);
     }
