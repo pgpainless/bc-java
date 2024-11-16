@@ -1,11 +1,13 @@
 package org.bouncycastle.openpgp.test;
 
-import java.security.Security;
-
 import org.bouncycastle.bcpg.test.SignatureSubpacketsTest;
+import org.bouncycastle.openpgp.api.test.OpenPGPMessageGeneratorTest;
 import org.bouncycastle.openpgp.api.test.OpenPGPV6KeyGeneratorTest;
+import org.bouncycastle.openpgp.api.test.StaticV6OpenPGPMessageGeneratorTest;
 import org.bouncycastle.util.test.SimpleTest;
 import org.bouncycastle.util.test.Test;
+
+import java.security.Security;
 
 public class RegressionTest
 {
@@ -86,8 +88,13 @@ public class RegressionTest
         new PGPv5KeyTest(),
         new PGPv5MessageDecryptionTest(),
         new PGPv6SignatureTest(),
+
         new PGPKeyPairGeneratorTest(),
-        new OpenPGPV6KeyGeneratorTest()
+        new OpenPGPV6KeyGeneratorTest(),
+
+        new OpenPGPMessageGeneratorTest(),
+        new StaticV6OpenPGPMessageGeneratorTest()
+
     };
 
     public static void main(String[] args)

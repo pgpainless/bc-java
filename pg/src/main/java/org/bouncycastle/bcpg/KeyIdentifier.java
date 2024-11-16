@@ -16,6 +16,11 @@ public class KeyIdentifier
     private final byte[] fingerprint;
     private final long keyId;
 
+    public KeyIdentifier(String hexEncoded)
+    {
+        this(Hex.decode(hexEncoded));
+    }
+
     /**
      * Create a new {@link KeyIdentifier} based on a keys fingerprint.
      * For fingerprints matching the format of a v4, v5 or v6 key, the constructor will
@@ -175,6 +180,33 @@ public class KeyIdentifier
         }
 
         return false;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null)
+        {
+            return false;
+        }
+        if (this == obj)
+        {
+            return true;
+        }
+        if (!(obj instanceof KeyIdentifier))
+        {
+            return false;
+        }
+        KeyIdentifier other = (KeyIdentifier) obj;
+        if (getFingerprint() != null && other.getFingerprint() != null)
+        {
+            return Arrays.constantTimeAreEqual(getFingerprint(), other.getFingerprint());
+        }
+        return getKeyId() == other.getKeyId();
+    }
+
+    @Override
+    public int hashCode() {
+        return (int) getKeyId();
     }
 
     public String toString()
