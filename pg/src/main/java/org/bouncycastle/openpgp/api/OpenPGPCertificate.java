@@ -1,6 +1,7 @@
 package org.bouncycastle.openpgp.api;
 
 import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.FingerprintUtil;
 import org.bouncycastle.bcpg.PacketFormat;
@@ -14,19 +15,25 @@ import org.bouncycastle.bcpg.sig.NotationData;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyRing;
+import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureException;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
+import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
+import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.Iterable;
 import org.bouncycastle.util.encoders.Hex;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -65,6 +72,16 @@ public class OpenPGPCertificate
     //  proper functionality with secret key components.
     private final Map<OpenPGPCertificateComponent, OpenPGPSignatureChains> componentSignatureChains;
 
+    public OpenPGPCertificate(PGPKeyRing rawCert)
+    {
+        this(rawCert, new BcOpenPGPImplementation());
+    }
+
+    public OpenPGPCertificate(PGPKeyRing rawCert, OpenPGPImplementation implementation)
+    {
+        this(rawCert, implementation.pgpContentVerifierBuilderProvider());
+    }
+
     /**
      * Instantiate an {@link OpenPGPCertificate} from a parsed {@link PGPPublicKeyRing}.
      *
@@ -94,6 +111,31 @@ public class OpenPGPCertificate
             processSubkey(subkey);
         }
     }
+
+
+    public static OpenPGPCertificate fromAsciiArmor(
+            String armor,
+            OpenPGPImplementation implementation)
+            throws IOException
+    {
+        return fromBytes(
+                armor.getBytes(StandardCharsets.UTF_8),
+                implementation);
+    }
+
+    public static OpenPGPCertificate fromBytes(
+            byte[] bytes,
+            OpenPGPImplementation implementation)
+            throws IOException
+    {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(bytes);
+        InputStream decoderStream = PGPUtil.getDecoderStream(bIn);
+        BCPGInputStream pIn = BCPGInputStream.wrap(decoderStream);
+        PGPObjectFactory objectFactory = new BcPGPObjectFactory(pIn);
+        PGPPublicKeyRing keyRing = (PGPPublicKeyRing) objectFactory.nextObject();
+        return new OpenPGPCertificate(keyRing, implementation);
+    }
+
 
     /**
      * Return the primary key of the certificate.
@@ -390,7 +432,7 @@ public class OpenPGPCertificate
      * @return true if component is bound at evaluation time, false otherwise
      */
     private boolean isBound(OpenPGPCertificateComponent component,
-                           Date evaluationTime)
+                            Date evaluationTime)
     {
         return isBoundBy(component, getPrimaryKey(), evaluationTime);
     }
@@ -405,8 +447,8 @@ public class OpenPGPCertificate
      * @return true if component is bound at evaluation time, originating at root, false otherwise
      */
     private boolean isBoundBy(OpenPGPCertificateComponent component,
-                             OpenPGPComponentKey root,
-                             Date evaluationTime)
+                              OpenPGPComponentKey root,
+                              Date evaluationTime)
     {
         try
         {

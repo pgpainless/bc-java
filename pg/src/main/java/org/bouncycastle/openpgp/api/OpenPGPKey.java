@@ -1,20 +1,27 @@
 package org.bouncycastle.openpgp.api;
 
 import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.bcpg.PacketFormat;
 import org.bouncycastle.bcpg.SecretKeyPacket;
 import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +29,19 @@ public class OpenPGPKey
         extends OpenPGPCertificate
 {
     private final Map<KeyIdentifier, OpenPGPSecretKey> secretKeys;
+
+    public OpenPGPKey(PGPSecretKeyRing rawKey)
+    {
+        this(rawKey, new BcOpenPGPImplementation());
+    }
+
+    public OpenPGPKey(PGPSecretKeyRing rawKey, OpenPGPImplementation implementation)
+    {
+        this(
+                rawKey,
+                implementation.pgpContentVerifierBuilderProvider(),
+                implementation.pbeSecretKeyDecryptorBuilderProvider());
+    }
 
     public OpenPGPKey(PGPSecretKeyRing rawKey,
                       PGPContentVerifierBuilderProvider contentVerifierBuilderProvider,
@@ -41,6 +61,29 @@ public class OpenPGPKey
 
             secretKeys.put(identifier, new OpenPGPSecretKey(key, secretKey, decryptorBuilderProvider));
         }
+    }
+
+    public static OpenPGPKey fromAsciiArmor(
+            String armor,
+            OpenPGPImplementation implementation)
+            throws IOException
+    {
+        return fromBytes(
+                armor.getBytes(StandardCharsets.UTF_8),
+                implementation);
+    }
+
+    public static OpenPGPKey fromBytes(
+            byte[] bytes,
+            OpenPGPImplementation implementation)
+            throws IOException
+    {
+        ByteArrayInputStream bIn = new ByteArrayInputStream(bytes);
+        InputStream decoderStream = PGPUtil.getDecoderStream(bIn);
+        BCPGInputStream pIn = BCPGInputStream.wrap(decoderStream);
+        PGPObjectFactory objectFactory = new BcPGPObjectFactory(pIn);
+        PGPSecretKeyRing keyRing = (PGPSecretKeyRing) objectFactory.nextObject();
+        return new OpenPGPKey(keyRing, implementation);
     }
 
     public Map<KeyIdentifier, OpenPGPSecretKey> getSecretKeys()

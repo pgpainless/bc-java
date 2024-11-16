@@ -13,22 +13,12 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSessionKey;
 import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.SessionKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPBEDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcSessionKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JceSessionKeyDataDecryptorFactoryBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.Provider;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +27,8 @@ import java.util.Map;
 public class OpenPGPMessageProcessor
 {
     public static int MAX_RECURSION = 16;
+
+    private final OpenPGPImplementation implementation;
 
     // Source of certificates for signature verification
     private OpenPGPCertificateSource certificateSource = new OpenPGPCertificatePool();
@@ -48,14 +40,14 @@ public class OpenPGPMessageProcessor
     private PGPSessionKey sessionKey;
     private char[] messagePassphrase;
 
-    private PGPObjectFactoryProvider objectFactoryProvider = BcPGPObjectFactory::new;
-
-    private DataDecryptorFactoryBuilderProvider decryptorFactoryProvider = new BcDataDecryptorFactoryBuilderProvider(
-            new BcPGPDigestCalculatorProvider());
-
     public OpenPGPMessageProcessor()
     {
+        this(new BcOpenPGPImplementation());
+    }
 
+    public OpenPGPMessageProcessor(OpenPGPImplementation implementation)
+    {
+        this.implementation = implementation;
     }
 
     public OpenPGPMessageProcessor setCertificateSource(OpenPGPCertificateSource certificateSource)
@@ -101,7 +93,7 @@ public class OpenPGPMessageProcessor
         int depth = 0;
         do
         {
-            PGPObjectFactory objectFactory = objectFactoryProvider.provideFactory(packetInputStream);
+            PGPObjectFactory objectFactory = implementation.objectFactory(packetInputStream);
             Object o = objectFactory.nextObject();
 
             // TODO: This is a brittle prototype implementation. Implement properly!
@@ -135,7 +127,7 @@ public class OpenPGPMessageProcessor
         // Since decryption using session key is the most "deliberate" and "specific", we'll try that first
         if (sessionKey != null)
         {
-            SessionKeyDataDecryptorFactory decryptorFactory = decryptorFactoryProvider.build(sessionKey);
+            SessionKeyDataDecryptorFactory decryptorFactory = implementation.sessionKeyDataDecryptorFactory(sessionKey);
             InputStream decryptedIn = encDataList.extractSessionKeyEncryptedData()
                     .getDataStream(decryptorFactory);
             return decryptedIn;
@@ -152,7 +144,7 @@ public class OpenPGPMessageProcessor
             {
                 try
                 {
-                    PBEDataDecryptorFactory decryptorFactory = decryptorFactoryProvider.build(messagePassphrase);
+                    PBEDataDecryptorFactory decryptorFactory = implementation.pbeDataDecryptorFactory(messagePassphrase);
                     InputStream decryptedIn = skesk.getDataStream(decryptorFactory);
                     return decryptedIn;
                 }
@@ -189,7 +181,7 @@ public class OpenPGPMessageProcessor
             char[] keyPassphrase = decryptionKey.isLocked() ? keyPasswordCallback.getKeyPassword(identifier) : null;
             PGPPrivateKey privateKey = decryptionKey.unlock(keyPassphrase);
 
-            PublicKeyDataDecryptorFactory decryptorFactory = decryptorFactoryProvider.build(privateKey);
+            PublicKeyDataDecryptorFactory decryptorFactory = implementation.publicKeyDataDecryptorFactory(privateKey);
             InputStream decryptedIn = pkesk.getDataStream(decryptorFactory);
             return decryptedIn;
         }
@@ -206,7 +198,7 @@ public class OpenPGPMessageProcessor
                 {
                     try
                     {
-                        PBEDataDecryptorFactory decryptorFactory = decryptorFactoryProvider.build(passphrase);
+                        PBEDataDecryptorFactory decryptorFactory = implementation.pbeDataDecryptorFactory(passphrase);
                         InputStream decryptedIn = skesk.getDataStream(decryptorFactory);
                         return decryptedIn;
                     }
@@ -441,70 +433,5 @@ public class OpenPGPMessageProcessor
         PublicKeyDataDecryptorFactory build(PGPPrivateKey privateKey);
 
         PBEDataDecryptorFactory build(char[] passphrase);
-    }
-
-    public static class BcDataDecryptorFactoryBuilderProvider
-            implements DataDecryptorFactoryBuilderProvider
-    {
-        private final BcPGPDigestCalculatorProvider digestCalculatorProvider;
-
-        public BcDataDecryptorFactoryBuilderProvider(BcPGPDigestCalculatorProvider digestCalculatorProvider)
-        {
-            this.digestCalculatorProvider = digestCalculatorProvider;
-        }
-
-        @Override
-        public SessionKeyDataDecryptorFactory build(PGPSessionKey sessionKey)
-        {
-            return new BcSessionKeyDataDecryptorFactory(sessionKey);
-        }
-
-        @Override
-        public PublicKeyDataDecryptorFactory build(PGPPrivateKey privateKey)
-        {
-            return new BcPublicKeyDataDecryptorFactory(privateKey);
-        }
-
-        @Override
-        public PBEDataDecryptorFactory build(char[] passphrase)
-        {
-            return new BcPBEDataDecryptorFactory(passphrase, digestCalculatorProvider);
-        }
-    }
-
-    public static class JcaDataDecryptorFactoryBuilderProvider
-            implements DataDecryptorFactoryBuilderProvider
-    {
-
-        private final Provider provider;
-        private final PGPDigestCalculatorProvider digestCalculatorProvider;
-
-        public JcaDataDecryptorFactoryBuilderProvider(Provider provider,
-                                                      PGPDigestCalculatorProvider digestCalculatorProvider)
-        {
-            this.provider = provider;
-            this.digestCalculatorProvider = digestCalculatorProvider;
-        }
-
-        @Override
-        public SessionKeyDataDecryptorFactory build(PGPSessionKey sessionKey) {
-            return new JceSessionKeyDataDecryptorFactoryBuilder()
-                    .setProvider(provider)
-                    .build(sessionKey);
-        }
-
-        @Override
-        public PublicKeyDataDecryptorFactory build(PGPPrivateKey privateKey) {
-            return new JcePublicKeyDataDecryptorFactoryBuilder()
-                    .setProvider(provider)
-                    .build(privateKey);
-        }
-
-        @Override
-        public PBEDataDecryptorFactory build(char[] passphrase) {
-            return new JcePBEDataDecryptorFactoryBuilder(digestCalculatorProvider)
-                    .setProvider(provider)
-                    .build(passphrase);
-        }
     }
 }

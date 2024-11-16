@@ -1,17 +1,11 @@
 package org.bouncycastle.openpgp.api.util;
 
-import org.bouncycastle.bcpg.ArmoredInputStream;
-import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.api.BcOpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 public class DebugPrinter
@@ -101,12 +95,7 @@ public class DebugPrinter
                 "LjpgTvuRD7zyJcTQch4ImjSLirdTLvlAG9kqZeg+c2w31/976sXYWB8=\n" +
                 "=x/EN\n" +
                 "-----END PGP PUBLIC KEY BLOCK-----\n";
-        ByteArrayInputStream bIn = new ByteArrayInputStream(exampleCert.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-        PGPPublicKeyRing publicKeys = (PGPPublicKeyRing) objFac.nextObject();
-        OpenPGPCertificate certificate = new OpenPGPCertificate(publicKeys, new BcPGPContentVerifierBuilderProvider());
+        OpenPGPCertificate certificate = OpenPGPCertificate.fromAsciiArmor(exampleCert, new BcOpenPGPImplementation());
 
         System.out.println(toString(certificate, new Date()));
     }

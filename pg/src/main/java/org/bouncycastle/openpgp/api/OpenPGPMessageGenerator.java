@@ -27,12 +27,7 @@ import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
+import org.bouncycastle.openpgp.operator.PublicKeyKeyEncryptionMethodGenerator;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,6 +45,7 @@ public class OpenPGPMessageGenerator
 {
     public static final int BUFFER_SIZE = 1024;
 
+    private final OpenPGPImplementation implementation;
     private final Configuration config = new Configuration();
 
     // Factory for creating ASCII armor
@@ -130,6 +126,16 @@ public class OpenPGPMessageGenerator
     private Date fileModificationDate = null;
     private String filename = null;
     private char format = PGPLiteralData.BINARY;
+
+    public OpenPGPMessageGenerator()
+    {
+        this(new BcOpenPGPImplementation());
+    }
+
+    public OpenPGPMessageGenerator(OpenPGPImplementation implementation)
+    {
+        this.implementation = implementation;
+    }
 
     /**
      * Replace the {@link ArmoredOutputStreamFactory} with a custom implementation.
@@ -227,7 +233,7 @@ public class OpenPGPMessageGenerator
      */
     public OpenPGPMessageGenerator addEncryptionCertificate(PGPPublicKeyRing recipientCertificate, SubkeySelector subkeySelector)
     {
-        config.recipients.add(new Recipient(recipientCertificate, subkeySelector));
+        config.recipients.add(new Recipient(recipientCertificate, subkeySelector, implementation));
         return this;
     }
 
@@ -271,7 +277,7 @@ public class OpenPGPMessageGenerator
             PBESecretKeyDecryptorProvider signingKeyDecryptorProvider,
             SubkeySelector subkeySelector)
     {
-        config.signingKeys.add(new Signer(signingKey, signingKeyDecryptorProvider, subkeySelector));
+        config.signingKeys.add(new Signer(signingKey, signingKeyDecryptorProvider, subkeySelector, implementation));
         return this;
     }
 
@@ -357,7 +363,7 @@ public class OpenPGPMessageGenerator
             return; // No encryption
         }
 
-        PGPDataEncryptorBuilder encBuilder = new BcPGPDataEncryptorBuilder(encryption.symmetricKeyAlgorithm);
+        PGPDataEncryptorBuilder encBuilder = implementation.pgpDataEncryptorBuilder(encryption.symmetricKeyAlgorithm);
 
         // Specify container type for the plaintext
         switch (encryption.mode)
@@ -387,7 +393,8 @@ public class OpenPGPMessageGenerator
         {
             for (PGPPublicKey encryptionSubkey : recipient.encryptionSubkeys())
             {
-                encGen.addMethod(new BcPublicKeyKeyEncryptionMethodGenerator(encryptionSubkey));
+                PublicKeyKeyEncryptionMethodGenerator method = implementation.publicKeyKeyEncryptionMethodGenerator(encryptionSubkey);
+                encGen.addMethod(method);
             }
         }
 
@@ -400,12 +407,12 @@ public class OpenPGPMessageGenerator
                 case SEIPDv1:
                 case LIBREPGP_OED:
                     // "v4" and LibrePGP use symmetric-key encrypted session key packets version 4 (SKESKv4)
-                    skeskGen = new BcPBEKeyEncryptionMethodGenerator(passphrase);
+                    skeskGen = implementation.pbeKeyEncryptionMethodGenerator(passphrase);
                     break;
 
                 case SEIPDv2:
                     // v6 uses symmetric-key encrypted session key packets version 6 (SKESKv6) using AEAD
-                    skeskGen = new BcPBEKeyEncryptionMethodGenerator(passphrase, S2K.Argon2Params.memoryConstrainedParameters());
+                    skeskGen = implementation.pbeKeyEncryptionMethodGenerator(passphrase, S2K.Argon2Params.memoryConstrainedParameters());
                     break;
                 default: continue;
             }
@@ -444,7 +451,7 @@ public class OpenPGPMessageGenerator
                 {
                     int hashAlgorithm = hashAlgorithmNegotiator.negotiateHashAlgorithm(s.signingKey, signingSubkey);
                     PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
-                            new BcPGPContentSignerBuilder(signingSubkey.getPublicKey().getAlgorithm(), hashAlgorithm),
+                            implementation.pgpContentSignerBuilder(signingSubkey.getPublicKey().getAlgorithm(), hashAlgorithm),
                             signingSubkey.getPublicKey());
 
                     PBESecretKeyDecryptor decryptor = s.decryptorProvider == null ? null :
@@ -592,9 +599,9 @@ public class OpenPGPMessageGenerator
          * @param certificate OpenPGP certificate (public key)
          * @param subkeySelector selector to select encryption-capable subkeys from the certificate
          */
-        public Recipient(PGPPublicKeyRing certificate, SubkeySelector subkeySelector)
+        public Recipient(PGPPublicKeyRing certificate, SubkeySelector subkeySelector, OpenPGPImplementation implementation)
         {
-            this(new OpenPGPCertificate(certificate, new BcPGPContentVerifierBuilderProvider()), subkeySelector);
+            this(new OpenPGPCertificate(certificate, implementation.pgpContentVerifierBuilderProvider()), subkeySelector);
         }
 
         public Recipient(OpenPGPCertificate certificate, SubkeySelector subkeySelector)
@@ -643,9 +650,13 @@ public class OpenPGPMessageGenerator
          */
         public Signer(PGPSecretKeyRing signingKey,
                       PBESecretKeyDecryptorProvider decryptorProvider,
-                      SubkeySelector subkeySelector)
+                      SubkeySelector subkeySelector,
+                      OpenPGPImplementation implementation)
         {
-            this(new OpenPGPKey(signingKey, new BcPGPContentVerifierBuilderProvider(), new BcPBESecretKeyDecryptorBuilderProvider()), decryptorProvider, subkeySelector);
+            this(new OpenPGPKey(signingKey,
+                    implementation.pgpContentVerifierBuilderProvider(),
+                    implementation.pbeSecretKeyDecryptorBuilderProvider()),
+                    decryptorProvider, subkeySelector);
         }
 
         public Signer(OpenPGPKey signingKey,

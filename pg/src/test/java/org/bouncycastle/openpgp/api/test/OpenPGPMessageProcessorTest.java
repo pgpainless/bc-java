@@ -1,21 +1,13 @@
 package org.bouncycastle.openpgp.api.test;
 
-import com.sun.tools.javac.util.List;
-import org.bouncycastle.bcpg.ArmoredInputStream;
-import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.test.AbstractPacketTest;
-import org.bouncycastle.openpgp.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.api.BcOpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPMessageGenerator;
 import org.bouncycastle.openpgp.api.OpenPGPMessageProcessor;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.util.io.Streams;
 
 import java.io.ByteArrayInputStream;
@@ -43,17 +35,6 @@ public class OpenPGPMessageProcessorTest
             "M0g12vYxoWM8Y81W+bHBw805I8kWVkXU6vFOi+HWvv/ira7ofJu16NnoUkhclkUr\n" +
             "k0mXubZvyl4GBg==\n" +
             "-----END PGP PRIVATE KEY BLOCK-----";
-
-    private PGPSecretKeyRing readKey(String armored)
-            throws IOException
-    {
-        ByteArrayInputStream bIn = new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8));
-        ArmoredInputStream aIn = new ArmoredInputStream(bIn);
-        BCPGInputStream pIn = new BCPGInputStream(aIn);
-        PGPObjectFactory objFac = new BcPGPObjectFactory(pIn);
-        PGPSecretKeyRing secretKeys = (PGPSecretKeyRing) objFac.nextObject();
-        return secretKeys;
-    }
 
     @Override
     public String getName()
@@ -170,10 +151,8 @@ public class OpenPGPMessageProcessorTest
     private void roundTripV6KeyEncryptedMessage()
             throws IOException, PGPException
     {
-        PGPSecretKeyRing secretKeys = readKey(v6Key);
-        OpenPGPKey key = new OpenPGPKey(secretKeys,
-                new BcPGPContentVerifierBuilderProvider(),
-                new BcPBESecretKeyDecryptorBuilderProvider());
+        OpenPGPKey key = OpenPGPKey.fromAsciiArmor(v6Key,
+                new BcOpenPGPImplementation());
 
         OpenPGPMessageGenerator gen = new OpenPGPMessageGenerator()
                 .setArmored(true)
