@@ -90,6 +90,7 @@ public class PGPEncryptedDataGenerator
     // If true, force generation of a session key, even if we only have a single password-based encryption method
     //  and could therefore use the S2K output as session key directly.
     private boolean forceSessionKey = true;
+    private SessionKeyExtractionCallback sessionKeyExtractionCallback = null;
 
     /**
      * Base constructor.
@@ -179,6 +180,11 @@ public class PGPEncryptedDataGenerator
         return sessionInfo;
     }
 
+    public void setSessionKeyExtractionCallback(SessionKeyExtractionCallback callback)
+    {
+        this.sessionKeyExtractionCallback = callback;
+    }
+
     /**
      * Create an OutputStream based on the configured methods.
      * <p>
@@ -252,6 +258,11 @@ public class PGPEncryptedDataGenerator
             // prepend algorithm, append checksum
             sessionInfo = createSessionInfo(defAlgorithm, sessionKey);
             messageKey = sessionKey;
+        }
+
+        if (sessionKeyExtractionCallback != null)
+        {
+            sessionKeyExtractionCallback.extractSessionKey(new PGPSessionKey(defAlgorithm, sessionKey));
         }
 
         PGPDataEncryptor dataEncryptor = dataEncryptorBuilder.build(messageKey);
@@ -583,5 +594,10 @@ public class PGPEncryptedDataGenerator
         {
             this.finish();
         }
+    }
+
+    public interface SessionKeyExtractionCallback
+    {
+        void extractSessionKey(PGPSessionKey sessionKey);
     }
 }
