@@ -36,7 +36,8 @@ public class BcOpenPGPImplementation
     @Override
     public PGPObjectFactory pgpObjectFactory(InputStream packetInputStream)
     {
-        return new BcPGPObjectFactory(packetInputStream);
+        return new BcPGPObjectFactory(packetInputStream)
+                .setThrowForUnknownCriticalPackets(true);
     }
 
     @Override

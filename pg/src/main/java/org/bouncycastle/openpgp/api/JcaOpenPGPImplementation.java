@@ -54,7 +54,8 @@ public class JcaOpenPGPImplementation
     @Override
     public PGPObjectFactory pgpObjectFactory(InputStream packetInputStream)
     {
-        return new JcaPGPObjectFactory(packetInputStream);
+        return new JcaPGPObjectFactory(packetInputStream)
+                .setThrowForUnknownCriticalPackets(true);
     }
 
     @Override
