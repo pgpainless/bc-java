@@ -105,14 +105,12 @@ public class PublicKeyEncSessionPacket
         case ECDH:
         case X448:
         case X25519:
+        default:
             data = new byte[1][];
 
             data[0] = Streams.readAll(in);
             break;
-        default:
-            throw new IOException("unknown PGP public key algorithm encountered");
         }
-
     }
 
     /**
