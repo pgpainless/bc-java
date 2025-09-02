@@ -100,6 +100,8 @@ public class OpenPGPCertificateTest
         isEquals("Encryption key features mismatch. Expected features to be extracted from DK sig.",
                 Features.FEATURE_MODIFICATION_DETECTION | Features.FEATURE_SEIPD_V2,
                 encryptionKeyFeatures.getFeatures());
+
+        System.out.println(key.getStatus());
     }
 
     private void testBaseCasePrimaryKeySigns(OpenPGPApi api)

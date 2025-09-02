@@ -19,9 +19,13 @@ import java.util.TreeSet;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
+import org.bouncycastle.bcpg.ECDSAPublicBCPGKey;
+import org.bouncycastle.bcpg.EdDSAPublicBCPGKey;
 import org.bouncycastle.bcpg.FingerprintUtil;
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.bcpg.PacketFormat;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyUtils;
 import org.bouncycastle.bcpg.SignatureSubpacket;
 import org.bouncycastle.bcpg.SignatureSubpacketTags;
@@ -31,6 +35,8 @@ import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.bcpg.sig.PreferredAEADCiphersuites;
 import org.bouncycastle.bcpg.sig.PreferredAlgorithms;
 import org.bouncycastle.bcpg.sig.PrimaryUserID;
+import org.bouncycastle.bcpg.sig.RevocationReason;
+import org.bouncycastle.bcpg.sig.RevocationReasonTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyRing;
 import org.bouncycastle.openpgp.PGPObjectFactory;
@@ -48,6 +54,7 @@ import org.bouncycastle.openpgp.api.exception.MalformedOpenPGPSignatureException
 import org.bouncycastle.openpgp.api.exception.MissingIssuerCertException;
 import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * OpenPGP certificates (TPKs - transferable public keys) are long-living structures that may change during
@@ -66,6 +73,7 @@ import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
  */
 public class OpenPGPCertificate
 {
+
     final OpenPGPImplementation implementation;
     final OpenPGPPolicy policy;
 
@@ -514,6 +522,15 @@ public class OpenPGPCertificate
         return latestModification;
     }
 
+    public CertStatus getStatus() {
+        return getStatus(new Date());
+    }
+
+    public CertStatus getStatus(Date evaluationTime)
+    {
+        return new CertStatus(this, evaluationTime);
+    }
+
     /**
      * Join two copies of the same {@link OpenPGPCertificate}, merging its {@link OpenPGPCertificateComponent components}
      * into a single instance.
@@ -599,9 +616,20 @@ public class OpenPGPCertificate
      *
      * @return primary key fingerprint
      */
+    @Deprecated
     public byte[] getFingerprint()
     {
         return primaryKey.getPGPPublicKey().getFingerprint();
+    }
+
+    /**
+     * Return the primary keys fingerprint in binary format.
+     *
+     * @return primary key fingerprint
+     */
+    public byte[] getFingerprintBytes()
+    {
+        return getPrimaryKey().getFingerprintBytes();
     }
 
     /**
@@ -611,7 +639,12 @@ public class OpenPGPCertificate
      */
     public String getPrettyFingerprint()
     {
-        return FingerprintUtil.prettifyFingerprint(getFingerprint());
+        return FingerprintUtil.prettifyFingerprint(getFingerprintBytes());
+    }
+
+    public String getHexFingerprint()
+    {
+        return getPrimaryKey().getFingerprint();
     }
 
     /**
@@ -1226,6 +1259,11 @@ public class OpenPGPCertificate
             return chains;
         }
 
+        public OpenPGPComponentSignature getCertification()
+        {
+            return getCertification(new Date());
+        }
+
         /**
          * Return the (at evaluation time) latest certification signature binding this component.
          *
@@ -1240,6 +1278,11 @@ public class OpenPGPCertificate
                 return certification.getSignature();
             }
             return null;
+        }
+
+        public OpenPGPComponentSignature getRevocation()
+        {
+            return getRevocation(new Date());
         }
 
         /**
@@ -2072,6 +2115,16 @@ public class OpenPGPCertificate
             return rawPubkey.getKeyIdentifier();
         }
 
+        public byte[] getFingerprintBytes()
+        {
+            return rawPubkey.getFingerprint();
+        }
+
+        public String getFingerprint()
+        {
+            return Hex.toHexString(getFingerprintBytes());
+        }
+
         /**
          * Return the public key algorithm.
          *
@@ -2081,6 +2134,90 @@ public class OpenPGPCertificate
         public int getAlgorithm()
         {
             return getPGPPublicKey().getAlgorithm();
+        }
+
+        public String getAlgorithmName()
+        {
+            int alg = getAlgorithm();
+            switch (alg)
+            {
+                case PublicKeyAlgorithmTags.RSA_GENERAL:
+                case PublicKeyAlgorithmTags.RSA_ENCRYPT:
+                case PublicKeyAlgorithmTags.RSA_SIGN:
+                    return "RSA(" + getPGPPublicKey().getBitStrength() + ")";
+                case PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT:
+                case PublicKeyAlgorithmTags.ELGAMAL_GENERAL:
+                    return "Elgamal";
+                case PublicKeyAlgorithmTags.DSA:
+                    return "DSA(" + getPGPPublicKey().getBitStrength() + ")";
+                case PublicKeyAlgorithmTags.ECDH:
+                    ECDHPublicBCPGKey ecdhKey = (ECDHPublicBCPGKey) getPGPPublicKey().getPublicKeyPacket().getKey();
+                    return "ECDH/" + PGPUtil.getCurveName(ecdhKey.getCurveOID());
+                case PublicKeyAlgorithmTags.ECDSA:
+                    ECDSAPublicBCPGKey ecdsaKey = (ECDSAPublicBCPGKey) getPGPPublicKey().getPublicKeyPacket().getKey();
+                    return "ECDSA/" + PGPUtil.getCurveName(ecdsaKey.getCurveOID());
+                case PublicKeyAlgorithmTags.DIFFIE_HELLMAN:
+                    return "DiffieHellman";
+                case PublicKeyAlgorithmTags.EDDSA_LEGACY:
+                    EdDSAPublicBCPGKey eddsaKey = (EdDSAPublicBCPGKey) getPGPPublicKey().getPublicKeyPacket().getKey();
+                    return "EdDSA/" + PGPUtil.getCurveName(eddsaKey.getCurveOID());
+                case PublicKeyAlgorithmTags.X25519:
+                    return "X25519";
+                case PublicKeyAlgorithmTags.X448:
+                    return "X448";
+                case PublicKeyAlgorithmTags.Ed25519:
+                    return "Ed25519";
+                case PublicKeyAlgorithmTags.Ed448:
+                    return "Ed448";
+                case PublicKeyAlgorithmTags.AEDH:
+                    return "AEDH";
+                case PublicKeyAlgorithmTags.AEDSA:
+                    return "AEDSA";
+                default:
+                    if (alg >= PublicKeyAlgorithmTags.EXPERIMENTAL_1 && alg <= PublicKeyAlgorithmTags.EXPERIMENTAL_11)
+                    {
+                        return "Experimental/" + alg;
+                    }
+                    else
+                    {
+                        return "Unknown/" + alg;
+                    }
+            }
+        }
+
+        public List<String> getKeyFlagsInfo(Date evaluationTime) {
+            KeyFlags flags = getKeyFlags(evaluationTime);
+            if (flags == null)
+            {
+                return null;
+            }
+
+            List<String> flagNames = new ArrayList<>();
+
+            int mask = flags.getFlags();
+            if ((mask & KeyFlags.CERTIFY_OTHER) == KeyFlags.CERTIFY_OTHER)
+            {
+                flagNames.add("Certify");
+            }
+            if ((mask & KeyFlags.SIGN_DATA) == KeyFlags.SIGN_DATA)
+            {
+                flagNames.add("Sign");
+            }
+            if ((mask & KeyFlags.ENCRYPT_COMMS) == KeyFlags.ENCRYPT_COMMS ||
+                    (mask & KeyFlags.ENCRYPT_STORAGE) == KeyFlags.ENCRYPT_STORAGE)
+            {
+                flagNames.add("Encrypt");
+            }
+            if ((mask & KeyFlags.AUTHENTICATION) == KeyFlags.AUTHENTICATION)
+            {
+                flagNames.add("Auth");
+            }
+            if ((mask & KeyFlags.SPLIT) == KeyFlags.SPLIT)
+            {
+                flagNames.add("Split");
+            }
+
+            return flagNames;
         }
 
         /**
@@ -3630,6 +3767,351 @@ public class OpenPGPCertificate
         for (Iterator<OpenPGPComponentSignature> it = signatures.iterator(); it.hasNext(); )
         {
             chains.add(OpenPGPSignatureChain.direct(it.next()));
+        }
+    }
+
+    public static class CertStatus
+    {
+        private static final String EMOJI_CERT = "\uD83D\uDD10";
+        private static final String EMOJI_CREATED = "⏱\uFE0F";
+        private static final String EMOJI_CHECK = "✅";
+        private static final String EMOJI_REJECT = "\uD83D\uDEAB";
+        private static final String EMOJI_FLAGS = "\uD83C\uDFF4";
+        private static final String EMOJI_COMP_KEY = "\uD83D\uDD11";
+        private static final String EMOJI_COMP_UID = "\uD83E\uDEAA";
+        private static final String INDENT = "  ";
+
+        private final Key primary;
+        private final List<Key> subkeys;
+        private final List<ID> user_ids;
+
+        public CertStatus(OpenPGPCertificate cert, Date evaluationTime)
+        {
+            this.primary = new Key(cert.primaryKey, evaluationTime);
+            this.subkeys = new ArrayList<>();
+            Iterator<OpenPGPComponentKey> sks = cert.getKeys().iterator();
+            sks.next();
+            while (sks.hasNext())
+            {
+                subkeys.add(new Key(sks.next(), evaluationTime));
+            }
+
+            this.user_ids = new ArrayList<>();
+            for (OpenPGPUserId uid : cert.getAllUserIds())
+            {
+                user_ids.add(new ID(uid, evaluationTime));
+            }
+        }
+
+        private String toCommaSeparatedList(List<String> items)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (String item : items)
+            {
+                sb.append(", ").append(item);
+            }
+            return sb.substring(2);
+        }
+
+
+        public String toString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            // Primary key info
+            sb.append(EMOJI_CERT)
+                    .append(" ").append(primary.algorithm)
+                    .append(" v").append(primary.version)
+                    .append(" ").append(primary.fingerprint)
+                    .append("\n")
+
+                    .append(INDENT)
+                    .append(EMOJI_CREATED).append(" Created ").append(UTCUtil.format(primary.created))
+                    .append("\n")
+
+                    .append(INDENT)
+                    .append(primary.status.isValid() ? EMOJI_CHECK : EMOJI_REJECT).append(" ").append(primary.status)
+                    .append("\n")
+
+                    .append(INDENT)
+                    .append(EMOJI_FLAGS).append(" Key flags: ").append(toCommaSeparatedList(primary.key_flags))
+                    .append("\n")
+
+                    .append("\n");
+
+            for (Key subkey : subkeys)
+            {
+                sb.append(INDENT)
+                        .append(EMOJI_COMP_KEY)
+                        .append(" ").append(subkey.algorithm)
+                        .append(" v").append(subkey.version)
+                        .append(" ").append(subkey.fingerprint)
+                        .append("\n")
+
+                        .append(INDENT).append(INDENT)
+                        .append(EMOJI_CREATED).append(" Created ").append(UTCUtil.format(subkey.created))
+                        .append("\n")
+
+                        .append(INDENT).append(INDENT)
+                        .append(subkey.status.isValid() ? EMOJI_CHECK : EMOJI_REJECT).append(" ").append(subkey.status)
+                        .append("\n");
+
+                if (subkey.key_flags != null)
+                {
+                    sb.append(INDENT).append(INDENT)
+                            .append(EMOJI_FLAGS).append(" Key flags: ").append(toCommaSeparatedList(subkey.key_flags))
+                            .append("\n");
+                }
+                sb.append("\n");
+            }
+
+            for (ID userId : user_ids)
+            {
+                sb.append(INDENT)
+                        .append(EMOJI_COMP_UID).append(" ID \"").append(userId.id).append("\"");
+                if (userId.primary)
+                {
+                    sb.append(" (primary)");
+                }
+                sb.append("\n");
+
+                sb.append(INDENT).append(INDENT)
+                        .append(userId.status.isValid() ? EMOJI_CHECK : EMOJI_REJECT).append(" ").append(userId.status)
+                        .append("\n")
+                        .append("\n");
+            }
+
+            return sb.toString();
+        }
+
+        public String toJsonString()
+        {
+            return null;
+        }
+
+        private static class Key
+        {
+            private final String fingerprint;
+            private final int version;
+            private final Date created;
+            private final String algorithm;
+            private final Status status;
+            private final List<String> key_flags;
+
+            public Key(OpenPGPComponentKey k, Date evaluationTime)
+            {
+                this.fingerprint = k.getFingerprint();
+                this.version = k.getVersion();
+                this.created = k.getCreationTime();
+                this.algorithm = k.getAlgorithmName();
+                this.key_flags = k.getKeyFlagsInfo(evaluationTime);
+
+                if (k.isBoundAt(evaluationTime))
+                {
+                    this.status = new Valid(k.getKeyExpirationDateAt(evaluationTime));
+                    return;
+                }
+
+                OpenPGPComponentSignature revocation = k.getRevocation(evaluationTime);
+                if (revocation != null)
+                {
+                    this.status = new Revoked(revocation);
+                    return;
+                }
+
+                OpenPGPComponentSignature certification = k.getCertification(evaluationTime);
+                if (!certification.isEffectiveAt(evaluationTime))
+                {
+                    this.status = new Expired(certification.getKeyExpirationTime());
+                }
+                else
+                {
+                    status = new Invalid("No valid sig.");
+                }
+            }
+        }
+
+        private static class ID
+        {
+            private final String id;
+            private final boolean primary;
+            private final Status status;
+
+            public ID(OpenPGPUserId uid, Date evaluationTime)
+            {
+                this.id = uid.getUserId();
+                this.primary = uid == uid.getCertificate().getPrimaryUserId();
+
+                if (uid.isBoundAt(evaluationTime))
+                {
+                    this.status = new Valid(uid.getKeyExpirationDateAt(evaluationTime));
+                    return;
+                }
+
+                OpenPGPComponentSignature revocation = uid.getRevocation(evaluationTime);
+                if (revocation != null)
+                {
+                    this.status = new Revoked(revocation);
+                    return;
+                }
+
+                OpenPGPComponentSignature certification = uid.getCertification(evaluationTime);
+                if (!certification.isEffectiveAt(evaluationTime))
+                {
+                    this.status = new Expired(certification.getKeyExpirationTime());
+                }
+                else
+                {
+                    status = new Invalid("No valid sig.");
+                }
+            }
+        }
+
+        private static abstract class Status
+        {
+            public boolean isValid()
+            {
+                return this instanceof Valid;
+            }
+
+            public boolean isInvalid()
+            {
+                return this instanceof Invalid;
+            }
+
+            public boolean isExpired()
+            {
+                return this instanceof Expired;
+            }
+
+            public boolean isRevoked()
+            {
+                return this instanceof Revoked;
+            }
+
+            public abstract String toString();
+        }
+
+        private static class Valid extends Status
+        {
+            private final Date expires;
+
+            public Valid(Date expires)
+            {
+                this.expires = expires;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "Active" + (expires == null ? " (no expiration)" : ", expires " + UTCUtil.format(expires));
+            }
+        }
+
+        private static class Invalid extends Status
+        {
+            private final String reason;
+
+            public Invalid(String reason)
+            {
+                this.reason = reason;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "Invalid: " + reason;
+            }
+        }
+
+        private static class Expired extends Status
+        {
+            private final Date expirationDate;
+
+            public Expired(Date expirationDate)
+            {
+                this.expirationDate = expirationDate;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "Expired (" + UTCUtil.format(expirationDate) + ")";
+            }
+        }
+
+        private static class Revoked extends Status
+        {
+            private final boolean hard;
+            private final Date revocationDate;
+            private final Reason reason;
+
+            public Revoked(boolean hard, Date revocationDate, Reason reason)
+            {
+                this.hard = hard;
+                this.revocationDate = revocationDate;
+                this.reason = reason;
+            }
+
+            public Revoked(OpenPGPComponentSignature revocation)
+            {
+                this.hard = revocation.isHardRevocation();
+                this.revocationDate = revocation.getCreationTime();
+                RevocationReason r = revocation.getSignature().getHashedSubPackets().getRevocationReason();
+                if (r == null)
+                {
+                    reason = new Reason("Reason for revocation is unset", null);
+                    return;
+                }
+
+                switch (r.getRevocationReason())
+                {
+                    case RevocationReasonTags.NO_REASON:
+                        reason = new Reason("NoReason", r.getRevocationDescription());
+                        break;
+                    case RevocationReasonTags.KEY_SUPERSEDED:
+                        reason = new Reason("KeySuperseded", r.getRevocationDescription());
+                        break;
+                    case RevocationReasonTags.KEY_COMPROMISED:
+                        reason = new Reason("KeyCompromised", r.getRevocationDescription());
+                        break;
+                    case RevocationReasonTags.KEY_RETIRED:
+                        reason = new Reason("KeyRetired", r.getRevocationDescription());
+                        break;
+                    case RevocationReasonTags.USER_NO_LONGER_VALID:
+                        reason = new Reason("CertUserIdInvalid", r.getRevocationDescription());
+                        break;
+                    default:
+                        if (r.getRevocationReason() >= 100 && r.getRevocationReason() <= 110)
+                        {
+                            reason = new Reason("Private" + (int) r.getRevocationReason(), r.getRevocationDescription());
+                        }
+                        else
+                        {
+                            reason = new Reason("Other(" + (int) r.getRevocationReason(), r.getRevocationDescription());
+                        }
+                }
+            }
+
+            @Override
+            public String toString()
+            {
+                return "Revoked " + (hard ? "(hard)" : "(soft)") + ": "
+                        + reason.type + (reason.description == null ? ", " : " \"" + reason.description + "\", ")
+                        + UTCUtil.format(revocationDate);
+            }
+
+            public static class Reason
+            {
+                private final String type;
+                private final String description;
+
+                public Reason(String type, String description)
+                {
+                    this.type = type;
+                    this.description = description;
+                }
+            }
         }
     }
 }
