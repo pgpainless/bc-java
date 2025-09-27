@@ -280,7 +280,7 @@ public class BcPublicKeyDataDecryptorFactory
         return unwrapSessionData(keyEnc, SymmetricKeyAlgorithmTags.AES_128, new KeyParameter(hkdfOut));
     }
 
-    private static byte[] unwrapSessionData(byte[] keyEnc, int symmetricKeyAlgorithm, KeyParameter key)
+    public static byte[] unwrapSessionData(byte[] keyEnc, int symmetricKeyAlgorithm, KeyParameter key)
         throws PGPException, InvalidCipherTextException
     {
         Wrapper c = BcImplProvider.createWrapper(symmetricKeyAlgorithm);
