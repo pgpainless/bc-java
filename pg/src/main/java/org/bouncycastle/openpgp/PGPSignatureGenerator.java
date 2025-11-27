@@ -9,6 +9,7 @@ import org.bouncycastle.bcpg.HashUtils;
 import org.bouncycastle.bcpg.MPInteger;
 import org.bouncycastle.bcpg.OnePassSignaturePacket;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.SignaturePacket;
 import org.bouncycastle.bcpg.SignatureSubpacket;
 import org.bouncycastle.bcpg.SignatureSubpacketTags;
@@ -90,7 +91,7 @@ public class PGPSignatureGenerator
     }
 
     /**
-     * Initialise the generator for signing.
+     * Initialise the generator for signing using a software-key.
      *
      * @param signatureType type of signature
      * @param key private signing key
@@ -106,6 +107,32 @@ public class PGPSignatureGenerator
             throw new PGPException("Illegal signature type 0xFF provided.");
         }
         contentSigner = contentSignerBuilder.build(signatureType, key);
+        init(key.getPublicKeyPacket());
+    }
+
+    /**
+     * Initialise the generator for signing using a hardware-key, e.g. a key stored on a smartcard or hardware token.
+     *
+     * @param signatureType type of signature
+     * @param hardwareKey public component of the hardware-based signing key
+     * @throws PGPException
+     */
+    public void init(
+        int signatureType,
+        PGPPublicKey hardwareKey)
+        throws PGPException
+    {
+        if (signatureType == 0xFF)
+        {
+            throw new PGPException("Illegal signature type 0xFF provided.");
+        }
+        contentSigner = contentSignerBuilder.build(signatureType);
+        init(hardwareKey.getPublicKeyPacket());
+    }
+
+    private void init(PublicKeyPacket keyPacket)
+        throws PGPException
+    {
         sigOut = contentSigner.getOutputStream();
         sigType = contentSigner.getType();
         lastb = 0;
@@ -115,7 +142,7 @@ public class PGPSignatureGenerator
             throw new PGPException("key algorithm mismatch");
         }
 
-        if (key.getPublicKeyPacket().getVersion() != version)
+        if (keyPacket.getVersion() != version)
         {
             throw new PGPException("Key version mismatch.");
         }

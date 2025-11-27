@@ -34,10 +34,10 @@ public class PGPV3SignatureGenerator
     }
 
     /**
-     * Initialise the generator for signing.
+     * Initialise the generator for signing using a software key.
      *
-     * @param signatureType
-     * @param key
+     * @param signatureType signature type
+     * @param key private key
      * @throws PGPException
      */
     public void init(
@@ -59,6 +59,27 @@ public class PGPV3SignatureGenerator
 //        {
 //            throw new PGPException("key algorithm mismatch");
 //        }
+    }
+
+    /**
+     * Initialize the generator for signing using a hardware-key, e.g. a key stored on a smartcard or hardware token.
+     *
+     * @param signatureType signature type
+     * @throws PGPException
+     */
+    public void init(
+        int signatureType)
+        throws PGPException
+    {
+        if (signatureType == 0xFF)
+        {
+            throw new PGPException("Illegal signature type 0xFF provided.");
+        }
+
+        contentSigner = contentSignerBuilder.build(signatureType);
+        sigOut = contentSigner.getOutputStream();
+        sigType = contentSigner.getType();
+        lastb = 0;
     }
 
     /**
