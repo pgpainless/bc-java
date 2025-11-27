@@ -16,6 +16,7 @@ import org.bouncycastle.jcajce.util.ProviderJcaJceHelper;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPRuntimeOperationException;
+import org.bouncycastle.openpgp.PGPSignatureException;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
@@ -87,6 +88,13 @@ public class JcaPGPContentSignerBuilder
         {
             return build(signatureType, privateKey.getKeyID(), keyConverter.getPrivateKey(privateKey));
         }
+    }
+
+    @Override
+    public PGPContentSigner build(int signatureType)
+            throws PGPException
+    {
+        throw new PGPSignatureException("Signing with hardware keys not implemented.");
     }
 
     public PGPContentSigner build(final int signatureType, final long keyID, final PrivateKey privateKey)

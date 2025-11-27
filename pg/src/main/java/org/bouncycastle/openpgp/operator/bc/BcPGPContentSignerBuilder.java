@@ -9,6 +9,7 @@ import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithRandom;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPSignatureException;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
@@ -96,5 +97,12 @@ public class BcPGPContentSignerBuilder
                 return digestCalculator.getDigest();
             }
         };
+    }
+
+    @Override
+    public PGPContentSigner build(int signatureType)
+            throws PGPException
+    {
+        throw new PGPSignatureException("Signing with hardware keys not implemented.");
     }
 }
