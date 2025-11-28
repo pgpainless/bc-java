@@ -26,6 +26,7 @@ import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptorBuilderProvider;
 import org.bouncycastle.openpgp.operator.PBESecretKeyEncryptor;
 import org.bouncycastle.openpgp.operator.PBESecretKeyEncryptorFactory;
+import org.bouncycastle.util.Arrays;
 
 /**
  * An {@link OpenPGPKey} (TSK - transferable secret key) is the pendant to an {@link OpenPGPCertificate},
@@ -425,6 +426,24 @@ public class OpenPGPKey
             {
                 return false;
             }
+        }
+
+        public boolean isDivertedToCard()
+        {
+            S2K s2K = rawSecKey.getS2K();
+            if (s2K != null) {
+                return s2K.getType() == S2K.GNU_DUMMY_S2K &&
+                        s2K.getProtectionMode() == S2K.GNU_PROTECTION_MODE_DIVERT_TO_CARD;
+            }
+            return false;
+        }
+
+        public byte[] getCardSerial() throws IOException {
+            if (isDivertedToCard()) {
+                byte[] enc = rawSecKey.getEncoded();
+                return Arrays.copyOfRange(enc, enc.length - 4, enc.length);
+            }
+            return null;
         }
     }
 

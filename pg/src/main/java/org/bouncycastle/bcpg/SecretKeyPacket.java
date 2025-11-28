@@ -64,6 +64,15 @@ public class SecretKeyPacket
      * Users should migrate to AEAD with all due speed.
      */
     public static final int USAGE_AEAD = 0xfd;
+
+    /**
+     * S2K-usage octet indicating that the secret key material is stored externally, for example on a hardware
+     * device.
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/draft-dkg-openpgp-external-secrets/">
+     *     Draft - OpenPGP External Secret Keys</a>
+     */
+    public static final int USAGE_EXTERNAL = 0xfc;
     
     private PublicKeyPacket pubKeyPacket;
     private byte[] secKeyData;
