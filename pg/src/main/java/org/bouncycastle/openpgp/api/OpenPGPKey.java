@@ -428,18 +428,23 @@ public class OpenPGPKey
             }
         }
 
-        public boolean isDivertedToCard()
+        public boolean hasExternalSecretKey()
         {
+            if (rawSecKey.getS2KUsage() == SecretKeyPacket.USAGE_EXTERNAL)
+            {
+                return true;
+            }
+
             S2K s2K = rawSecKey.getS2K();
             if (s2K != null) {
-                return s2K.getType() == S2K.GNU_DUMMY_S2K &&
-                        s2K.getProtectionMode() == S2K.GNU_PROTECTION_MODE_DIVERT_TO_CARD;
+                return s2K.getType() == S2K.GNU_DUMMY_S2K;
+                        // && s2K.getProtectionMode() == S2K.GNU_PROTECTION_MODE_DIVERT_TO_CARD;
             }
             return false;
         }
 
         public byte[] getCardSerial() throws IOException {
-            if (isDivertedToCard()) {
+            if (hasExternalSecretKey()) {
                 byte[] enc = rawSecKey.getEncoded();
                 return Arrays.copyOfRange(enc, enc.length - 4, enc.length);
             }
