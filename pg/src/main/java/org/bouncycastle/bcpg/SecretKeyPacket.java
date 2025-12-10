@@ -5,7 +5,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import org.bouncycastle.util.Arrays;
-import org.bouncycastle.util.io.Streams;
 
 /**
  * Base class for OpenPGP secret (primary) keys.
@@ -81,6 +80,7 @@ public class SecretKeyPacket
     private int aeadAlgorithm;
     private S2K s2k;
     private byte[] iv;
+    private byte[] externalKeyHintBytes;
 
     /**
      * Parse a primary OpenPGP secret key packet from the given OpenPGP {@link BCPGInputStream}.
@@ -166,6 +166,14 @@ public class SecretKeyPacket
 
         int version = pubKeyPacket.getVersion();
         s2kUsage = in.read();
+
+        // https://datatracker.ietf.org/doc/draft-dkg-openpgp-external-secrets/
+        if (s2kUsage == USAGE_EXTERNAL)
+        {
+            // optional bytes encoding some hints
+            externalKeyHintBytes = in.readAll();
+            return;
+        }
 
         int conditionalParameterLength = -1;
         if (version == PublicKeyPacket.LIBREPGP_5 || 
@@ -462,6 +470,16 @@ public class SecretKeyPacket
         pOut.write(pubKeyPacket.getEncodedContents());
 
         pOut.write(s2kUsage);
+
+        if (s2kUsage == USAGE_EXTERNAL)
+        {
+            if (externalKeyHintBytes != null)
+            {
+                pOut.write(externalKeyHintBytes);
+            }
+            pOut.close();
+            return bOut.toByteArray();
+        }
 
         // conditional parameters
         byte[] conditionalParameters = encodeConditionalParameters();

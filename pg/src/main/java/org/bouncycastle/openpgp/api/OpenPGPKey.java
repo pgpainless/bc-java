@@ -430,11 +430,13 @@ public class OpenPGPKey
 
         public boolean hasExternalSecretKey()
         {
+            // https://www.ietf.org/archive/id/draft-dkg-openpgp-external-secrets-02.html
             if (rawSecKey.getS2KUsage() == SecretKeyPacket.USAGE_EXTERNAL)
             {
                 return true;
             }
 
+            // GNU Dummy S2K
             S2K s2K = rawSecKey.getS2K();
             if (s2K != null) {
                 return s2K.getType() == S2K.GNU_DUMMY_S2K;
