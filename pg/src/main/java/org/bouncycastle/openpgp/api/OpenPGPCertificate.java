@@ -1278,6 +1278,28 @@ public class OpenPGPCertificate
         public abstract OpenPGPComponentSignature getLatestSelfSignature(Date evaluationTime);
 
         /**
+         * Return the effective expiration time of this component.
+         * The effective expiration time is the implicit or explicit time the component is no longer usable due to
+         * expiration. That might be because the component or the certificate itself expires.
+         *
+         * @return effective expiration time
+         */
+        public Date getEffectiveExpirationTime()
+        {
+            return getEffectiveExpirationTimeAt(new Date());
+        }
+
+        /**
+         * Return the effective expiration time of this component at the given evaluation time.
+         * The effective expiration time is the implicit or explicit time the component is no longer usable due to
+         * expiration. That might be because the component or the certificate itself expires.
+         *
+         * @param evaluationTime time of evaluation
+         * @return effective expiration time at evaluation time
+         */
+        public abstract Date getEffectiveExpirationTimeAt(Date evaluationTime);
+
+        /**
          * Return the public {@link OpenPGPCertificateComponent} that belongs to this component.
          * For public components (pubkeys, identities...), that's simply this, while secret components
          * return their corresponding public component.
@@ -2135,6 +2157,27 @@ public class OpenPGPCertificate
             return null;
         }
 
+        @Override
+        public Date getEffectiveExpirationTimeAt(Date evaluationTime)
+        {
+            Date componentKeyExpiration = getKeyExpirationDateAt(evaluationTime);
+            Date certificateExpiration = getCertificate().getExpirationTime(evaluationTime);
+
+            if (componentKeyExpiration == null && certificateExpiration == null)
+            {
+                // No expiry
+                return null;
+            }
+
+            if (componentKeyExpiration == null || certificateExpiration.before(componentKeyExpiration))
+            {
+                // Certificate expires before the component
+                return certificateExpiration;
+            }
+
+            return componentKeyExpiration;
+        }
+
         /**
          * Return true, if the key is currently marked as encryption key.
          *
@@ -2675,6 +2718,51 @@ public class OpenPGPCertificate
         {
             super(primaryKey.getCertificate());
             this.primaryKey = primaryKey;
+        }
+
+        /**
+         * Return the current expiration time of the identity.
+         * The expiration time is sourced from the latest self-issued binding signature on the identity.
+         *
+         * @return identity expiration time
+         */
+        public Date getExpirationTime()
+        {
+            return getExpirationTimeAt(new Date());
+        }
+
+        /**
+         * Return the expiration time of the identity at evaluation time.
+         * The expiration time is sourced from the - at evaluation time - latest self-issued binding signature on
+         * the identity.
+         *
+         * @param evaluationTime evaluation time
+         * @return identity expiration time
+         */
+        public Date getExpirationTimeAt(Date evaluationTime)
+        {
+            return getCertification(evaluationTime).getExpirationTime();
+        }
+
+        @Override
+        public Date getEffectiveExpirationTimeAt(Date evaluationTime)
+        {
+            Date componentExpiration = getExpirationTimeAt(evaluationTime);
+            Date certificateExpiration = getCertificate().getExpirationTime(evaluationTime);
+
+            if (componentExpiration == null && certificateExpiration == null)
+            {
+                // No expiry
+                return null;
+            }
+
+            if (componentExpiration == null || certificateExpiration.before(componentExpiration))
+            {
+                // Certificate expires before the component
+                return certificateExpiration;
+            }
+
+            return componentExpiration;
         }
 
         /**
