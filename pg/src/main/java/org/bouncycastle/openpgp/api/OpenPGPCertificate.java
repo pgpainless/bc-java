@@ -1225,6 +1225,11 @@ public class OpenPGPCertificate
             return chains;
         }
 
+        public OpenPGPComponentSignature getCertification()
+        {
+            return getCertification(new Date());
+        }
+
         /**
          * Return the (at evaluation time) latest self certification signature binding this component.
          *
@@ -1241,6 +1246,11 @@ public class OpenPGPCertificate
                 return certification.getSignature();
             }
             return null;
+        }
+
+        public OpenPGPComponentSignature getRevocation()
+        {
+            return getRevocation(new Date());
         }
 
         /**
