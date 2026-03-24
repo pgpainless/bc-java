@@ -97,6 +97,68 @@ public interface PublicKeyAlgorithmTags
      */
     int Ed448 = 28;            // new style Ed448
 
+    /**
+     * ML-DSA-65+Ed25519 signing algorithm.
+     * Requirement: MUST.
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int ML_DSA_65_Ed25519 = 30;
+
+    /**
+     * ML-DSA-87+Ed448 signing algorithm.
+     * Requirement: SHOULD.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int ML_DSA_87_Ed448 = 31;
+
+    /**
+     * SLH-DSA-SHAKE-128s signing algorithm.
+     * Requirement: MAY.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int SLH_DSA_SHAKE_128s = 32;
+
+    /**
+     * SLH-DSA-SHAKE-128f signing algorithm.
+     * Requirement: MAY.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int SLH_DSA_SHAKE_128f = 33;
+
+    /**
+     * SLH-DSA-SHAKE-256s signing algorithm.
+     * Requirement: MAY.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int SLH_DSA_SHAKE_256s = 34;
+
+    /**
+     * ML-KEM-768+X25519 encryption algorithm.
+     * Requirement: MUST.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int ML_KEM_768_X25519 = 35;
+
+    /**
+     * ML-KEM-1024+X448 encryption algorithm.
+     * Requirement: SHOULD.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-ietf-openpgp-pqc-17.html#name-algorithm-specifications">
+     *     draft-ietf-openpgp-pqc-17 - 2.1. Algorithm Specifications</a>
+     */
+    int ML_KEM_1024_X448 = 36;
+
     int EXPERIMENTAL_1 = 100;
     int EXPERIMENTAL_2 = 101;
     int EXPERIMENTAL_3 = 102;

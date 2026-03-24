@@ -116,6 +116,13 @@ public class PublicKeyEncSessionPacket
         case ECDH:
         case X448:
         case X25519:
+        case ML_DSA_65_Ed25519:
+        case ML_DSA_87_Ed448:
+        case SLH_DSA_SHAKE_128s:
+        case SLH_DSA_SHAKE_128f:
+        case SLH_DSA_SHAKE_256s:
+        case ML_KEM_768_X25519:
+        case ML_KEM_1024_X448:
             data = new byte[1][];
 
             data[0] = Streams.readAll(in);
