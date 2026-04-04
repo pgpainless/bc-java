@@ -160,7 +160,9 @@ public class PGPPublicKeyEncryptedData
     private boolean containsChecksum(int algorithm)
     {
         return algorithm != PublicKeyAlgorithmTags.X25519 &&
-                algorithm != PublicKeyAlgorithmTags.X448;
+                algorithm != PublicKeyAlgorithmTags.X448 &&
+                algorithm != PublicKeyAlgorithmTags.ML_KEM_768_X25519 &&
+                algorithm != PublicKeyAlgorithmTags.ML_KEM_1024_X448;
     }
 
     /**

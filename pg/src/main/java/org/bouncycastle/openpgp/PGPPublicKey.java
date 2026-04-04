@@ -436,10 +436,22 @@ public class PGPPublicKey
     public boolean isEncryptionKey()
     {
         int algorithm = publicPk.getAlgorithm();
-
-        return ((algorithm == RSA_GENERAL) || (algorithm == RSA_ENCRYPT)
-            || (algorithm == ELGAMAL_ENCRYPT) || (algorithm == ELGAMAL_GENERAL)
-            || (algorithm == DIFFIE_HELLMAN) || (algorithm == ECDH) || (algorithm == X448) || (algorithm == X25519));
+        switch (algorithm)
+        {
+            case RSA_GENERAL:
+            case RSA_ENCRYPT:
+            case ELGAMAL_ENCRYPT:
+            case ELGAMAL_GENERAL:
+            case DIFFIE_HELLMAN:
+            case ECDH:
+            case X448:
+            case X25519:
+            case ML_KEM_768_X25519:
+            case ML_KEM_1024_X448:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**

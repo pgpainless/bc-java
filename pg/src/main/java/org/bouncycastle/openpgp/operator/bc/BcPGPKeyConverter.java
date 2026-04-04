@@ -49,6 +49,7 @@ import org.bouncycastle.crypto.params.Ed448PublicKeyParameters;
 import org.bouncycastle.crypto.params.ElGamalParameters;
 import org.bouncycastle.crypto.params.ElGamalPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ElGamalPublicKeyParameters;
+import org.bouncycastle.crypto.params.MLKEM768X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
@@ -216,6 +217,10 @@ public class BcPGPKeyConverter
                 return new RSAPrivateCrtKeyParameters(rsaPriv.getModulus(), rsaPub.getPublicExponent(),
                     rsaPriv.getPrivateExponent(), rsaPriv.getPrimeP(), rsaPriv.getPrimeQ(), rsaPriv.getPrimeExponentP(),
                     rsaPriv.getPrimeExponentQ(), rsaPriv.getCrtCoefficient());
+            }
+            case PublicKeyAlgorithmTags.ML_KEM_768_X25519:
+            {
+                return new MLKEM768X25519PrivateKeyParameters(privPk.getEncoded());
             }
             default:
                 throw new PGPException("unknown public key algorithm encountered: " + pubPk.getAlgorithm());

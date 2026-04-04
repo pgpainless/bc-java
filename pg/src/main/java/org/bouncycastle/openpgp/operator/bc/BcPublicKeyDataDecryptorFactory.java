@@ -1,13 +1,18 @@
 package org.bouncycastle.openpgp.operator.bc;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.bcpg.AEADEncDataPacket;
 import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.bcpg.MLKEM768X25519PublicBCPGKey;
+import org.bouncycastle.bcpg.MLKEM768X25519SecretBCPGKey;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.bcpg.PublicKeyEncSessionPacket;
 import org.bouncycastle.bcpg.SymmetricEncIntegrityPacket;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.X25519PublicBCPGKey;
@@ -27,6 +32,8 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.ElGamalPrivateKeyParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.MLKEM768X25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.MLKEM768X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X448PublicKeyParameters;
 import org.bouncycastle.openpgp.PGPException;
@@ -34,9 +41,15 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSessionKey;
 import org.bouncycastle.openpgp.operator.AbstractPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPDataDecryptor;
+import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 import org.bouncycastle.openpgp.operator.PGPPad;
 import org.bouncycastle.openpgp.operator.RFC6637Utils;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMExtractor;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMParameters;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMPrivateKeyParameters;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMPublicKeyParameters;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * A decryptor factory for handling public key decryption operations.
@@ -60,6 +73,10 @@ public class BcPublicKeyDataDecryptorFactory
         try
         {
             AsymmetricKeyParameter privKey = KEY_CONVERTER.getPrivateKey(pgpPrivKey);
+            if (pgpPrivKey.getPublicKeyPacket().getAlgorithm() != keyAlgorithm)
+            {
+                throw new PGPException("Public key algorithm mismatch.");
+            }
 
             if (keyAlgorithm == PublicKeyAlgorithmTags.X25519)
             {
@@ -94,6 +111,10 @@ public class BcPublicKeyDataDecryptorFactory
             {
                 return recoverRSASessionData(keyAlgorithm, secKeyData, privKey);
             }
+            else if (keyAlgorithm == PublicKeyAlgorithmTags.ML_KEM_768_X25519)
+            {
+                return recoverMLKEMSessionData(keyAlgorithm, secKeyData, privKey, pgpPrivKey.getPublicKeyPacket().getKey().getEncoded(), pkeskVersion);
+            }
             else
             {
                 return recoverElgamalSessionData(keyAlgorithm, secKeyData, privKey);
@@ -107,6 +128,101 @@ public class BcPublicKeyDataDecryptorFactory
         {
             throw new PGPException("exception decrypting session info: " + e.getMessage(), e);
         }
+    }
+
+    private byte[] recoverMLKEMSessionData(int keyAlgorithm,
+                                           byte[][] secKeyData,
+                                           AsymmetricKeyParameter privKey,
+                                           byte[] pubKey,
+                                           int pkeskVersion)
+            throws PGPException, IOException {
+        // The procedure to perform public key decryption with an ML-KEM + ECDH composite scheme is as follows:
+
+        // Take the matching PKESK and own secret key packet as input
+        // From the PKESK extract the algorithm ID as algId and the wrapped session key as encryptedKey
+        // Check that the own and the extracted algorithm ID match
+
+        // Parse the ecdhSecretKey and mlkemSecretKey from the algorithm specific data of the own secret key encoded in the format specified in Section 4.3.2
+        RawAgreement ecdhAgreement;
+        AsymmetricKeyParameter ecdhSecretKey;
+        byte[] ecdhPublicKey;
+        AsymmetricKeyParameter ecdhCiphertext;
+        MLKEMPrivateKeyParameters mlkemSecretKey;
+        byte[] mlkemCiphertext;
+        // Instantiate the ECDH-KEM and the ML-KEM depending on the algorithm ID according to Table 5
+        // Parse ecdhCipherText, mlkemCipherText, and C from encryptedKey encoded as ecdhCipherText || mlkemCipherText || len(C, symAlgId) (|| symAlgId) || C as specified in Section 4.3.1, where symAlgId is present only in the case of a v3 PKESK.
+
+        if (keyAlgorithm == PublicKeyAlgorithmTags.ML_KEM_768_X25519)
+        {
+            ecdhAgreement = new X25519Agreement();
+            MLKEM768X25519PrivateKeyParameters mlkem768x25519PrivateKey = (MLKEM768X25519PrivateKeyParameters) privKey;
+            ecdhSecretKey = mlkem768x25519PrivateKey.getEccKeyParameter();
+            MLKEM768X25519PublicKeyParameters mlkem768X25519PublicKey = new MLKEM768X25519PublicKeyParameters(pubKey);
+            ecdhPublicKey = mlkem768X25519PublicKey.getEccKeyParameter().getEncoded();
+            ecdhCiphertext = new X25519PublicKeyParameters(Arrays.copyOf(secKeyData[0], 32));
+
+            mlkemCiphertext = Arrays.copyOfRange(secKeyData[0], 32, 1088 + 32);
+            mlkemSecretKey = mlkem768x25519PrivateKey.getMlKemKeyParameter();
+
+            int len = secKeyData[0][1088 + 32];
+            byte[] wrappedSessionKey = new byte[len]; // C
+            System.arraycopy(secKeyData[0], 1088 + 32 + 1, wrappedSessionKey, 0, wrappedSessionKey.length);
+            int symAlg;
+            if (pkeskVersion == PublicKeyEncSessionPacket.VERSION_3)
+            {
+                symAlg = wrappedSessionKey[0];
+            }
+
+            //    Compute (ecdhKeyShare) = ECDH-KEM.Decaps(ecdhCipherText, ecdhSecretKey)
+            byte[] ecdhKeyShare = BcUtil.getSecret(ecdhAgreement, ecdhSecretKey, ecdhCiphertext);
+
+            // Compute (mlkemKeyShare) = ML-KEM.Decaps(mlkemCipherText, mlkemSecretKey)
+            MLKEMExtractor mlkemExtractor = new MLKEMExtractor(mlkemSecretKey);
+            byte[] mlkemKeyShare = mlkemExtractor.extractSecret(mlkemCiphertext);
+
+            //    Compute KEK = multiKeyCombine(mlkemKeyShare, ecdhKeyShare, ecdhCipherText, ecdhPublicKey, algId) as defined in Section 4.2.1
+            byte[] kek = multiKeyCombine(mlkemKeyShare, ecdhKeyShare, Arrays.copyOf(secKeyData[0], 32), ecdhPublicKey, keyAlgorithm);
+
+            // Compute sessionKey = AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if the 64 bit integrity check fails
+            try
+            {
+                byte[] sessionKey = unwrapSessionData(wrappedSessionKey, SymmetricKeyAlgorithmTags.AES_256, new KeyParameter(kek));
+                System.out.println(Hex.toHexString(sessionKey));
+                //    Output sessionKey
+                return sessionKey;
+            }
+            catch (InvalidCipherTextException e)
+            {
+                throw new PGPException("Cannot unwrap session data: " + e.getMessage(), e);
+            }
+        }
+        else if (keyAlgorithm == PublicKeyAlgorithmTags.ML_KEM_1024_X448)
+        {
+            return null;
+        }
+        else
+        {
+            throw new PGPException("Unknown ML_KEM public key algorithm tag: " + keyAlgorithm);
+        }
+    }
+
+    private byte[] multiKeyCombine(byte[] mlkemKeyShare, byte[] ecdhKeyShare, byte[] ecdhCiphertext, byte[] ecdhPublicKey, int keyAlgorithm)
+            throws PGPException, IOException {
+        byte[] domSep = "OpenPGPCompositeKDFv1".getBytes(StandardCharsets.UTF_8);
+
+        PGPDigestCalculator digest = new BcPGPDigestCalculatorProvider().get(HashAlgorithmTags.SHA3_256);
+        OutputStream dOut = digest.getOutputStream();
+
+        dOut.write(mlkemKeyShare);
+        dOut.write(ecdhKeyShare);
+        dOut.write(ecdhCiphertext);
+        dOut.write(ecdhPublicKey);
+        dOut.write(keyAlgorithm);
+        dOut.write(domSep);
+        dOut.write(domSep.length);
+
+        dOut.flush();
+        return digest.getDigest();
     }
 
     private byte[] recoverElgamalSessionData(int keyAlgorithm,

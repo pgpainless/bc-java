@@ -209,6 +209,9 @@ public class PublicKeyPacket
             case Ed448:
                 key = new Ed448PublicBCPGKey(in);
                 break;
+           case ML_KEM_768_X25519:
+                key = new MLKEM768X25519PublicBCPGKey(in);
+                break;
             default:
                 if (version == VERSION_6 || version == LIBREPGP_5)
                 {
