@@ -14,10 +14,12 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Date;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyAgreement;
 import javax.crypto.interfaces.DHKey;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
@@ -30,6 +32,9 @@ import org.bouncycastle.bcpg.SymmetricEncIntegrityPacket;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.X25519PublicBCPGKey;
 import org.bouncycastle.bcpg.X448PublicBCPGKey;
+import org.bouncycastle.jcajce.CompositePrivateKey;
+import org.bouncycastle.jcajce.provider.asymmetric.mlkem.BCMLKEMPublicKey;
+import org.bouncycastle.jcajce.provider.asymmetric.mlkem.MLKEMCipherSpi;
 import org.bouncycastle.jcajce.spec.UserKeyingMaterialSpec;
 import org.bouncycastle.jcajce.util.DefaultJcaJceHelper;
 import org.bouncycastle.jcajce.util.NamedJcaJceHelper;
@@ -44,6 +49,9 @@ import org.bouncycastle.openpgp.operator.PGPDataDecryptor;
 import org.bouncycastle.openpgp.operator.PGPPad;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.RFC6637Utils;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMParameters;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMPublicKeyParameters;
+import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.bouncycastle.util.Arrays;
 
 public class JcePublicKeyDataDecryptorFactoryBuilder
@@ -177,6 +185,11 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
             public byte[] recoverSessionData(int keyAlgorithm, byte[][] secKeyData, int pkeskVersion)
                 throws PGPException
             {
+                if (privKey.getPublicKeyPacket().getAlgorithm() != keyAlgorithm)
+                {
+                    throw new PGPException("Public key algorithm mismatch.");
+                }
+
                 boolean containsSKAlg = containsSKAlg(pkeskVersion);
                 if (keyAlgorithm == PublicKeyAlgorithmTags.ECDH)
                 {
@@ -191,6 +204,10 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 {
                     return decryptSessionData(keyConverter, privKey, secKeyData[0], X448PublicBCPGKey.LENGTH, "X448withSHA512HKDF",
                         SymmetricKeyAlgorithmTags.AES_256, EdECObjectIdentifiers.id_X448, "X448", containsSKAlg);
+                }
+                else if (keyAlgorithm == PublicKeyAlgorithmTags.ML_KEM_768_X25519 || keyAlgorithm == PublicKeyAlgorithmTags.ML_KEM_1024_X448)
+                {
+                    return recoverMLKEMSessionData(keyConverter, privKey, secKeyData, pkeskVersion);
                 }
                 PrivateKey jcePrivKey = keyConverter.getPrivateKey(privKey);
                 int expectedPayLoadSize = getExpectedPayloadSize(jcePrivKey);
@@ -222,6 +239,41 @@ public class JcePublicKeyDataDecryptorFactoryBuilder
                 return aeadHelper.createOpenPgpV6DataDecryptor(seipd, sessionKey);
             }
         };
+    }
+
+    private byte[] recoverMLKEMSessionData(JcaPGPKeyConverter converter, PGPPrivateKey privKey, byte[][] secKeyData, int pkeskVersion)
+            throws PGPException {
+        CompositePrivateKey compositeKey = (CompositePrivateKey) converter.getPrivateKey(privKey);
+        PrivateKey ecdh = compositeKey.getPrivateKeys().get(0);
+        PrivateKey mlkem = compositeKey.getPrivateKeys().get(1);
+
+        try {
+            if (privKey.getPublicKeyPacket().getAlgorithm() == PublicKeyAlgorithmTags.ML_KEM_768_X25519) {
+                PublicKey ecdhCiphertext = getPublicKey(
+                        Arrays.copyOf(secKeyData[0], 32),
+                        EdECObjectIdentifiers.id_X25519,
+                        0);
+                KeyAgreement agreement = helper.createKeyAgreement("X25519");
+                agreement.init(ecdh);
+                agreement.doPhase(ecdhCiphertext, true);
+                byte[] ecdhKeyShare = agreement.generateSecret("AES-256").getEncoded();
+
+                byte[] mlkemCiphertext = Arrays.copyOfRange(secKeyData[0], 32, 1088 + 32);
+                byte[] mlkemPublicKey = Arrays.copyOfRange(privKey.getPublicKeyPacket().getKey().getEncoded(), 32, 32 + 1184);
+                byte[] mk2 = Arrays.concatenate(mlkemCiphertext, mlkemPublicKey);
+                Cipher c = Cipher.getInstance("ML-KEM-768", new BouncyCastlePQCProvider());
+                c.init(Cipher.UNWRAP_MODE, mlkem);
+                byte[] mlkemKeyShare = c.unwrap(mk2, "AES", Cipher.SECRET_KEY).getEncoded();
+                System.out.println(org.bouncycastle.util.encoders.Hex.toHexString(mlkemKeyShare));
+
+            }
+        }
+        catch (GeneralSecurityException | IOException e)
+        {
+            throw new PGPException("Cannot decrypt", e);
+        }
+
+        return null;
     }
 
     /**

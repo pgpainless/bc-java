@@ -64,6 +64,8 @@ import org.bouncycastle.bcpg.EdDSAPublicBCPGKey;
 import org.bouncycastle.bcpg.EdSecretBCPGKey;
 import org.bouncycastle.bcpg.ElGamalPublicBCPGKey;
 import org.bouncycastle.bcpg.ElGamalSecretBCPGKey;
+import org.bouncycastle.bcpg.MLKEM768X25519PublicBCPGKey;
+import org.bouncycastle.bcpg.MLKEM768X25519SecretBCPGKey;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.RSAPublicBCPGKey;
@@ -73,6 +75,8 @@ import org.bouncycastle.bcpg.X25519SecretBCPGKey;
 import org.bouncycastle.bcpg.X448PublicBCPGKey;
 import org.bouncycastle.bcpg.X448SecretBCPGKey;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.jcajce.CompositePrivateKey;
+import org.bouncycastle.jcajce.provider.asymmetric.mlkem.BCMLKEMPrivateKey;
 import org.bouncycastle.jcajce.util.DefaultJcaJceHelper;
 import org.bouncycastle.jcajce.util.NamedJcaJceHelper;
 import org.bouncycastle.jcajce.util.ProviderJcaJceHelper;
@@ -89,6 +93,10 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
 import org.bouncycastle.openpgp.operator.PGPKeyConverter;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMParameters;
+import org.bouncycastle.pqc.crypto.mlkem.MLKEMPrivateKeyParameters;
+import org.bouncycastle.pqc.jcajce.provider.kyber.BCKyberPrivateKey;
+import org.bouncycastle.pqc.jcajce.spec.KyberParameterSpec;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.BigIntegers;
 
@@ -387,6 +395,27 @@ public class JcaPGPKeyConverter
                     rsaPub.getPublicExponent(), rsaPriv.getPrivateExponent(), rsaPriv.getPrimeP(), rsaPriv.getPrimeQ(),
                     rsaPriv.getPrimeExponentP(), rsaPriv.getPrimeExponentQ(), rsaPriv.getCrtCoefficient());
                 return implGeneratePrivate("RSA", rsaPrivSpec);
+            }
+            case PublicKeyAlgorithmTags.ML_KEM_768_X25519:
+            {
+                MLKEM768X25519PublicBCPGKey mlkemPub = (MLKEM768X25519PublicBCPGKey) pubPk.getKey();
+                MLKEM768X25519SecretBCPGKey mlkemPriv = (MLKEM768X25519SecretBCPGKey) privKey.getPrivateKeyDataPacket();
+
+                PrivateKey x25519 = implGeneratePrivate("XDH", new Operation()
+                {
+                    @Override
+                    public PrivateKeyInfo getPrivateKeyInfos()
+                            throws IOException
+                    {
+                        return getPrivateKeyInfo(EdECObjectIdentifiers.id_X25519,
+                                X25519SecretBCPGKey.LENGTH, Arrays.copyOf(privPk.getEncoded(), X25519SecretBCPGKey.LENGTH));
+                    }
+                });
+                PrivateKey mlkem768 = new BCKyberPrivateKey(new MLKEMPrivateKeyParameters(MLKEMParameters.ml_kem_768, Arrays.copyOfRange(mlkemPriv.getEncoded(), X25519SecretBCPGKey.LENGTH, X25519SecretBCPGKey.LENGTH + 64)));
+
+                CompositePrivateKey mlkem768x25519PrivKey = new CompositePrivateKey(x25519, mlkem768);
+
+                return mlkem768x25519PrivKey;
             }
 
             default:

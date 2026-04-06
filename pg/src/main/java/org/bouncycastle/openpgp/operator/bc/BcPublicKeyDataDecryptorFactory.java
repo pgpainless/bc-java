@@ -175,6 +175,7 @@ public class BcPublicKeyDataDecryptorFactory
 
             //    Compute (ecdhKeyShare) = ECDH-KEM.Decaps(ecdhCipherText, ecdhSecretKey)
             byte[] ecdhKeyShare = BcUtil.getSecret(ecdhAgreement, ecdhSecretKey, ecdhCiphertext);
+            System.out.println(Hex.toHexString(ecdhKeyShare));
 
             // Compute (mlkemKeyShare) = ML-KEM.Decaps(mlkemCipherText, mlkemSecretKey)
             MLKEMExtractor mlkemExtractor = new MLKEMExtractor(mlkemSecretKey);
