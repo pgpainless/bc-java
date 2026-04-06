@@ -1,17 +1,17 @@
 package org.bouncycastle.crypto.params;
 
 public abstract class MLKEMECCKeyParameters<
-        ECC extends AsymmetricKeyParameter,
-        MLKEM extends AsymmetricKeyParameter>
+        E extends AsymmetricKeyParameter,
+        M extends AsymmetricKeyParameter>
         extends AsymmetricKeyParameter
 {
-    protected ECC eccKeyParameter;
-    protected MLKEM mlkemKeyParameter;
+    protected E eccKeyParameter;
+    protected M mlkemKeyParameter;
 
     protected MLKEMECCKeyParameters(
             boolean isPrivate,
-            ECC eccKeyParameter,
-            MLKEM mlkemKeyParameter)
+            E eccKeyParameter,
+            M mlkemKeyParameter)
     {
         super(isPrivate);
         this.eccKeyParameter = eccKeyParameter;
@@ -27,12 +27,12 @@ public abstract class MLKEMECCKeyParameters<
         }
     }
 
-    public ECC getEccKeyParameter()
+    public E getEccKeyParameter()
     {
         return eccKeyParameter;
     }
 
-    public MLKEM getMlKemKeyParameter()
+    public M getMlKemKeyParameter()
     {
         return mlkemKeyParameter;
     }

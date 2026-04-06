@@ -411,7 +411,7 @@ public class JcaPGPKeyConverter
                                 X25519SecretBCPGKey.LENGTH, Arrays.copyOf(privPk.getEncoded(), X25519SecretBCPGKey.LENGTH));
                     }
                 });
-                PrivateKey mlkem768 = new BCKyberPrivateKey(new MLKEMPrivateKeyParameters(MLKEMParameters.ml_kem_768, Arrays.copyOfRange(mlkemPriv.getEncoded(), X25519SecretBCPGKey.LENGTH, X25519SecretBCPGKey.LENGTH + 64)));
+                PrivateKey mlkem768 = new BCMLKEMPrivateKey(new MLKEMPrivateKeyParameters(MLKEMParameters.ml_kem_768, Arrays.copyOfRange(mlkemPriv.getEncoded(), X25519SecretBCPGKey.LENGTH, X25519SecretBCPGKey.LENGTH + 64)));
 
                 CompositePrivateKey mlkem768x25519PrivKey = new CompositePrivateKey(x25519, mlkem768);
 
