@@ -6,7 +6,8 @@ plugins {
 sourceSets {
     main {
         java {
-            srcDirs = ["$buildDir/generated-src"]
+            srcDirs = ['src/main/java']
+            // srcDirs = ["$buildDir/generated-src"]
         }
     }
     java9 {
