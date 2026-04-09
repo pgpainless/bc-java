@@ -135,7 +135,8 @@ public class BcPublicKeyDataDecryptorFactory
                                            AsymmetricKeyParameter privKey,
                                            byte[] pubKey,
                                            int pkeskVersion)
-            throws PGPException, IOException {
+            throws PGPException, IOException
+    {
         // The procedure to perform public key decryption with an ML-KEM + ECDH composite scheme is as follows:
 
         // Take the matching PKESK and own secret key packet as input
@@ -158,11 +159,11 @@ public class BcPublicKeyDataDecryptorFactory
             MLKEM768X25519PrivateKeyParameters mlkem768x25519PrivateKey = (MLKEM768X25519PrivateKeyParameters) privKey;
             ecdhSecretKey = mlkem768x25519PrivateKey.getEccKeyParameter();
             MLKEM768X25519PublicKeyParameters mlkem768X25519PublicKey = new MLKEM768X25519PublicKeyParameters(pubKey);
-            ecdhPublicKey = mlkem768X25519PublicKey.getEccKeyParameter().getEncoded();
+            ecdhPublicKey = ((X25519PublicKeyParameters) mlkem768X25519PublicKey.getEccKeyParameter()).getEncoded();
             ecdhCiphertext = new X25519PublicKeyParameters(Arrays.copyOf(secKeyData[0], 32));
 
             mlkemCiphertext = Arrays.copyOfRange(secKeyData[0], 32, 1088 + 32);
-            mlkemSecretKey = mlkem768x25519PrivateKey.getMlKemKeyParameter();
+            mlkemSecretKey = (MLKEMPrivateKeyParameters) mlkem768x25519PrivateKey.getMlKemKeyParameter();
 
             int len = secKeyData[0][1088 + 32];
             byte[] wrappedSessionKey = new byte[len]; // C
@@ -175,7 +176,6 @@ public class BcPublicKeyDataDecryptorFactory
 
             //    Compute (ecdhKeyShare) = ECDH-KEM.Decaps(ecdhCipherText, ecdhSecretKey)
             byte[] ecdhKeyShare = BcUtil.getSecret(ecdhAgreement, ecdhSecretKey, ecdhCiphertext);
-            System.out.println(Hex.toHexString(ecdhKeyShare));
 
             // Compute (mlkemKeyShare) = ML-KEM.Decaps(mlkemCipherText, mlkemSecretKey)
             MLKEMExtractor mlkemExtractor = new MLKEMExtractor(mlkemSecretKey);
@@ -188,7 +188,6 @@ public class BcPublicKeyDataDecryptorFactory
             try
             {
                 byte[] sessionKey = unwrapSessionData(wrappedSessionKey, SymmetricKeyAlgorithmTags.AES_256, new KeyParameter(kek));
-                System.out.println(Hex.toHexString(sessionKey));
                 //    Output sessionKey
                 return sessionKey;
             }
@@ -208,7 +207,8 @@ public class BcPublicKeyDataDecryptorFactory
     }
 
     private byte[] multiKeyCombine(byte[] mlkemKeyShare, byte[] ecdhKeyShare, byte[] ecdhCiphertext, byte[] ecdhPublicKey, int keyAlgorithm)
-            throws PGPException, IOException {
+            throws PGPException, IOException
+    {
         byte[] domSep = "OpenPGPCompositeKDFv1".getBytes(StandardCharsets.UTF_8);
 
         PGPDigestCalculator digest = new BcPGPDigestCalculatorProvider().get(HashAlgorithmTags.SHA3_256);
