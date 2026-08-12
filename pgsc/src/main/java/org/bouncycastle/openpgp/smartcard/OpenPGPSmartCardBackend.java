@@ -93,8 +93,8 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             // Compare through fingerprintMatches, NOT by wrapping the card's field in a KeyIdentifier: the
             // stored field is a fixed 20 octets, so an exact compare can never match a version 6 key's
             // 32-octet fingerprint and every v6 card key would be missed. fingerprintMatches also applies
-            // the shortened legacy-hardware identifier rule (12 octets of the version number followed by
-            // the leftmost 8 fingerprint octets).
+            // the shortened legacy-hardware identifier rule described in
+            // https://datatracker.ietf.org/doc/draft-hko-openpgp-identifiers-for-legacy-devices/
             if (!fingerprintMatches(fingerprint, secretKey.getPGPPublicKey().getFingerprint()))
             {
                 continue;
@@ -162,14 +162,15 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         }
 
         // a shortened identifier repeats the key version number in the leading 12 octets
-        byte version = storedFingerprint[0];
+        int verIdx = STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH - 1;
+        byte version = storedFingerprint[verIdx];
         if (version != PublicKeyPacket.VERSION_6)
         {
-            return false;
+            return false; // TODO: What about version 5, 6+?
         }
-        for (int i = 1; i != STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH; i++)
+        for (int i = 0; i != verIdx - 1; i++)
         {
-            if (storedFingerprint[i] != version)
+            if (storedFingerprint[i] != 0x00)
             {
                 return false;
             }
@@ -239,10 +240,13 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             return Arrays.clone(fullFingerprint);
         }
 
+        // 11*0x00 || version || [8 left-most fp octets]
         byte[] fingerprint = new byte[STORED_FINGERPRINT_LENGTH];
-        Arrays.fill(fingerprint, (byte)version);
+        int versionIdx = STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH - 1;
+        Arrays.fill(fingerprint, 0, versionIdx, (byte)0);
+        fingerprint[versionIdx] = (byte)version;
         System.arraycopy(fullFingerprint, 0, fingerprint,
-            STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH, SHORTENED_IDENTIFIER_LENGTH);
+            versionIdx + 1, SHORTENED_IDENTIFIER_LENGTH);
         return fingerprint;
     }
 
