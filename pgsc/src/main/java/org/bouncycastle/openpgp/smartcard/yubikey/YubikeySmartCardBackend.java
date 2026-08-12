@@ -15,7 +15,6 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
@@ -42,7 +41,6 @@ public class YubikeySmartCardBackend
 
     private final YubikeyDecryptorFactoryProvider decryptorFactoryProvider;
     private final JcaPGPKeyConverter converter;
-    private final JcaKeyFingerprintCalculator fingerprintCalculator;
     private final Set<Integer> allowedCardSerials = new HashSet<>();
     private final YubiKitManager manager;
 
@@ -72,18 +70,15 @@ public class YubikeySmartCardBackend
         return new YubikeySmartCardBackend(
                 yubiKitManager,
                 new JcaPGPKeyConverter().setProvider(provider),
-                new JcaKeyFingerprintCalculator().setProvider(provider),
                 decryptorFactoryProvider);
     }
 
     public YubikeySmartCardBackend(YubiKitManager yubiKitManager,
                                    JcaPGPKeyConverter keyConverter,
-                                   JcaKeyFingerprintCalculator fingerprintCalculator,
                                    YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
     {
         this.manager = yubiKitManager;
         this.converter = keyConverter;
-        this.fingerprintCalculator = fingerprintCalculator;
         this.decryptorFactoryProvider = decryptorFactoryProvider;
     }
 
