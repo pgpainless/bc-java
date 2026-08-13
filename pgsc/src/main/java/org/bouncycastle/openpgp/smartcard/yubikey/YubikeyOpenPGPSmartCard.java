@@ -272,7 +272,7 @@ public class YubikeyOpenPGPSmartCard
     {
         if (!isKeySupported(keyRefByte, key.getPublicKey()))
         {
-            throw new CardException("Key type not supported for keyRef " + keyRefByte);
+            throw new CardException("Key type " + key.getPublicKey().getAlgorithm() + " not supported for keyRef " + keyRefByte);
         }
 
         return uploadKey(keyRefByte, key.getKeyPair(), adminPin);

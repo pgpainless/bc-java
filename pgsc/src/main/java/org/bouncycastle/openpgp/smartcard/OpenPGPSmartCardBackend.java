@@ -5,9 +5,13 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
+import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPSecretKey;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.yubikey.operator.ExternalPGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;
@@ -15,6 +19,8 @@ import java.util.Iterator;
 import java.util.List;
 
 public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
+    implements PGPContentSignerBuilderProviderFactory,
+        ExternalPGPContentSignerBuilderProviderFactory<T>
 {
     /**
      * Size of the fingerprint field of an OpenPGP smart card.
@@ -156,7 +162,7 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         // the card's fingerprint field is a fixed 20 octets and holds arbitrary data, so bound both
         // operands before indexing: this is reached with whatever the card happens to contain.
         if (storedFingerprint == null || storedFingerprint.length < STORED_FINGERPRINT_LENGTH
-            || fullFingerprint == null || fullFingerprint.length < SHORTENED_IDENTIFIER_LENGTH)
+                || fullFingerprint == null || fullFingerprint.length < SHORTENED_IDENTIFIER_LENGTH)
         {
             return false;
         }
@@ -177,8 +183,8 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         }
 
         return Arrays.constantTimeAreEqual(SHORTENED_IDENTIFIER_LENGTH,
-            storedFingerprint, STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH,
-            fullFingerprint, 0);
+                storedFingerprint, STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH,
+                fullFingerprint, 0);
     }
 
     /**
@@ -246,7 +252,7 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         Arrays.fill(fingerprint, 0, versionIdx, (byte)0);
         fingerprint[versionIdx] = (byte)version;
         System.arraycopy(fullFingerprint, 0, fingerprint,
-            versionIdx + 1, SHORTENED_IDENTIFIER_LENGTH);
+                versionIdx + 1, SHORTENED_IDENTIFIER_LENGTH);
         return fingerprint;
     }
 
@@ -262,6 +268,63 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             {
                 return card;
             }
+        }
+        return null;
+    }
+
+    @Override
+    public PGPContentSignerBuilderProvider getPGPContentSignerBuilderProvider(
+            OpenPGPSecretKey signingKey,
+            KeyPassphraseProvider userPinProvider,
+            int hashAlgorithmId)
+            throws PGPException
+    {
+        if (!signingKey.getPGPSecretKey().isExternalKey())
+        {
+            throw new PGPException("Provided secret key is not external");
+        }
+
+        List<T> allCards;
+        try
+        {
+            allCards = listSmartCards();
+        }
+        catch (CardException e)
+        {
+            throw new PGPException("Cannot list cards.", e);
+        }
+        catch (IOException e)
+        {
+            throw new PGPException("Cannot list cards.", e);
+        }
+
+        for (Iterator<T> it = allCards.iterator(); it.hasNext();)
+        {
+            T card = it.next();
+            if (!card.hasSignatureKey())
+            {
+                continue;
+            }
+
+            byte[] fingerprint = card.getSignatureKey().getFingerprint();
+            if (fingerprint == null)
+            {
+                continue;
+            }
+
+            // Compare through fingerprintMatches, NOT by wrapping the card's field in a KeyIdentifier: the
+            // stored field is a fixed 20 octets, so an exact compare can never match a version 6 key's
+            // 32-octet fingerprint and every v6 card key would be missed. fingerprintMatches also applies
+            // the shortened legacy-hardware identifier rule described in
+            // https://datatracker.ietf.org/doc/draft-hko-openpgp-identifiers-for-legacy-devices/
+            if (!fingerprintMatches(fingerprint, signingKey.getPGPPublicKey().getFingerprint()))
+            {
+                continue;
+            }
+
+            // found matching card
+            OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
+            return provideExternalPGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId, implementation);
         }
         return null;
     }

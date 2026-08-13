@@ -13,11 +13,14 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
+import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.yubikey.operator.YubikeyPGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.smartcard.yubikey.operator.bc.BcYubikeyPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.yubikey.operator.jcajce.JceYubikeyPublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.util.Arrays;
@@ -141,6 +144,19 @@ public class YubikeySmartCardBackend
             throws PGPException
     {
         return decryptorFactoryProvider.provide(secretKey, card, userPinProvider);
+    }
+
+    @Override
+    public PGPContentSignerBuilderProvider provideExternalPGPContentSignerBuilderProvider(
+            OpenPGPKey.OpenPGPSecretKey signingKey,
+            YubikeyOpenPGPSmartCard card,
+            KeyPassphraseProvider userPinProvider,
+            int hashAlgorithmId,
+            OpenPGPImplementation implementation)
+            throws PGPException
+    {
+        return new YubikeyPGPContentSignerBuilderProviderFactory()
+                .provideExternalPGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId, implementation);
     }
 
     /**

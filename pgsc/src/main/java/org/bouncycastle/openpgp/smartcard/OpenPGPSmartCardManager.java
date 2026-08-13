@@ -4,6 +4,8 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.PublicKeyDataDecryptorFactoryProvider;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 
@@ -24,7 +26,8 @@ import java.util.Set;
  * {@link OpenPGPKey} still has to be added as a decryption key.
  */
 public class OpenPGPSmartCardManager
-    implements PublicKeyDataDecryptorFactoryProvider
+    implements PublicKeyDataDecryptorFactoryProvider,
+        PGPContentSignerBuilderProviderFactory
 {
     private final Set<OpenPGPSmartCardBackend<?>> backends = new LinkedHashSet<OpenPGPSmartCardBackend<?>>();
 
@@ -119,6 +122,47 @@ public class OpenPGPSmartCardManager
                 if (factory != null)
                 {
                     return factory;
+                }
+            }
+            catch (NoSuchElementException e)
+            {
+                // this backend has no card holding the key - try the next one
+            }
+            catch (PGPException e)
+            {
+                if (lastException == null)
+                {
+                    lastException = e;
+                }
+            }
+        }
+
+        if (lastException != null)
+        {
+            throw lastException;
+        }
+        return null;
+    }
+
+    @Override
+    public PGPContentSignerBuilderProvider getPGPContentSignerBuilderProvider(
+            OpenPGPKey.OpenPGPSecretKey secretKey,
+            KeyPassphraseProvider keyPassphraseProvider,
+            int hashAlgorithmId)
+            throws PGPException
+    {
+        PGPException lastException = null;
+        for (Iterator<OpenPGPSmartCardBackend<?>> it = backends.iterator(); it.hasNext();)
+        {
+            OpenPGPSmartCardBackend<?> backend = it.next();
+            try
+            {
+                PGPContentSignerBuilderProvider contentSignerBuilderProvider =
+                        backend.getPGPContentSignerBuilderProvider(
+                                secretKey, keyPassphraseProvider, hashAlgorithmId);
+                if (contentSignerBuilderProvider != null)
+                {
+                    return contentSignerBuilderProvider;
                 }
             }
             catch (NoSuchElementException e)

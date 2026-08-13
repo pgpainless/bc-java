@@ -90,7 +90,7 @@ public class PGPSignatureGenerator
     }
 
     /**
-     * Initialise the generator for signing.
+     * Initialize the generator for signing.
      *
      * @param signatureType type of signature
      * @param key private signing key
@@ -105,7 +105,16 @@ public class PGPSignatureGenerator
         {
             throw new PGPException("Illegal signature type 0xFF provided.");
         }
-        contentSigner = contentSignerBuilder.build(signatureType, key);
+
+        if (key == null)
+        {
+            contentSigner = contentSignerBuilder.build(signatureType);
+        }
+        else
+        {
+            contentSigner = contentSignerBuilder.build(signatureType, key);
+        }
+
         sigOut = contentSigner.getOutputStream();
         sigType = contentSigner.getType();
         lastb = 0;
@@ -115,7 +124,7 @@ public class PGPSignatureGenerator
             throw new PGPException("key algorithm mismatch");
         }
 
-        if (key.getPublicKeyPacket().getVersion() != version)
+        if (key != null && key.getPublicKeyPacket().getVersion() != version)
         {
             throw new PGPException("Key version mismatch.");
         }
