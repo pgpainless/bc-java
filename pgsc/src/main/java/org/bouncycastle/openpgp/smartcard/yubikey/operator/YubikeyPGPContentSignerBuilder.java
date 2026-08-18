@@ -22,7 +22,6 @@ import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCard;
 import org.bouncycastle.pqc.crypto.DigestUtils;
-import org.bouncycastle.util.io.TeeOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -66,15 +65,14 @@ public class YubikeyPGPContentSignerBuilder
             throws PGPException
     {
         PGPDigestCalculator digestCalc = digestCalculatorProvider.get(hashAlgorithmId);
-        PGPDigestCalculator sigestCalc = digestCalculatorProvider.get(hashAlgorithmId);
-
+        OutputStream digestOut = digestCalc.getOutputStream();
 
         return new PGPContentSigner()
         {
             @Override
             public OutputStream getOutputStream()
             {
-                return new TeeOutputStream(digestCalc.getOutputStream(), sigestCalc.getOutputStream());
+                return digestOut;
             }
 
             @Override
@@ -93,7 +91,7 @@ public class YubikeyPGPContentSignerBuilder
                 byte[] digest;
                 try
                 {
-                    digest = prepareHash(sigestCalc.getDigest());
+                    digest = encodeHashValue(getDigest());
                 }
                 catch (IOException | PGPException e)
                 {
@@ -145,18 +143,19 @@ public class YubikeyPGPContentSignerBuilder
                 return signingKey.getKeyIdentifier().getKeyId();
             }
 
-            private byte[] prepareHash(byte[] digest)
+            private byte[] encodeHashValue(byte[] digest)
                     throws PGPException, IOException
             {
-                switch (getKeyAlgorithm())
+                int alg = getKeyAlgorithm();
+                // RSA requires to EMSA-PKCS1-v1_5-ENCODE the hash value
+                // see https://www.rfc-editor.org/rfc/rfc9580.html#section-5.2.3.1
+                if (alg == PublicKeyAlgorithmTags.RSA_GENERAL || alg == PublicKeyAlgorithmTags.RSA_SIGN)
                 {
-                    case PublicKeyAlgorithmTags.RSA_GENERAL:
-                    case PublicKeyAlgorithmTags.RSA_SIGN:
-                        String digestName = PGPUtil.getDigestName(hashAlgorithmId);
-                        ASN1ObjectIdentifier hashOID = DigestUtils.getDigestOid(digestName);
-                        AlgorithmIdentifier algId = new AlgorithmIdentifier(hashOID, DERNull.INSTANCE);
-                        DigestInfo info = new DigestInfo(algId, digest);
-                        return info.getEncoded(ASN1Encoding.DER);
+                    String digestName = PGPUtil.getDigestName(hashAlgorithmId);
+                    ASN1ObjectIdentifier hashOID = DigestUtils.getDigestOid(digestName);
+                    AlgorithmIdentifier algId = new AlgorithmIdentifier(hashOID, DERNull.INSTANCE);
+                    DigestInfo info = new DigestInfo(algId, digest);
+                    return info.getEncoded(ASN1Encoding.DER);
                 }
                 return digest;
             }
