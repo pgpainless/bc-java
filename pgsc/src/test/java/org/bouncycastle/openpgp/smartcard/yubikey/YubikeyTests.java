@@ -6,6 +6,7 @@ import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
 import org.bouncycastle.openpgp.smartcard.test.UnrelatedSmartCardMessageDecryptionTest;
 import org.bouncycastle.util.test.SimpleTestResult;
@@ -35,6 +36,7 @@ public class YubikeyTests
         AbstractOpenPGPSmartCardTest[] tests = new AbstractOpenPGPSmartCardTest[]
                 {
                         new SmartCardMessageDecryptionTest(m, p),
+                        new SmartCardMessageSigningTest(m, p),
                         new AnonymousRecipientSmartCardDecryptionTest(m, p),
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
                         new CloseYubikeySessionTest(m, p),
