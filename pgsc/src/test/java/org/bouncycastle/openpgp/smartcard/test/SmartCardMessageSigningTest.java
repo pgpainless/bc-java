@@ -2,13 +2,14 @@ package org.bouncycastle.openpgp.smartcard.test;
 
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.*;
+import org.bouncycastle.openpgp.api.util.UTCUtil;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 import org.bouncycastle.util.io.Streams;
 
@@ -189,7 +190,7 @@ public class SmartCardMessageSigningTest
             "=N+HH\n" +
             "-----END PGP PRIVATE KEY BLOCK-----";
 
-    public SmartCardMessageSigningTest(OpenPGPSmartCardManager manager, SmartCardTestProperties testProperties)
+    public SmartCardMessageSigningTest(OpenPGPSmartCardManager manager, TestProperties testProperties)
     {
         super(manager, testProperties);
     }
@@ -204,13 +205,15 @@ public class SmartCardMessageSigningTest
     public void performTest()
             throws Exception
     {
-        // testSigningWithFixedRSA2048Key();
+        testSigningWithFixedEd25519Key();
+        testSigningWithFixedRSA2048Key();
+
         testSigningWithV4RSA2048Key();
         testSigningWithV4RSA3072Key();
         testSigningWithV4RSA4096Key();
 
-        testSigningWithV4Ed25519Key();
         testSigningWithV4LegacyEd25519Key();
+        testSigningWithV4Ed25519Key();
 
         testSigningwithV4NISTP256Key();
         testSigningwithV4NISTP384Key();
@@ -219,6 +222,30 @@ public class SmartCardMessageSigningTest
         testSigningWithV4BrainpoolP256r1Key();
         testSigningWithV4BrainpoolP384r1Key();
         testSigningWithV4BrainpoolP512r1Key();
+    }
+
+    private void testSigningWithFixedEd25519Key()
+            throws IOException, PGPException, CardException
+    {
+        String KEY = "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" +
+                "Comment: 7C28 AAAA 6DEE C6EA A7CE  D054 9457 4C72 50EC A574\n" +
+                "\n" +
+                "lEkEao29dhuqXSRk+TNsKYKJIHKhKB98/GiN0SCkwFvcx3KvieSVpACqawicHEvS\n" +
+                "1kXXkKUPpRdwtZKUnMNN0YE9O1SRvUIqmg9NwpcEHxsKAEMWoQR8KKqqbe7G6qfO\n" +
+                "0FSUV0xyUOyldAWCao29dgIeCQYVDgwKCQgFFgABAgMECwkIBwcnCQIIAgcCApsB\n" +
+                "BQkJZgGAAAoJEJRXTHJQ7KV0y5xT8JKN77XlF3oOY94ou4qyuyEUDP5C7xB8dDlw\n" +
+                "MUzHs8pcSfEg7MESKLkumAhC4+den6BAMzx5+gbP4GdQWFkJnEkEao29dhsq7MUG\n" +
+                "ULIS5rcUL1rfqCEpwGev4Y/qwpdJysV1h3ooewCWC5UAjjtD6IY3qiuGnxh7Ai1d\n" +
+                "YT2sT/J8Ts1pn5M8cQ1qwsAnBBgbCgCTFqEEfCiqqm3uxuqnztBUlFdMclDspXQF\n" +
+                "gmqNvXYCmwJyoAQZGwoAHRahBDJMrGM8rUvO1msleNNNwz1aJY/+BYJqjb12AAoJ\n" +
+                "ENNNwz1aJY/+xSNKmMlCQ5qOVy+J5Fsl+mkhSjPSrGv0JRkteE0eUMaohLZIWIvG\n" +
+                "GYJSB9+vLpIWyi9w6rvVP5lFK0gZHG8Ae/sCAAoJEJRXTHJQ7KV0b/JZuHMtofmJ\n" +
+                "YewbHXoXY6s5EqNNO/H+Sl+kfkjBTH/YZG3iSyPUEFHgyg9hTTBsgC5sn4yVKaE/\n" +
+                "09VtSX24axQJ\n" +
+                "=ypQU\n" +
+                "-----END PGP PRIVATE KEY BLOCK-----";
+        OpenPGPKey key = api.readKeyOrCertificate().parseKey(KEY);
+        testSigningWithKey(key);
     }
 
     private void testSigningWithFixedRSA2048Key()
@@ -363,7 +390,7 @@ public class SmartCardMessageSigningTest
     private void testSigningWithKey(OpenPGPKey softwareKey)
             throws CardException, IOException, PGPException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
         System.out.println("Test on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
         card.reset();
@@ -403,46 +430,48 @@ public class SmartCardMessageSigningTest
         mIn.close();
         OpenPGPMessageInputStream.Result result = mIn.getResult();
 
-        isTrue(result.getSignatures().get(0).isValid());
+        boolean valid = result.getSignatures().get(0).isValid();
+        if (!valid)
+        {
+            System.out.println(softwareKey.toAsciiArmoredString());
+        }
+        isTrue("Signature MUST be valid.", valid);
     }
 
     public static void main(String[] args)
             throws CardException
     {
-        SmartCardTestProperties p;
         OpenPGPSmartCardManager m;
+        TestProperties p;
 
         // BCYK
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+
+            // BCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.bcImpl()));
+            runTest(new SmartCardMessageSigningTest(m, p));
+
+            // JCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.jceImpl()));
             runTest(new SmartCardMessageSigningTest(m, p));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.out.println
-            System.out.println("Skipping run of SmartCardMessageSigningTest on BC Yubikey.");
+            System.out.println("Skipping run of SmartCardMessageSigningTest on Yubikey: " + e.getMessage());
         }
 
-        // JCYK
-        try
-        {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.jceImpl());
-            runTest(new SmartCardMessageSigningTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SmartCardMessageSigningTest on JCE Yubikey.");
-        }
-
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
+        p = new TestProperties(1312);
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager()
                 .addBackend(sim);
-        p = new SmartCardTestProperties(1312);
         runTest(new SmartCardMessageSigningTest(m, p));
     }
 }

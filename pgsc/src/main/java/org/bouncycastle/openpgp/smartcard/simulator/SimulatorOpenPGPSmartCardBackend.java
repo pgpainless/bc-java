@@ -19,7 +19,7 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SimulatorSmartCardBackend
+public class SimulatorOpenPGPSmartCardBackend
         extends OpenPGPSmartCardBackend<SimulatorOpenPGPSmartCard>
 {
     private final List<SimulatorOpenPGPSmartCard> smartCards = new ArrayList<>();
@@ -30,7 +30,7 @@ public class SimulatorSmartCardBackend
         return "Simulator";
     }
 
-    public SimulatorSmartCardBackend addSmartCard(SimulatorOpenPGPSmartCard card)
+    public SimulatorOpenPGPSmartCardBackend addSmartCard(SimulatorOpenPGPSmartCard card)
     {
         this.smartCards.add(card);
         return this;

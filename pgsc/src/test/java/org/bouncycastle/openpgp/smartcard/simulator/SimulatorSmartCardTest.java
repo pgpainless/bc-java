@@ -6,8 +6,6 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 
 import java.io.IOException;
 
@@ -15,7 +13,7 @@ public class SimulatorSmartCardTest
     extends AbstractOpenPGPSmartCardTest
 {
 
-    public SimulatorSmartCardTest(OpenPGPSmartCardManager manager, SmartCardTestProperties properties)
+    public SimulatorSmartCardTest(OpenPGPSmartCardManager manager, TestProperties properties)
     {
         super(manager, properties);
     }
@@ -43,10 +41,10 @@ public class SimulatorSmartCardTest
                 .signOnlyKey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
 
         isTrue("sign-only key MUST NOT have decryption key",
                 !card.hasDecryptionKey());
@@ -66,10 +64,10 @@ public class SimulatorSmartCardTest
                 .addEncryptionSubkey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
 
         isTrue("encrypt-only key MUST have decryption key",
                 card.hasDecryptionKey());
@@ -90,10 +88,10 @@ public class SimulatorSmartCardTest
                 .addEncryptionSubkey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
 
         isTrue("key MUST have decryption key",
                 card.hasDecryptionKey());
@@ -112,10 +110,10 @@ public class SimulatorSmartCardTest
                 .withPrimaryKey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
 
         isTrue("key MUST NOT have decryption key",
                 !card.hasDecryptionKey());
@@ -130,25 +128,12 @@ public class SimulatorSmartCardTest
     public static void main(String[] args)
             throws CardException
     {
-        SmartCardTestProperties p;
-        OpenPGPSmartCardManager m;
-        try
-        {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p);
-            runTest(new SimulatorSmartCardTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SimulatorSmartCardTest on Yubikey.");
-        }
 
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
-        m = new OpenPGPSmartCardManager()
+        OpenPGPSmartCardManager m = new OpenPGPSmartCardManager()
                 .addBackend(sim);
-        p = new SmartCardTestProperties(1312);
+        TestProperties p = new TestProperties(1312);
         runTest(new SimulatorSmartCardTest(m, p));
     }
 }

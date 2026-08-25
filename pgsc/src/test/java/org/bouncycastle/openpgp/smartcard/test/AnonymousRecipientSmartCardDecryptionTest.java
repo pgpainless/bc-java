@@ -16,8 +16,8 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
@@ -48,7 +48,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
         extends AbstractOpenPGPSmartCardTest
 {
     public AnonymousRecipientSmartCardDecryptionTest(OpenPGPSmartCardManager manager,
-                                                     SmartCardTestProperties properties)
+                                                     TestProperties properties)
     {
         super(manager, properties);
     }
@@ -102,7 +102,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
     private void implTestAnonymousRecipient(String label, OpenPGPKey softwareKey)
             throws PGPException, IOException, CardException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
         System.out.println("Test anonymous " + label + " key on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
         card.reset();
@@ -185,40 +185,35 @@ public class AnonymousRecipientSmartCardDecryptionTest
     public static void main(String[] args)
         throws CardException
     {
-        SmartCardTestProperties p;
         OpenPGPSmartCardManager m;
-
-        // BCYK
+        TestProperties p;
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+
+            // BCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.bcImpl()));
+            runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
+
+            // JCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.jceImpl()));
             runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.out.println
-            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on BC Yubikey.");
+            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on Yubikey: " + e.getMessage());
         }
 
-        // JCYK
-        try
-        {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.jceImpl());
-            runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on JCE Yubikey.");
-        }
-
-
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        p = new TestProperties(1312);
+        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager().addBackend(sim);
 
-        runTest(new AnonymousRecipientSmartCardDecryptionTest(m, new SmartCardTestProperties(1312)));
+        runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
     }
 }

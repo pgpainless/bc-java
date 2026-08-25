@@ -33,14 +33,14 @@ public class SimulatorOpenPGPSmartCard
 
     private final Map<Byte, OpenPGPKey.OpenPGPSecretKey> secretKeys = new HashMap<>();
 
-    public SimulatorOpenPGPSmartCard(SimulatorSmartCardBackend backend,
+    public SimulatorOpenPGPSmartCard(SimulatorOpenPGPSmartCardBackend backend,
                                      Integer serialNumber)
     {
         super(backend);
         this.serialNumber = serialNumber;
     }
 
-    public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorSmartCardBackend backend,
+    public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorOpenPGPSmartCardBackend backend,
                                                                     OpenPGPKey softwareKey)
             throws PGPException
     {
@@ -50,7 +50,7 @@ public class SimulatorOpenPGPSmartCard
                 Integers.valueOf(CryptoServicesRegistrar.getSecureRandom().nextInt()), softwareKey);
     }
 
-    public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorSmartCardBackend backend,
+    public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorOpenPGPSmartCardBackend backend,
                                                                     Integer serialNumber,
                                                                     OpenPGPKey softwareKey)
             throws PGPException

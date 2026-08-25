@@ -45,7 +45,7 @@ public class YubikeyOpenPGPSmartCard
     private final YubiKeyDevice device;
     private final Map<KeyRef, List<AlgorithmAttributes>> supportedAlgorithms;
 
-    public YubikeyOpenPGPSmartCard(YubikeySmartCardBackend backend,
+    public YubikeyOpenPGPSmartCard(YubikeyOpenPGPSmartCardBackend backend,
                                    DeviceInfo deviceInfo,
                                    YubiKeyDevice device)
             throws CardException
@@ -259,9 +259,9 @@ public class YubikeyOpenPGPSmartCard
     }
 
     @Override
-    public YubikeySmartCardBackend getBackend()
+    public YubikeyOpenPGPSmartCardBackend getBackend()
     {
-        return (YubikeySmartCardBackend) super.getBackend();
+        return (YubikeyOpenPGPSmartCardBackend) super.getBackend();
     }
 
     @Override

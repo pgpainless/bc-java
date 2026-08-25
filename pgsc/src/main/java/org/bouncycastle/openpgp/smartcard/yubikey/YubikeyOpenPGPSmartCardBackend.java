@@ -5,9 +5,7 @@ import com.yubico.yubikit.core.keys.PrivateKeyValues;
 import com.yubico.yubikit.core.keys.PublicKeyValues;
 import com.yubico.yubikit.desktop.YubiKitManager;
 import com.yubico.yubikit.management.DeviceInfo;
-import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
-import org.bouncycastle.bcpg.PublicKeyPacket;
-import org.bouncycastle.bcpg.PublicKeyUtils;
+import org.bouncycastle.bcpg.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
@@ -37,48 +35,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class YubikeySmartCardBackend
+public class YubikeyOpenPGPSmartCardBackend
         extends OpenPGPSmartCardBackend<YubikeyOpenPGPSmartCard>
 {
     private static final int X25519_SCALAR_SIZE = 32;
 
     private final YubikeyDecryptorFactoryProvider decryptorFactoryProvider;
     private final JcaPGPKeyConverter converter;
+    private boolean useAllowList = true;
     private final Set<Integer> allowedCardSerials = new HashSet<>();
     private final YubiKitManager manager;
 
-    public static YubikeySmartCardBackend createInstance()
+    public static YubikeyOpenPGPSmartCardBackend createInstance()
     {
         return createInstance(bcImpl());
     }
 
-    public static YubikeySmartCardBackend createInstance(YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    public static YubikeyOpenPGPSmartCardBackend createInstance(YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
     {
         return createInstance(new YubiKitManager(),
                 decryptorFactoryProvider);
     }
 
-    public static YubikeySmartCardBackend createInstance(YubiKitManager yubiKitManager,
-                                                         YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    public static YubikeyOpenPGPSmartCardBackend createInstance(YubiKitManager yubiKitManager,
+                                                                YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
     {
         return createInstance(yubiKitManager,
                 new BouncyCastleProvider(),
                 decryptorFactoryProvider);
     }
 
-    public static YubikeySmartCardBackend createInstance(YubiKitManager yubiKitManager,
-                                                         BouncyCastleProvider provider,
-                                                         YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    public static YubikeyOpenPGPSmartCardBackend createInstance(YubiKitManager yubiKitManager,
+                                                                BouncyCastleProvider provider,
+                                                                YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
     {
-        return new YubikeySmartCardBackend(
+        return new YubikeyOpenPGPSmartCardBackend(
                 yubiKitManager,
                 new JcaPGPKeyConverter().setProvider(provider),
                 decryptorFactoryProvider);
     }
 
-    public YubikeySmartCardBackend(YubiKitManager yubiKitManager,
-                                   JcaPGPKeyConverter keyConverter,
-                                   YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    public YubikeyOpenPGPSmartCardBackend(YubiKitManager yubiKitManager,
+                                          JcaPGPKeyConverter keyConverter,
+                                          YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
     {
         this.manager = yubiKitManager;
         this.converter = keyConverter;
@@ -96,6 +95,8 @@ public class YubikeySmartCardBackend
      * {@link #addAllowedCardSerial(Integer)}. Devices that have not been allow-listed are never opened,
      * so no APDU is exchanged with a device the caller did not nominate; a backend with an empty
      * allow-list therefore always returns an empty list.
+     * Note: The allow-list can be disabled with {@link #setEnableAllowList(boolean)} passing in <pre>false</pre>.
+     * If the allow-list is disabled, any device can be opened, regardless of whether it was allow-listed.
      *
      * @return allow-listed smart cards
      * @throws CardException if the device layer cannot be queried, or a nominated device cannot be read
@@ -104,7 +105,7 @@ public class YubikeySmartCardBackend
     public List<YubikeyOpenPGPSmartCard> listSmartCards()
             throws CardException
     {
-        if (allowedCardSerials.isEmpty())
+        if (useAllowList && allowedCardSerials.isEmpty())
         {
             return new ArrayList<YubikeyOpenPGPSmartCard>();
         }
@@ -127,7 +128,7 @@ public class YubikeySmartCardBackend
             Map.Entry<YubiKeyDevice, DeviceInfo> entry = it.next();
             // check the allow-list against the serial the device layer already reported, before opening
             // a session against the card
-            if (!allowedCardSerials.contains(entry.getValue().getSerialNumber()))
+            if (useAllowList && !allowedCardSerials.contains(entry.getValue().getSerialNumber()))
             {
                 continue;
             }
@@ -166,9 +167,21 @@ public class YubikeySmartCardBackend
      * @param number device serial number
      * @return this
      */
-    public YubikeySmartCardBackend addAllowedCardSerial(Integer number)
+    public YubikeyOpenPGPSmartCardBackend addAllowedCardSerial(Integer number)
     {
         allowedCardSerials.add(number);
+        return this;
+    }
+
+    /**
+     * Configure the backend to limit the set of permitted devices to those on the allow-list.
+     * If the allow-list is disabled by passing in <pre>false</pre> any device will be permitted to be opened.
+     *
+     * @return this
+     */
+    public YubikeyOpenPGPSmartCardBackend setEnableAllowList(boolean enableAllowList)
+    {
+        useAllowList = enableAllowList;
         return this;
     }
 

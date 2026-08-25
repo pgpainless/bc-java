@@ -22,6 +22,7 @@ import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCard;
 import org.bouncycastle.pqc.crypto.DigestUtils;
+import org.bouncycastle.util.io.TeeOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -65,14 +66,14 @@ public class YubikeyPGPContentSignerBuilder
             throws PGPException
     {
         PGPDigestCalculator digestCalc = digestCalculatorProvider.get(hashAlgorithmId);
-        OutputStream digestOut = digestCalc.getOutputStream();
+        PGPDigestCalculator sigDigestCalc = digestCalculatorProvider.get(hashAlgorithmId);
 
         return new PGPContentSigner()
         {
             @Override
             public OutputStream getOutputStream()
             {
-                return digestOut;
+                return new TeeOutputStream(digestCalc.getOutputStream(), sigDigestCalc.getOutputStream());
             }
 
             @Override
@@ -91,7 +92,7 @@ public class YubikeyPGPContentSignerBuilder
                 byte[] digest;
                 try
                 {
-                    digest = encodeHashValue(getDigest());
+                    digest = encodeHashValue(sigDigestCalc.getDigest());
                 }
                 catch (IOException | PGPException e)
                 {

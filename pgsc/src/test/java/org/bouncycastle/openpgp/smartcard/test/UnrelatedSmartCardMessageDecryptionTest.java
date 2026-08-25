@@ -6,10 +6,9 @@ import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
 import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
-import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
@@ -27,7 +26,7 @@ public class UnrelatedSmartCardMessageDecryptionTest
 {
 
     public UnrelatedSmartCardMessageDecryptionTest(OpenPGPSmartCardManager manager,
-                                                   SmartCardTestProperties properties)
+                                                   TestProperties properties)
     {
         super(manager, properties);
     }
@@ -77,48 +76,37 @@ public class UnrelatedSmartCardMessageDecryptionTest
 
     public static void main(String[] args)
     {
-        SmartCardTestProperties p;
         OpenPGPSmartCardManager m;
+        TestProperties p;
 
         // BCYK
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+
+            // BCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.bcImpl()));
+            runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
+
+            // JCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.jceImpl()));
             runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.out.println
-            System.out.println("Skipping run of SmartCardMessageDecryptionTest on BC Yubikey.");
-        }
-        catch (CardException e)
-        {
-            throw new RuntimeException(e);
+            System.out.println("Skipping run of UnrelatedSmartCardMessageDecryptionTest on Yubikey: " + e.getMessage());
         }
 
-        // JCYK
-        try
-        {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.jceImpl());
-            runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SmartCardMessageDecryptionTest on JCE Yubikey.");
-        }
-        catch (CardException e)
-        {
-            throw new RuntimeException(e);
-        }
-
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
+        p = new TestProperties(1312);
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager()
                 .addBackend(sim);
-        p = new SmartCardTestProperties(1312);
         runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
     }
 

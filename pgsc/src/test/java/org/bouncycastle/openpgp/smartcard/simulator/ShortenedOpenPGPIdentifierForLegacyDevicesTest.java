@@ -17,7 +17,7 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
     public void performTest()
         throws Exception
     {
-        SimulatorSmartCardBackend backend = new SimulatorSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend backend = new SimulatorOpenPGPSmartCardBackend();
 
         testV4FingerprintIsNotShortened(backend);
         testV6FingerprintShortening(backend);

@@ -17,11 +17,16 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.test.SimpleTest;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 public abstract class AbstractOpenPGPSmartCardTest
         extends SimpleTest
@@ -30,10 +35,10 @@ public abstract class AbstractOpenPGPSmartCardTest
     protected final OpenPGPApi api = new BcOpenPGPApi(implementation);
 
     protected final OpenPGPSmartCardManager manager;
-    protected final SmartCardTestProperties properties;
+    protected final TestProperties properties;
 
     public AbstractOpenPGPSmartCardTest(OpenPGPSmartCardManager manager,
-                                        SmartCardTestProperties properties)
+                                        TestProperties properties)
     {
         this.manager = manager;
         this.properties = properties;
@@ -121,6 +126,115 @@ public abstract class AbstractOpenPGPSmartCardTest
                             (PublicSubkeyPacket) secretKey.getPublicKey().getPublicKeyPacket(),
                             locatorHint),
                     secretKey.getPublicKey());
+        }
+    }
+
+    public static class TestProperties
+    {
+        public static final char[] DEFAULT_ADMIN_PIN = "12345678".toCharArray();
+        public static final char[] DEFAULT_USER_PIN = "123456".toCharArray();
+
+        private final Integer serialNumber;
+        private final char[] adminPin;
+        private final char[] userPin;
+
+        public TestProperties(Integer serialNumber)
+        {
+            this(serialNumber, DEFAULT_ADMIN_PIN, DEFAULT_USER_PIN);
+        }
+
+        public TestProperties(Integer serialNumber,
+                              char[] adminPin,
+                              char[] userPin)
+        {
+            this.serialNumber = serialNumber;
+            this.adminPin = adminPin;
+            this.userPin = userPin;
+        }
+
+        public Integer getSerialNumber()
+        {
+            return serialNumber;
+        }
+
+        public char[] getAdminPin()
+        {
+            return Arrays.clone(adminPin);
+        }
+
+        public char[] getUserPin()
+        {
+            return Arrays.clone(userPin);
+        }
+
+        public static TestProperties fromFile(String fileName)
+                throws FileNotFoundException
+        {
+            Properties properties = loadProperties(fileName);
+            return fromProperties(properties);
+        }
+
+        public static TestProperties fromProperties(Properties properties)
+        {
+            return new TestProperties(
+                    getInteger(properties, "DEVICE_SERIAL"),
+                    getCharArray(properties, "ADMIN_PIN"),
+                    getCharArray(properties, "USER_PIN"));
+        }
+
+        private static Properties loadProperties(String propFileName)
+                throws FileNotFoundException
+        {
+            try (InputStream in = AbstractOpenPGPSmartCardTest.class.getClassLoader()
+                    .getResourceAsStream(propFileName))
+            {
+                if (in == null)
+                {
+                    throw new FileNotFoundException("Missing file '" + propFileName + "'.");
+                }
+
+                Properties p = new Properties();
+                p.load(in);
+                return p;
+            }
+            catch (FileNotFoundException e)
+            {
+                throw e;
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException("Cannot parse properties from file '" + propFileName + "'.", e);
+            }
+        }
+
+        private static Integer getInteger(Properties properties, String key)
+        {
+            if (properties == null)
+            {
+                return null;
+            }
+
+            String val = properties.getProperty(key);
+            if (val == null)
+            {
+                return null;
+            }
+
+            return Integer.parseInt(val);
+        }
+
+        private static char[] getCharArray(Properties properties, String key)
+        {
+            if (properties == null)
+            {
+                return null;
+            }
+            String val = properties.getProperty(key);
+            if (val == null)
+            {
+                return null;
+            }
+            return val.toCharArray();
         }
     }
 }
