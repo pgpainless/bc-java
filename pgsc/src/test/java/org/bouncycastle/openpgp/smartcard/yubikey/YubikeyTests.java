@@ -23,6 +23,9 @@ public class YubikeyTests
 
         try
         {
+            m = new OpenPGPSmartCardManager();
+            YubikeyTestPropertiesProvider propertiesProvider = new YubikeyTestPropertiesProvider();
+
             p = new YubikeyTestProperties();
             m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
         }

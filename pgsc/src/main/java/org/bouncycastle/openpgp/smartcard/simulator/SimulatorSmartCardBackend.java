@@ -62,13 +62,17 @@ public class SimulatorSmartCardBackend
             int hashAlgorithmId,
             OpenPGPImplementation implementation)
     {
-        return new BcPGPContentSignerBuilderProvider(hashAlgorithmId) {
+        return new BcPGPContentSignerBuilderProvider(hashAlgorithmId)
+        {
             @Override
-            public PGPContentSignerBuilder get(PGPPublicKey publicKey) {
-                return new BcPGPContentSignerBuilder(publicKey.getAlgorithm(), hashAlgorithmId) {
+            public PGPContentSignerBuilder get(PGPPublicKey publicKey)
+            {
+                return new BcPGPContentSignerBuilder(publicKey.getAlgorithm(), hashAlgorithmId)
+                {
                     @Override
                     public PGPContentSigner build(int signatureType)
-                            throws PGPException {
+                            throws PGPException
+                    {
                         return build(signatureType, card.getSoftwareKey(signingKey, userPinProvider));
                     }
                 };

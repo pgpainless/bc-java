@@ -10,7 +10,6 @@ import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestProperties;
 import org.bouncycastle.util.io.Streams;
 
 import java.io.ByteArrayInputStream;
@@ -364,7 +363,7 @@ public class SmartCardMessageSigningTest
     private void testSigningWithKey(OpenPGPKey softwareKey)
             throws CardException, IOException, PGPException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         // -DM System.out.println
         System.out.println("Test on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
         card.reset();

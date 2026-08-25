@@ -23,7 +23,7 @@ public class CloseYubikeySessionTest
     public void performTest()
             throws Exception
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         if (!(card instanceof YubikeyOpenPGPSmartCard))
         {
             fail("Cannot run test with non-Yubikey");

@@ -14,7 +14,6 @@ import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestProperties;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
 
@@ -327,7 +326,7 @@ public class SmartCardMessageDecryptionTest
     private void testEncryptionAndDecryptionWithExternalKey(OpenPGPKey softwareKey)
         throws PGPException, IOException, CardException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         // -DM System.out.println
         System.out.println("Test on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
         card.reset();
@@ -371,7 +370,7 @@ public class SmartCardMessageDecryptionTest
     private void testDecryptWithExternalKey(OpenPGPKey softwareKey, String message)
         throws CardException, IOException, PGPException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         // -DM System.out.println
         System.out.println("Decrypt on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
         card.reset();

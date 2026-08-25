@@ -99,7 +99,7 @@ public class YubikeyOpenPGPSmartCard
         }
         catch (ApplicationNotAvailableException e)
         {
-            throw new CardException("Cannot open OpenPGP session on smartcard " + getSerialNumber()
+            throw new CardException("Cannot open OpenPGP session on device " + getSerialNumber()
                     + " (" + getCardType() + " " + getVersion() + ")", e);
         }
     }

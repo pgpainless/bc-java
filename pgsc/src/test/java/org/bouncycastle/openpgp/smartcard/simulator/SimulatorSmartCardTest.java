@@ -8,7 +8,6 @@ import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestProperties;
 
 import java.io.IOException;
 
@@ -44,10 +43,10 @@ public class SimulatorSmartCardTest
                 .signOnlyKey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
 
         isTrue("sign-only key MUST NOT have decryption key",
                 !card.hasDecryptionKey());
@@ -67,10 +66,10 @@ public class SimulatorSmartCardTest
                 .addEncryptionSubkey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
 
         isTrue("encrypt-only key MUST have decryption key",
                 card.hasDecryptionKey());
@@ -91,10 +90,10 @@ public class SimulatorSmartCardTest
                 .addEncryptionSubkey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
 
         isTrue("key MUST have decryption key",
                 card.hasDecryptionKey());
@@ -113,10 +112,10 @@ public class SimulatorSmartCardTest
                 .withPrimaryKey()
                 .build();
 
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumbers());
         keyToCard(key, card);
 
-        isEquals("SerialNumber mismatch", properties.getSerialNumber(), card.getSerialNumber());
+        isEquals("SerialNumber mismatch", properties.getSerialNumbers(), card.getSerialNumber());
 
         isTrue("key MUST NOT have decryption key",
                 !card.hasDecryptionKey());

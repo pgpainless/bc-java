@@ -7,6 +7,32 @@ import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
 
 public class YubikeyTestInstanceProvider
 {
+    public static YubikeySmartCardBackend prepareBackend(YubikeyTestPropertiesProvider propertiesProvider,
+                                                         YubikeySmartCardBackend.YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    {
+        YubikeySmartCardBackend backend = YubikeySmartCardBackend.createInstance(decryptorFactoryProvider);
+        for (SmartCardTestProperties p : propertiesProvider.getCards())
+        {
+            backend.addAllowedCardSerial(p.getSerialNumber());
+        }
+        return backend;
+    }
+
+    public static YubikeySmartCardBackend prepareSingleCardBackend()
+
+    public static YubikeySmartCardBackend prepareBackend(SmartCardTestProperties properties)
+            throws YubikeySetupException
+    {
+        Integer serial = properties.getSerialNumber();
+        if (serial == null)
+        {
+            throw new YubikeySetupException("Missing yubikey.properties file");
+        }
+
+        YubikeySmartCardBackend backend = YubikeySmartCardBackend.createInstance();
+        backend.addAllowedCardSerial(properties.getSerialNumber());
+        return backend;
+    }
 
     public static OpenPGPSmartCardManager prepareOneYubikeySmartCardManager(
             SmartCardTestProperties testProperties)

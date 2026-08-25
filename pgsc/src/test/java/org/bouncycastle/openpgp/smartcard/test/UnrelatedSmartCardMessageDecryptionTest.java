@@ -11,7 +11,6 @@ import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestProperties;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
 

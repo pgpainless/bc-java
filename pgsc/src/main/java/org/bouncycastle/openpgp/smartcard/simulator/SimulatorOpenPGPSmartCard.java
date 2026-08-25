@@ -10,7 +10,6 @@ import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Integers;
 
 import java.util.Date;
