@@ -1,6 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
 import junit.framework.TestCase;
+import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
@@ -14,7 +15,8 @@ public class SimulatorTests
 {
     public void testSimulatorSmartCard()
     {
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
         OpenPGPSmartCardManager m = new OpenPGPSmartCardManager()
                 .addBackend(sim);

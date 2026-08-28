@@ -1,10 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.test;
 
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.api.KeyPairGeneratorCallback;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
-import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
+import org.bouncycastle.openpgp.api.*;
 import org.bouncycastle.openpgp.api.bc.BcOpenPGPApi;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
@@ -399,6 +396,7 @@ public class SmartCardMessageDecryptionTest
     public static void main(String[] args)
         throws CardException
     {
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
         OpenPGPSmartCardManager m;
         TestProperties p;
 
@@ -425,7 +423,7 @@ public class SmartCardMessageDecryptionTest
         }
 
         p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager()
                 .addBackend(sim);

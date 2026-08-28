@@ -1,6 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
@@ -128,8 +129,8 @@ public class SimulatorSmartCardTest
     public static void main(String[] args)
             throws CardException
     {
-
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
         OpenPGPSmartCardManager m = new OpenPGPSmartCardManager()
                 .addBackend(sim);

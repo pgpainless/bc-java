@@ -1,12 +1,24 @@
 package org.bouncycastle.openpgp.smartcard;
 
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.DERNull;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.bcpg.KeyIdentifier;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate.OpenPGPComponentKey;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPPrivateKey;
+import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.pqc.crypto.DigestUtils;
 
+import java.io.IOException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -339,4 +351,31 @@ public abstract class OpenPGPSmartCard
         return sb.toString();
     }
 
+    public abstract byte[] sign(byte[] data, OpenPGPHardwareKey key, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider)
+        throws KeyPassphraseException, CardException, PGPException;
+
+    /**
+     * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
+     * verified it.
+     */
+    protected char[] requireUserPin(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey signingKey)
+            throws KeyPassphraseException
+    {
+        char[] pin = userPinProvider.getKeyPassword(signingKey);
+        if (pin == null || pin.length == 0)
+        {
+            throw new KeyPassphraseException(signingKey, new IllegalStateException("PIN required."));
+        }
+        return pin;
+    }
+
+    public abstract byte[] decrypt(byte[] message,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider);
+
+    public abstract byte[] decrypt(PublicKey publicKey,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider);
 }

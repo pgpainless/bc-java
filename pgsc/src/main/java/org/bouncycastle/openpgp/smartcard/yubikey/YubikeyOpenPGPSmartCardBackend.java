@@ -13,12 +13,11 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
+import org.bouncycastle.openpgp.api.bc.BcOpenPGPImplementation;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.yubikey.operator.YubikeyPGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.smartcard.yubikey.operator.bc.BcYubikeyPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.yubikey.operator.jcajce.JceYubikeyPublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.util.Arrays;
@@ -72,13 +71,16 @@ public class YubikeyOpenPGPSmartCardBackend
         return new YubikeyOpenPGPSmartCardBackend(
                 yubiKitManager,
                 new JcaPGPKeyConverter().setProvider(provider),
-                decryptorFactoryProvider);
+                decryptorFactoryProvider,
+                new BcOpenPGPImplementation());
     }
 
     public YubikeyOpenPGPSmartCardBackend(YubiKitManager yubiKitManager,
                                           JcaPGPKeyConverter keyConverter,
-                                          YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+                                          YubikeyDecryptorFactoryProvider decryptorFactoryProvider,
+                                          OpenPGPImplementation implementation)
     {
+        super(implementation);
         this.manager = yubiKitManager;
         this.converter = keyConverter;
         this.decryptorFactoryProvider = decryptorFactoryProvider;
@@ -145,19 +147,6 @@ public class YubikeyOpenPGPSmartCardBackend
             throws PGPException
     {
         return decryptorFactoryProvider.provide(secretKey, card, userPinProvider);
-    }
-
-    @Override
-    public PGPContentSignerBuilderProvider provideExternalPGPContentSignerBuilderProvider(
-            OpenPGPKey.OpenPGPSecretKey signingKey,
-            YubikeyOpenPGPSmartCard card,
-            KeyPassphraseProvider userPinProvider,
-            int hashAlgorithmId,
-            OpenPGPImplementation implementation)
-            throws PGPException
-    {
-        return new YubikeyPGPContentSignerBuilderProviderFactory()
-                .provideExternalPGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId, implementation);
     }
 
     /**
@@ -233,6 +222,12 @@ public class YubikeyOpenPGPSmartCardBackend
         {
             throw new PGPException("Cannot convert PGPPublicKey to PublicKeyValues", e);
         }
+    }
+
+    PublicKey toPublicKey(PGPPublicKey pgpPublicKey)
+            throws PGPException
+    {
+        return converter.getPublicKey(pgpPublicKey);
     }
 
     /**

@@ -1,10 +1,6 @@
 package org.bouncycastle.openpgp.smartcard.yubikey.operator;
 
-import com.yubico.yubikit.core.application.InvalidPinException;
-import com.yubico.yubikit.core.smartcard.ApduException;
-import com.yubico.yubikit.openpgp.OpenPgpSession;
 import org.bouncycastle.asn1.ASN1Encoding;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.DigestInfo;
@@ -14,47 +10,46 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
+import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCard;
 import org.bouncycastle.pqc.crypto.DigestUtils;
 import org.bouncycastle.util.io.TeeOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
-public class YubikeyPGPContentSignerBuilder
+public class ExternalContentSignerBuilder
         implements PGPContentSignerBuilder
 {
-    private final OpenPGPKey.OpenPGPSecretKey signingKey;
-    private final YubikeyOpenPGPSmartCard smartCard;
-    private final KeyPassphraseProvider userPinProvider;
-    private final int hashAlgorithmId;
-    private final PGPDigestCalculatorProvider digestCalculatorProvider;
+    protected final OpenPGPHardwareKey hardwareKey;
+    protected final OpenPGPKey.OpenPGPSecretKey stubKey;
+    protected final KeyPassphraseProvider userPinProvider;
+    protected final int hashAlgorithm;
+    protected final PGPDigestCalculatorProvider digestCalculatorProvider;
 
-    public YubikeyPGPContentSignerBuilder(
-            OpenPGPKey.OpenPGPSecretKey signingKey,
-            YubikeyOpenPGPSmartCard smartCard,
+    public ExternalContentSignerBuilder(
+            OpenPGPHardwareKey key,
+            OpenPGPKey.OpenPGPSecretKey stubKey,
             KeyPassphraseProvider userPinProvider,
-            PGPDigestCalculatorProvider digestCalculatorProvider,
-            int hashAlgorithmId)
+            int hashAlgorithm,
+            PGPDigestCalculatorProvider calculatorProvider)
     {
-        this.signingKey = signingKey;
-        this.smartCard = smartCard;
+        this.hardwareKey = key;
+        this.stubKey = stubKey;
         this.userPinProvider = userPinProvider;
-        this.digestCalculatorProvider = digestCalculatorProvider;
-        this.hashAlgorithmId = hashAlgorithmId;
+        this.hashAlgorithm = hashAlgorithm;
+        this.digestCalculatorProvider = calculatorProvider;
     }
 
     @Override
     public PGPContentSigner build(int signatureType, PGPPrivateKey privateKey)
             throws PGPException
     {
-        if (privateKey.getKeyID() != signingKey.getPGPSecretKey().getKeyID())
+        if (privateKey.getKeyID() != stubKey.getPGPSecretKey().getKeyID())
         {
             throw new PGPException("private key does not match signing key");
         }
@@ -65,8 +60,10 @@ public class YubikeyPGPContentSignerBuilder
     public PGPContentSigner build(int signatureType)
             throws PGPException
     {
-        PGPDigestCalculator digestCalc = digestCalculatorProvider.get(hashAlgorithmId);
-        PGPDigestCalculator sigDigestCalc = digestCalculatorProvider.get(hashAlgorithmId);
+        // Not sure why, but we need to use two different calculators here, as otherwise
+        //  modern ed25519 signing fails due to an additional unexpected digest update
+        PGPDigestCalculator digestCalc = digestCalculatorProvider.get(hashAlgorithm);
+        PGPDigestCalculator sigDigestCalc = digestCalculatorProvider.get(hashAlgorithm);
 
         return new PGPContentSigner()
         {
@@ -79,38 +76,24 @@ public class YubikeyPGPContentSignerBuilder
             @Override
             public byte[] getSignature()
             {
-                char[] pin;
-                try
-                {
-                    pin = requireUserPin();
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new IllegalStateException("No user PIN provided.", e);
-                }
-
+                byte[] data = sigDigestCalc.getDigest();
                 byte[] digest;
                 try
                 {
-                    digest = encodeHashValue(sigDigestCalc.getDigest());
+                    digest = encodeHashValue(data);
                 }
-                catch (IOException | PGPException e)
+                catch (PGPException | IOException e)
+                {
+                    throw new RuntimeException("Cannot encode digest value.", e);
+                }
+
+                try
+                {
+                    return hardwareKey.sign(userPinProvider, stubKey, digest);
+                }
+                catch (PGPException | CardException e)
                 {
                     throw new RuntimeException(e);
-                }
-                try (OpenPgpSession session = smartCard.openSession())
-                {
-                    session.verifyUserPin(pin, false);
-                    return session.sign(digest);
-                }
-                catch (ApduException | IOException | CardException e)
-                {
-                    throw new RuntimeException("Exception communicating with card. Cannot sign.", e);
-                }
-                catch (InvalidPinException e)
-                {
-                    throw new IllegalStateException("Wrong PIN for card " + smartCard.getSerialNumber(),
-                            new KeyPassphraseException(signingKey, e));
                 }
             }
 
@@ -129,21 +112,29 @@ public class YubikeyPGPContentSignerBuilder
             @Override
             public int getHashAlgorithm()
             {
-                return hashAlgorithmId;
+                return hashAlgorithm;
             }
 
             @Override
             public int getKeyAlgorithm()
             {
-                return signingKey.getAlgorithm();
+                return stubKey.getAlgorithm();
             }
 
             @Override
             public long getKeyID()
             {
-                return signingKey.getKeyIdentifier().getKeyId();
+                return stubKey.getKeyIdentifier().getKeyId();
             }
 
+            /**
+             * Signing with RSA expects the digest value to be DER encoded.
+             *
+             * @param digest raw digest
+             * @return possibly encoded digest
+             * @throws PGPException unknown digest
+             * @throws IOException digest cannot be encoded
+             */
             private byte[] encodeHashValue(byte[] digest)
                     throws PGPException, IOException
             {
@@ -152,8 +143,8 @@ public class YubikeyPGPContentSignerBuilder
                 // see https://www.rfc-editor.org/rfc/rfc9580.html#section-5.2.3.1
                 if (alg == PublicKeyAlgorithmTags.RSA_GENERAL || alg == PublicKeyAlgorithmTags.RSA_SIGN)
                 {
-                    String digestName = PGPUtil.getDigestName(hashAlgorithmId);
-                    ASN1ObjectIdentifier hashOID = DigestUtils.getDigestOid(digestName);
+                    String digestName = PGPUtil.getDigestName(hashAlgorithm);
+                    org.bouncycastle.asn1.ASN1ObjectIdentifier hashOID = DigestUtils.getDigestOid(digestName);
                     AlgorithmIdentifier algId = new AlgorithmIdentifier(hashOID, DERNull.INSTANCE);
                     DigestInfo info = new DigestInfo(algId, digest);
                     return info.getEncoded(ASN1Encoding.DER);
@@ -161,20 +152,5 @@ public class YubikeyPGPContentSignerBuilder
                 return digest;
             }
         };
-    }
-
-    /**
-     * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
-     * verified it.
-     */
-    private char[] requireUserPin()
-            throws KeyPassphraseException
-    {
-        char[] pin = userPinProvider.getKeyPassword(signingKey);
-        if (pin == null || pin.length == 0)
-        {
-            throw new KeyPassphraseException(signingKey, new IllegalStateException("PIN required."));
-        }
-        return pin;
     }
 }

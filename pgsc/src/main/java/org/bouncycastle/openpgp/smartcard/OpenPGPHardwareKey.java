@@ -2,9 +2,12 @@ package org.bouncycastle.openpgp.smartcard;
 
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Arrays;
 
+import java.security.PublicKey;
 import java.util.Date;
 
 /**
@@ -157,5 +160,28 @@ public class OpenPGPHardwareKey
     public boolean isGenerated()
     {
         return state == STATE_GENERATED;
+    }
+
+    /**
+     *
+     * @param userPinProvider
+     * @param stubKey
+     * @param digest encoded message digest
+     * @return
+     */
+    public byte[] sign(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] digest)
+            throws PGPException, CardException
+    {
+        return getSmartCard().sign(digest, this, stubKey, userPinProvider);
+    }
+
+    public byte[] decrypt(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] message)
+    {
+        return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
+    }
+
+    public byte[] decrypt(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, PublicKey peerKey)
+    {
+        return getSmartCard().decrypt(peerKey, this, stubKey, userPinProvider);
     }
 }

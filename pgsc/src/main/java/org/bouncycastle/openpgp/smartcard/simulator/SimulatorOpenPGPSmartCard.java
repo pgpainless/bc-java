@@ -1,17 +1,34 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
+import org.bouncycastle.crypto.AsymmetricBlockCipher;
+import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.crypto.Signer;
+import org.bouncycastle.crypto.encodings.PKCS1Encoding;
+import org.bouncycastle.crypto.engines.RSABlindedEngine;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.bouncycastle.crypto.signers.DSASigner;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.crypto.signers.Ed25519Signer;
+import org.bouncycastle.crypto.signers.Ed448Signer;
+import org.bouncycastle.crypto.signers.StandardDSAEncoding;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.util.Integers;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.PublicKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -171,4 +188,74 @@ public class SimulatorOpenPGPSmartCard
     {
         return "SimulatorSmartCard";
     }
+
+    @Override
+    public byte[] sign(byte[] data,
+                       OpenPGPHardwareKey key,
+                       OpenPGPKey.OpenPGPSecretKey stubKey,
+                       KeyPassphraseProvider userPinProvider)
+    {
+        try
+        {
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            BcPGPKeyConverter converter = new BcPGPKeyConverter();
+            AsymmetricKeyParameter privateKey = converter.getPrivateKey(pgpPrivateKey);
+
+            switch (stubKey.getAlgorithm())
+            {
+                case PublicKeyAlgorithmTags.RSA_GENERAL:
+                case PublicKeyAlgorithmTags.RSA_SIGN:
+                    AsymmetricBlockCipher rsaEngine = new PKCS1Encoding(new RSABlindedEngine());
+                    rsaEngine.init(true, privateKey);
+                    return rsaEngine.processBlock(data, 0, data.length);
+
+                case PublicKeyAlgorithmTags.DSA:
+                    DSASigner dsaEngine = new DSASigner();
+                    dsaEngine.init(true, privateKey);
+                    BigInteger[] dsaSig = dsaEngine.generateSignature(data);
+                    return StandardDSAEncoding.INSTANCE.encode(dsaEngine.getOrder(), dsaSig[0], dsaSig[1]);
+
+                case PublicKeyAlgorithmTags.ECDSA:
+                    ECDSASigner ecdsaSigner = new ECDSASigner();
+                    ecdsaSigner.init(true, privateKey);
+                    BigInteger[] ecdsaSig = ecdsaSigner.generateSignature(data);
+                    return StandardDSAEncoding.INSTANCE.encode(ecdsaSigner.getOrder(), ecdsaSig[0], ecdsaSig[1]);
+
+                case PublicKeyAlgorithmTags.EDDSA_LEGACY:
+                case PublicKeyAlgorithmTags.Ed25519:
+                case PublicKeyAlgorithmTags.Ed448:
+                    Signer edSigner;
+                    if (stubKey.getAlgorithm() == PublicKeyAlgorithmTags.Ed25519 ||
+                            (stubKey.getAlgorithm() == PublicKeyAlgorithmTags.EDDSA_LEGACY && privateKey instanceof Ed25519PrivateKeyParameters))
+                    {
+                        edSigner = new Ed25519Signer();
+                    }
+                    else
+                    {
+                        edSigner = new Ed448Signer(new byte[0]);
+                    }
+                    edSigner.init(true, privateKey);
+                    edSigner.update(data, 0, data.length);
+                    return edSigner.generateSignature();
+
+                default:
+                    throw new PGPException("Unknown public key algorithm: " + stubKey.getAlgorithm());
+            }
+        }
+        catch (PGPException | IOException | CryptoException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public byte[] decrypt(byte[] message, OpenPGPHardwareKey openPGPHardwareKey, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider) {
+        return new byte[0];
+    }
+
+    @Override
+    public byte[] decrypt(PublicKey publicKey, OpenPGPHardwareKey openPGPHardwareKey, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider) {
+        return new byte[0];
+    }
+
 }

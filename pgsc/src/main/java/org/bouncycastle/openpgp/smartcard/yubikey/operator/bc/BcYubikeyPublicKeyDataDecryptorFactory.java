@@ -1,9 +1,5 @@
 package org.bouncycastle.openpgp.smartcard.yubikey.operator.bc;
 
-import com.yubico.yubikit.core.application.InvalidPinException;
-import com.yubico.yubikit.core.keys.PublicKeyValues;
-import com.yubico.yubikit.core.smartcard.ApduException;
-import com.yubico.yubikit.openpgp.OpenPgpSession;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
@@ -19,16 +15,13 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.bc.BcExternalPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyCryptoCallback;
-import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyOpenPGPSmartCard;
-import org.bouncycastle.util.Arrays;
 
-import java.io.IOException;
+import java.security.PublicKey;
 import java.util.Date;
 
 /**
@@ -65,24 +58,7 @@ public class BcYubikeyPublicKeyDataDecryptorFactory
                                      AsymmetricKeyParameter privKey)
                 throws PGPException
             {
-                char[] pin = requireUserPin();
-                try (OpenPgpSession openPgpSession = yubikey.openSession())
-                {
-                    openPgpSession.verifyUserPin(pin, true);
-                    return openPgpSession.decrypt(pEnc);
-                }
-                catch (ApduException | CardException | IOException e)
-                {
-                    throw new PGPException("Cannot decrypt message", e);
-                }
-                catch (InvalidPinException e)
-                {
-                    throw new KeyPassphraseException(getSecretKey(), e);
-                }
-                finally
-                {
-                    Arrays.fill(pin, (char)0);
-                }
+                return yubikey.decrypt(pEnc, yubikey.getDecryptionKey(), getSecretKey(), userPinProvider);
             }
 
             public byte[] decryptElGamal(int keyAlgorithm,
@@ -98,27 +74,8 @@ public class BcYubikeyPublicKeyDataDecryptorFactory
                                       AsymmetricKeyParameter privKey)
                 throws PGPException
             {
-                PublicKeyValues ephemeralPublicKey = toEphemeralPublicKey(pubKey, ephemeralKeyBytes);
-
-                char[] pin = requireUserPin();
-                try (OpenPgpSession openPgpSession = yubikey.openSession())
-                {
-                    openPgpSession.verifyUserPin(pin, true);
-                    // the card performs the ECDH agreement and returns the shared secret
-                    return openPgpSession.decrypt(ephemeralPublicKey);
-                }
-                catch (ApduException | IOException | CardException e)
-                {
-                    throw new PGPException("Cannot decrypt message", e);
-                }
-                catch (InvalidPinException e)
-                {
-                    throw new KeyPassphraseException(getSecretKey(), e);
-                }
-                finally
-                {
-                    Arrays.fill(pin, (char)0);
-                }
+                PublicKey ephemeralKey = toEphemeralPublicKey(pubKey, ephemeralKeyBytes);
+                return yubikey.decrypt(ephemeralKey, yubikey.getDecryptionKey(), getSecretKey(), userPinProvider);
             }
 
             public byte[] decryptX25519(AsymmetricKeyParameter privKey, byte[] ephemeralKey)
@@ -129,29 +86,15 @@ public class BcYubikeyPublicKeyDataDecryptorFactory
                     throw new PGPException("Invalid X25519 ephemeral key length");
                 }
 
+                // Parse PublicKey from byte array.
+                // Going the detour via X25519PublicKeyParameters and PGPPublicKey to PublicKey is unfortunately
+                // the best way I found to do this. TODO: Find a better way.
                 X25519PublicKeyParameters pub = new X25519PublicKeyParameters(ephemeralKey, 0);
                 PGPPublicKey k = new BcPGPKeyConverter().getPGPPublicKey(
                     PublicKeyPacket.VERSION_4, PublicKeyAlgorithmTags.ECDH, null, pub, new Date());
-                PublicKeyValues peerKey = yubikey.convertPublicKey(k);
+                PublicKey peerKey = yubikey.convertPublicKey(k);
 
-                char[] pin = requireUserPin();
-                try (OpenPgpSession openPgpSession = yubikey.openSession())
-                {
-                    openPgpSession.verifyUserPin(pin, true);
-                    return openPgpSession.decrypt(peerKey);
-                }
-                catch (ApduException | IOException | CardException e)
-                {
-                    throw new PGPException("Cannot decrypt message", e);
-                }
-                catch (InvalidPinException e)
-                {
-                    throw new KeyPassphraseException(getSecretKey(), e);
-                }
-                finally
-                {
-                    Arrays.fill(pin, (char)0);
-                }
+                return yubikey.decrypt(peerKey, yubikey.getDecryptionKey(), getSecretKey(), userPinProvider);
             }
 
             public byte[] decryptX448(AsymmetricKeyParameter privKey, byte[] ephemeralKey)
@@ -169,7 +112,7 @@ public class BcYubikeyPublicKeyDataDecryptorFactory
      * valid, non-infinity point of the recipient key's curve before handing it to the card, which will
      * otherwise multiply it by the card-held private scalar (an invalid-curve attack against the token).
      */
-    private PublicKeyValues toEphemeralPublicKey(ECDHPublicBCPGKey pubKey, byte[] ephemeralKeyBytes)
+    private PublicKey toEphemeralPublicKey(ECDHPublicBCPGKey pubKey, byte[] ephemeralKeyBytes)
         throws PGPException
     {
         ASN1ObjectIdentifier curveOid = pubKey.getCurveOID();
@@ -221,20 +164,5 @@ public class BcYubikeyPublicKeyDataDecryptorFactory
             || "brainpoolP384r1".equals(curveName)
             || "brainpoolP512r1".equals(curveName)
             || "curve25519".equals(curveName);
-    }
-
-    /**
-     * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
-     * verified it.
-     */
-    private char[] requireUserPin()
-        throws KeyPassphraseException
-    {
-        char[] pin = userPinProvider.getKeyPassword(getSecretKey());
-        if (pin == null || pin.length == 0)
-        {
-            throw new KeyPassphraseException(getSecretKey(), new IllegalStateException("PIN required."));
-        }
-        return pin;
     }
 }

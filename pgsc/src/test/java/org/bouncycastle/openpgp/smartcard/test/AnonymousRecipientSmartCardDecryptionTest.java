@@ -6,10 +6,7 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.openpgp.api.KeyPairGeneratorCallback;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
-import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
+import org.bouncycastle.openpgp.api.*;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
@@ -185,6 +182,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
     public static void main(String[] args)
         throws CardException
     {
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
         OpenPGPSmartCardManager m;
         TestProperties p;
         try
@@ -209,7 +207,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
             System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on Yubikey: " + e.getMessage());
         }
 
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         p = new TestProperties(1312);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager().addBackend(sim);

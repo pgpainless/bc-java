@@ -441,6 +441,7 @@ public class SmartCardMessageSigningTest
     public static void main(String[] args)
             throws CardException
     {
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
         OpenPGPSmartCardManager m;
         TestProperties p;
 
@@ -468,7 +469,7 @@ public class SmartCardMessageSigningTest
         }
 
         p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager()
                 .addBackend(sim);

@@ -3,16 +3,10 @@ package org.bouncycastle.openpgp.smartcard.simulator;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPPrivateKey;
-import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.operator.PGPContentSigner;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 
@@ -23,6 +17,11 @@ public class SimulatorOpenPGPSmartCardBackend
         extends OpenPGPSmartCardBackend<SimulatorOpenPGPSmartCard>
 {
     private final List<SimulatorOpenPGPSmartCard> smartCards = new ArrayList<>();
+
+    public SimulatorOpenPGPSmartCardBackend(OpenPGPImplementation implementation)
+    {
+        super(implementation);
+    }
 
     @Override
     public String getName()
@@ -52,31 +51,5 @@ public class SimulatorOpenPGPSmartCardBackend
         PGPPrivateKey softwareKey = card.getSoftwareKey(key, userPinProvider);
 
         return new BcPublicKeyDataDecryptorFactory(new PGPKeyPair(key.getPGPPublicKey(), softwareKey));
-    }
-
-    @Override
-    public PGPContentSignerBuilderProvider provideExternalPGPContentSignerBuilderProvider(
-            OpenPGPKey.OpenPGPSecretKey signingKey,
-            SimulatorOpenPGPSmartCard card,
-            KeyPassphraseProvider userPinProvider,
-            int hashAlgorithmId,
-            OpenPGPImplementation implementation)
-    {
-        return new BcPGPContentSignerBuilderProvider(hashAlgorithmId)
-        {
-            @Override
-            public PGPContentSignerBuilder get(PGPPublicKey publicKey)
-            {
-                return new BcPGPContentSignerBuilder(publicKey.getAlgorithm(), hashAlgorithmId)
-                {
-                    @Override
-                    public PGPContentSigner build(int signatureType)
-                            throws PGPException
-                    {
-                        return build(signatureType, card.getSoftwareKey(signingKey, userPinProvider));
-                    }
-                };
-            }
-        };
     }
 }

@@ -1,9 +1,6 @@
 package org.bouncycastle.openpgp.smartcard.test;
 
-import org.bouncycastle.openpgp.api.OpenPGPCertificate;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
-import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
+import org.bouncycastle.openpgp.api.*;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
@@ -76,6 +73,7 @@ public class UnrelatedSmartCardMessageDecryptionTest
 
     public static void main(String[] args)
     {
+        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
         OpenPGPSmartCardManager m;
         TestProperties p;
 
@@ -103,7 +101,7 @@ public class UnrelatedSmartCardMessageDecryptionTest
         }
 
         p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend(implementation);
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager()
                 .addBackend(sim);

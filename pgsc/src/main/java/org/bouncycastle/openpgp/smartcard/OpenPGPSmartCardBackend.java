@@ -6,12 +6,15 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPImplementation;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPSecretKey;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
+import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.yubikey.operator.ExternalPGPContentSignerBuilderProviderFactory;
+import org.bouncycastle.openpgp.smartcard.yubikey.operator.ExternalContentSignerBuilder;
 import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;
@@ -19,8 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
-    implements PGPContentSignerBuilderProviderFactory,
-        ExternalPGPContentSignerBuilderProviderFactory<T>
+    implements PGPContentSignerBuilderProviderFactory
 {
     /**
      * Size of the fingerprint field of an OpenPGP smart card.
@@ -32,6 +34,12 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
      */
     protected static final int SHORTENED_IDENTIFIER_LENGTH = 8;
 
+    protected final OpenPGPImplementation implementation;
+
+    public OpenPGPSmartCardBackend(OpenPGPImplementation implementation)
+    {
+        this.implementation = implementation;
+    }
     /**
      * Return the name of the backend.
      *
@@ -323,8 +331,27 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             }
 
             // found matching card
-            OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
-            return provideExternalPGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId, implementation);
+            PGPDigestCalculatorProvider digestCalculatorProvider = implementation.pgpDigestCalculatorProvider();
+
+            return new PGPContentSignerBuilderProvider(hashAlgorithmId)
+            {
+                @Override
+                public PGPContentSignerBuilder get(PGPPublicKey signingPubKey)
+                {
+                    if (!signingKey.getPGPPublicKey().getKeyIdentifier().matchesExplicit(signingPubKey.getKeyIdentifier()))
+                    {
+                        throw new IllegalArgumentException("Wrong public key provided.");
+                    }
+
+                    return get(signingKey);
+                }
+
+                @Override
+                public PGPContentSignerBuilder get(OpenPGPKey.OpenPGPSecretKey signingKey)
+                {
+                    return new ExternalContentSignerBuilder(card.getSignatureKey(), signingKey, userPinProvider, hashAlgorithmId, digestCalculatorProvider);
+                }
+            };
         }
         return null;
     }
