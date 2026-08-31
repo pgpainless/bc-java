@@ -206,7 +206,12 @@ public class BcPublicKeyDataDecryptorFactory
                 throw new IllegalArgumentException("Invalid Curve25519 public key");
             }
             // skip the 0x40 header byte.
-            secret = getCryptoCallback().decryptX25519(privKey, Arrays.copyOfRange(pEnc, 1, pEnc.length));
+            X25519PublicKeyParameters peerKey = new X25519PublicKeyParameters(pEnc, 1);
+            //ECDomainParameters ecParameters = ((ECPrivateKeyParameters)privKey).getParameters();
+            //ECPublicKeyParameters ephPub = new ECPublicKeyParameters(ecParameters.getCurve().decodePoint(
+            //        Arrays.copyOfRange(pEnc, 1, pEnc.length)),
+            //        ecParameters);
+            secret = getCryptoCallback().decrypt(PublicKeyAlgorithmTags.X25519, peerKey);
         }
         else if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
         {
@@ -215,7 +220,8 @@ public class BcPublicKeyDataDecryptorFactory
                 throw new IllegalArgumentException("Invalid Curve448 public key");
             }
             // skip the 0x40 header byte.
-            secret = getCryptoCallback().decryptX448(privKey, Arrays.copyOfRange(pEnc, 1, pEnc.length));
+            X448PublicKeyParameters peerKey = new X448PublicKeyParameters(pEnc, 1);
+            secret = getCryptoCallback().decrypt(PublicKeyAlgorithmTags.X448, peerKey);
         }
         else
         {
@@ -341,8 +347,49 @@ public class BcPublicKeyDataDecryptorFactory
     private static class DefaultBcPublicKeyCryptoCallback
         extends BcPublicKeyCryptoCallback
     {
+        private final AsymmetricKeyParameter privKey;
+
+        public DefaultBcPublicKeyCryptoCallback(AsymmetricKeyParameter privKey)
+        {
+            this.privKey = privKey;
+        }
+
         @Override
-        public byte[] decryptRSA(int keyAlgorithm, byte[] sessionKey, AsymmetricKeyParameter privKey)
+        public byte[] decrypt(int keyAlgorithm, byte[][] pEnc)
+                throws PGPException, InvalidCipherTextException
+        {
+            switch (keyAlgorithm)
+            {
+                case PublicKeyAlgorithmTags.RSA_GENERAL:
+                case PublicKeyAlgorithmTags.RSA_ENCRYPT:
+                    return decryptRSA(keyAlgorithm, pEnc[0]);
+
+                case PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT:
+                case PublicKeyAlgorithmTags.ELGAMAL_GENERAL:
+                    return decryptElGamal(keyAlgorithm, pEnc);
+            }
+            return new byte[0];
+        }
+
+        @Override
+        public byte[] decrypt(int keyAlgorithm, AsymmetricKeyParameter peerKey)
+                throws PGPException, InvalidCipherTextException
+        {
+            switch (keyAlgorithm)
+            {
+                case PublicKeyAlgorithmTags.ECDH:
+                    return BcUtil.getSecret(new BasicRawAgreement(new ECDHBasicAgreement()), privKey, peerKey);
+
+                case PublicKeyAlgorithmTags.X25519:
+                    return BcUtil.getSecret(new X25519Agreement(), privKey, peerKey);
+
+                case PublicKeyAlgorithmTags.X448:
+                    return BcUtil.getSecret(new X448Agreement(), privKey, peerKey);
+            }
+            return new byte[0];
+        }
+
+        private byte[] decryptRSA(int keyAlgorithm, byte[] sessionKey)
                 throws PGPException, InvalidCipherTextException
         {
             BufferedAsymmetricBlockCipher c1 = getBufferedAsymmetricBlockCipher(keyAlgorithm, privKey);
@@ -350,8 +397,7 @@ public class BcPublicKeyDataDecryptorFactory
             return c1.doFinal();
         }
 
-        @Override
-        public byte[] decryptElGamal(int keyAlgorithm, byte[][] secKeyData, AsymmetricKeyParameter privKey)
+        private byte[] decryptElGamal(int keyAlgorithm, byte[][] secKeyData)
                 throws InvalidCipherTextException, PGPException
         {
             BufferedAsymmetricBlockCipher c1 = getBufferedAsymmetricBlockCipher(keyAlgorithm, privKey);
@@ -372,15 +418,10 @@ public class BcPublicKeyDataDecryptorFactory
         }
 
         @Override
-        public byte[] decryptECDH(ECDHPublicBCPGKey pubKey,
-                                  byte[] ephemeralKeyBytes,
+        public byte[] decryptECDH(ECPublicKeyParameters ephemeralKey,
                                   AsymmetricKeyParameter privKey)
         {
-            ECDomainParameters ecParameters = ((ECPrivateKeyParameters)privKey).getParameters();
-            ECPublicKeyParameters ephPub = new ECPublicKeyParameters(ecParameters.getCurve().decodePoint(ephemeralKeyBytes),
-                    ecParameters);
-
-            return BcUtil.getSecret(new BasicRawAgreement(new ECDHBasicAgreement()), privKey, ephPub);
+            return BcUtil.getSecret(new BasicRawAgreement(new ECDHBasicAgreement()), privKey, ephemeralKey);
         }
 
         @Override

@@ -318,7 +318,7 @@ public class YubikeyOpenPGPSmartCard
     }
 
     @Override
-    public byte[] sign(byte[] encodedDigest,
+    public byte[] sign(byte[] digestOrMessage,
                        OpenPGPHardwareKey hardwareKey,
                        OpenPGPKey.OpenPGPSecretKey stubKey,
                        KeyPassphraseProvider userPinProvider)
@@ -336,7 +336,18 @@ public class YubikeyOpenPGPSmartCard
         try (OpenPgpSession session = openSession())
         {
             session.verifyUserPin(pin, false);
-            return session.sign(encodedDigest);
+            if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_SIGNATURE)
+            {
+                return session.sign(digestOrMessage);
+            }
+            else if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_AUTHENTICATION)
+            {
+                return session.authenticate(digestOrMessage);
+            }
+            else
+            {
+                throw new IllegalStateException("Cannot sign/authenticate with this key. KeyRef: " + hardwareKey.getKeyRef());
+            }
         }
         catch (ApduException | IOException | CardException e)
         {
@@ -372,7 +383,14 @@ public class YubikeyOpenPGPSmartCard
         try (OpenPgpSession session = openSession())
         {
             session.verifyUserPin(pin, true);
-            return session.decrypt(message);
+            if (openPGPHardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_DECRYPTION)
+            {
+                return session.decrypt(message);
+            }
+            else
+            {
+                throw new IllegalStateException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef());
+            }
         }
         catch (ApduException | IOException | CardException e)
         {
@@ -408,7 +426,14 @@ public class YubikeyOpenPGPSmartCard
         try (OpenPgpSession session = openSession())
         {
             session.verifyUserPin(pin, true);
-            return session.decrypt(PublicKeyValues.fromPublicKey(publicKey));
+            if (openPGPHardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_DECRYPTION)
+            {
+                return session.decrypt(PublicKeyValues.fromPublicKey(publicKey));
+            }
+            else
+            {
+                throw new IllegalStateException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef());
+            }
         }
         catch (ApduException | IOException | CardException e)
         {

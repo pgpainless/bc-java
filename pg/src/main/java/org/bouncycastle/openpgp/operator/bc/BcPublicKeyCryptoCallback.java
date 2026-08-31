@@ -22,6 +22,13 @@ import org.bouncycastle.openpgp.PGPException;
  */
 public abstract class BcPublicKeyCryptoCallback
 {
+    public abstract byte[] decrypt(int keyAlgorithm,
+                                   byte[][] pEnc)
+        throws PGPException, InvalidCipherTextException;
+
+    public abstract byte[] decrypt(int keyAlgorithm,
+                                   AsymmetricKeyParameter peerKey)
+        throws PGPException, InvalidCipherTextException;
     /**
      * Perform RSA decryption of an encrypted session key.
      *
@@ -33,8 +40,7 @@ public abstract class BcPublicKeyCryptoCallback
      * @throws InvalidCipherTextException if the ciphertext is invalid
      */
     public abstract byte[] decryptRSA(int keyAlgorithm,
-                                      byte[] pEnc,
-                                      AsymmetricKeyParameter privKey)
+                                      byte[] pEnc)
         throws PGPException, InvalidCipherTextException;
 
     /**
@@ -48,8 +54,7 @@ public abstract class BcPublicKeyCryptoCallback
      * @throws PGPException if the message cannot be decrypted
      */
     public abstract byte[] decryptElGamal(int keyAlgorithm,
-                                          byte[][] secKeyData,
-                                          AsymmetricKeyParameter privKey)
+                                          byte[][] secKeyData)
         throws InvalidCipherTextException, PGPException;
 
     /**
@@ -62,8 +67,7 @@ public abstract class BcPublicKeyCryptoCallback
      * @throws PGPException if the message cannot be decrypted
      */
     public abstract byte[] decryptECDH(ECDHPublicBCPGKey pubKey,
-                                       byte[] ephemeralKeyBytes,
-                                       AsymmetricKeyParameter privKey)
+                                       byte[] ephemeralKeyBytes)
         throws PGPException;
 
     /**
@@ -74,8 +78,7 @@ public abstract class BcPublicKeyCryptoCallback
      * @return shared secret
      * @throws PGPException if the message cannot be decrypted
      */
-    public abstract byte[] decryptX25519(AsymmetricKeyParameter privKey,
-                                         byte[] ephemeralKey)
+    public abstract byte[] decryptX25519(byte[] ephemeralKey)
         throws PGPException;
 
     /**
@@ -86,7 +89,6 @@ public abstract class BcPublicKeyCryptoCallback
      * @return shared secret
      * @throws PGPException if the message cannot be decrypted
      */
-    public abstract byte[] decryptX448(AsymmetricKeyParameter privKey,
-                                       byte[] ephemeralKey)
+    public abstract byte[] decryptX448(byte[] ephemeralKey)
         throws PGPException;
 }
