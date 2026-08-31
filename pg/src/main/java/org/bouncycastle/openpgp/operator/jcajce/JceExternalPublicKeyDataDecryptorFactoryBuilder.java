@@ -142,7 +142,9 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                         int sesKeyOff = pLen + 1 + (includesSesKeyAlg ? 1 : 0);
                         byte[] keyEnc = Arrays.copyOfRange(enc, sesKeyOff, sesKeyOff + sesKeyLen);
 
-                        byte[] secret = cryptoCallback.decryptX25519(getPublicKey(ephemeralKey, EdECObjectIdentifiers.id_X25519, 0));
+                        byte[] secret = cryptoCallback.decrypt(
+                                PublicKeyAlgorithmTags.X25519,
+                                getPublicKey(ephemeralKey, EdECObjectIdentifiers.id_X25519, 0));
 
                         byte[] hkdfOut = RFC6637KDFCalculator.createKey(HashAlgorithmTags.SHA256, SymmetricKeyAlgorithmTags.AES_128,
                                 Arrays.concatenate(ephemeralKey, pubKey.getPublicKeyPacket().getKey().getEncoded(), secret),
@@ -231,16 +233,16 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                     throw new IllegalArgumentException("Invalid Curve25519 public key");
                 }
                 publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X25519, 1);
-                decSessionKey = cryptoCallback.decryptX25519(publicKey);
+                decSessionKey = cryptoCallback.decrypt(PublicKeyAlgorithmTags.X25519, publicKey);
             }
             else if (ecKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
             {
                 if (pEnc.length != (1 + X448PublicBCPGKey.LENGTH) || 0x40 != pEnc[0])
                 {
-                    throw new IllegalArgumentException("Invalid Curve25519 public key");
+                    throw new IllegalArgumentException("Invalid Curve448 public key");
                 }
                 publicKey = getPublicKey(pEnc, EdECObjectIdentifiers.id_X448, 1);
-                decSessionKey = cryptoCallback.decryptX448(publicKey);
+                decSessionKey = cryptoCallback.decrypt(PublicKeyAlgorithmTags.X448, publicKey);
             }
             else
             {
@@ -259,7 +261,7 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                                         ecKey.getSymmetricKeyAlgorithm()
                                 )
                         ), fingerprintCalculator));
-                decSessionKey = cryptoCallback.decryptECDH(ecKey, publicKey);
+                decSessionKey = cryptoCallback.decrypt(PublicKeyAlgorithmTags.ECDH, publicKey);
             }
 
             int hashAlgorithm = ecKey.getHashAlgorithm();
@@ -356,11 +358,11 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
         if (keyAlgorithm == PublicKeyAlgorithmTags.RSA_GENERAL || keyAlgorithm == PublicKeyAlgorithmTags.RSA_ENCRYPT)
         {
             byte[] sessionKey = Arrays.copyOfRange(secKeyData[0], 2, secKeyData[0].length);
-            return cryptoCallback.decryptRSA(keyAlgorithm, sessionKey);
+            return cryptoCallback.decrypt(keyAlgorithm, new byte[][]{sessionKey});
         }
         else if (keyAlgorithm == PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT || keyAlgorithm == PublicKeyAlgorithmTags.ELGAMAL_GENERAL)
         {
-            return cryptoCallback.decryptElGamal(keyAlgorithm, secKeyData);
+            return cryptoCallback.decrypt(keyAlgorithm, secKeyData);
         }
         else throw new PGPException("Unexpected public key algorithm: " + keyAlgorithm);
     }
@@ -376,22 +378,12 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
 
     public static abstract class PublicKeyCryptoCallback
     {
-        public abstract byte[] decryptRSA(int keyAlgorithm,
-                                          byte[] pEnc)
+        public abstract byte[] decrypt(int keyAlgorithm,
+                                       byte[][] secKeyData)
                 throws PGPException;
 
-        public abstract byte[] decryptElGamal(int keyAlgorithm,
-                                              byte[][] secKeyData)
-                throws PGPException;
-
-        public abstract byte[] decryptECDH(ECDHPublicBCPGKey pubKey,
-                                           PublicKey ephemeralKeyBytes)
-                throws PGPException;
-
-        public abstract byte[] decryptX25519(PublicKey ephemeralKey)
-                throws PGPException;
-
-        public abstract byte[] decryptX448(PublicKey ephemeralKey)
+        public abstract byte[] decrypt(int keyAlgorithm,
+                                       PublicKey peerKey)
                 throws PGPException;
     }
 }

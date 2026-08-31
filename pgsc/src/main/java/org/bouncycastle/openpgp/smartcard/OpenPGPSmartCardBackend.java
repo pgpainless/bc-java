@@ -14,7 +14,7 @@ import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.yubikey.operator.ExternalContentSignerBuilder;
+import org.bouncycastle.openpgp.smartcard.operator.ExternalContentSignerBuilder;
 import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;

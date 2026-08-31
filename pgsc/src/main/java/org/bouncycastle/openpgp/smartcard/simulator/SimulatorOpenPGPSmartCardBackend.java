@@ -9,6 +9,7 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.operator.bc.BcSmartCardPublicKeyDataDecryptorFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,8 +49,9 @@ public class SimulatorOpenPGPSmartCardBackend
             KeyPassphraseProvider userPinProvider)
             throws PGPException
     {
-        PGPPrivateKey softwareKey = card.getSoftwareKey(key, userPinProvider);
+        return new BcSmartCardPublicKeyDataDecryptorFactory<>(key, card, userPinProvider);
+        //PGPPrivateKey softwareKey = card.getSoftwareKey(key, userPinProvider);
 
-        return new BcPublicKeyDataDecryptorFactory(new PGPKeyPair(key.getPGPPublicKey(), softwareKey));
+        //return new BcPublicKeyDataDecryptorFactory(new PGPKeyPair(key.getPGPPublicKey(), softwareKey));
     }
 }

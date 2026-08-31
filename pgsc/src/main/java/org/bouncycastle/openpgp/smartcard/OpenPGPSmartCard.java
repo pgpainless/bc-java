@@ -73,8 +73,9 @@ public abstract class OpenPGPSmartCard
     public abstract boolean isKeySupported(byte keyRef, OpenPGPComponentKey key)
             throws CardException;
 
-    public abstract boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
-            throws CardException;
+    public abstract boolean isKeySupported(byte keyRef, PublicKey publicKey);
+
+    public abstract boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID);
 
     /**
      * Return the {@link OpenPGPHardwareKey} identified by the given key reference.

@@ -17,6 +17,9 @@ import com.yubico.yubikit.openpgp.OpenPgpSession;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
+import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
@@ -120,6 +123,17 @@ public class YubikeyOpenPGPSmartCard
             throws CardException
     {
         return getSupportedAlgorithms(keyRef).supports(key);
+    }
+
+    @Override
+    public boolean isKeySupported(byte keyRef, PublicKey publicKey)
+    {
+        if (publicKey instanceof BCXDHPublicKey)
+        {
+            BCXDHPublicKey pk = (BCXDHPublicKey)publicKey;
+            pk.getAlgorithm();
+        }
+        return true;
     }
 
     /**

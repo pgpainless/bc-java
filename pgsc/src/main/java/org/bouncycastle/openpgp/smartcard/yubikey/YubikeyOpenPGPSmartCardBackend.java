@@ -18,8 +18,8 @@ import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.yubikey.operator.bc.BcYubikeyPublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.smartcard.yubikey.operator.jcajce.JceYubikeyPublicKeyDataDecryptorFactoryBuilder;
+import org.bouncycastle.openpgp.smartcard.operator.bc.BcSmartCardPublicKeyDataDecryptorFactory;
+import org.bouncycastle.openpgp.smartcard.operator.jcajce.JceSmartCardPublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.util.Arrays;
 
 import java.security.NoSuchAlgorithmException;
@@ -331,7 +331,7 @@ public class YubikeyOpenPGPSmartCardBackend
                                                          KeyPassphraseProvider userPinProvider)
                     throws PGPException
             {
-                return new BcYubikeyPublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
+                return new BcSmartCardPublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
             }
 
             @Override
@@ -352,7 +352,7 @@ public class YubikeyOpenPGPSmartCardBackend
                                                          KeyPassphraseProvider userPinProvider)
                     throws PGPException
             {
-                return new JceYubikeyPublicKeyDataDecryptorFactoryBuilder(card, userPinProvider)
+                return new JceSmartCardPublicKeyDataDecryptorFactoryBuilder(card, userPinProvider)
                         .setProvider(new BouncyCastleProvider())
                         .build(secretKey);
             }

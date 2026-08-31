@@ -1,4 +1,4 @@
-package org.bouncycastle.openpgp.smartcard.yubikey.operator;
+package org.bouncycastle.openpgp.smartcard.operator;
 
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.DERNull;

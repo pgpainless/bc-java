@@ -4,18 +4,28 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
+import org.bouncycastle.crypto.BufferedAsymmetricBlockCipher;
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.RawAgreement;
 import org.bouncycastle.crypto.Signer;
+import org.bouncycastle.crypto.agreement.BasicRawAgreement;
+import org.bouncycastle.crypto.agreement.ECDHBasicAgreement;
+import org.bouncycastle.crypto.agreement.X25519Agreement;
+import org.bouncycastle.crypto.agreement.X448Agreement;
 import org.bouncycastle.crypto.encodings.PKCS1Encoding;
 import org.bouncycastle.crypto.engines.RSABlindedEngine;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
+import org.bouncycastle.crypto.params.X448PublicKeyParameters;
 import org.bouncycastle.crypto.signers.DSASigner;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.signers.Ed448Signer;
 import org.bouncycastle.crypto.signers.StandardDSAEncoding;
+import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
@@ -25,7 +35,6 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Integers;
 
 import java.io.IOException;
@@ -49,8 +58,8 @@ public class SimulatorOpenPGPSmartCard
         extends OpenPGPSmartCard
 {
     private final Integer serialNumber;
-
     private final Map<Byte, OpenPGPKey.OpenPGPSecretKey> secretKeys = new HashMap<>();
+    private final BcPGPKeyConverter keyConverter = new BcPGPKeyConverter();
 
     public SimulatorOpenPGPSmartCard(SimulatorOpenPGPSmartCardBackend backend,
                                      Integer serialNumber)
@@ -132,7 +141,14 @@ public class SimulatorOpenPGPSmartCard
     }
 
     @Override
-    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID) throws CardException {
+    public boolean isKeySupported(byte keyRef, PublicKey publicKey)
+    {
+        return true;
+    }
+
+    @Override
+    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
+    {
         return true;
     }
 
@@ -205,8 +221,7 @@ public class SimulatorOpenPGPSmartCard
         try
         {
             PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
-            BcPGPKeyConverter converter = new BcPGPKeyConverter();
-            AsymmetricKeyParameter privateKey = converter.getPrivateKey(pgpPrivateKey);
+            AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
 
             switch (stubKey.getAlgorithm())
             {
@@ -256,13 +271,86 @@ public class SimulatorOpenPGPSmartCard
     }
 
     @Override
-    public byte[] decrypt(byte[] message, OpenPGPHardwareKey openPGPHardwareKey, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider) {
-        return new byte[0];
+    public byte[] decrypt(byte[] message,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider)
+    {
+        try
+        {
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
+            int keyAlgorithm = stubKey.getAlgorithm();
+            switch (keyAlgorithm)
+            {
+                case PublicKeyAlgorithmTags.RSA_GENERAL:
+                case PublicKeyAlgorithmTags.RSA_ENCRYPT:
+                    BufferedAsymmetricBlockCipher c1 = new BufferedAsymmetricBlockCipher(new PKCS1Encoding(new RSABlindedEngine()));
+                    c1.init(false, privateKey);
+                    c1.processBytes(message, 0, message.length);
+                    return c1.doFinal();
+
+                case PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT:
+                case PublicKeyAlgorithmTags.ELGAMAL_GENERAL:
+                    throw new PGPException("Not implemented.");
+
+                default:
+                    throw new PGPException("Unknown public key algorithm: " + keyAlgorithm);
+            }
+        }
+        catch (PGPException | InvalidCipherTextException e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public byte[] decrypt(PublicKey publicKey, OpenPGPHardwareKey openPGPHardwareKey, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider) {
-        return new byte[0];
-    }
+    public byte[] decrypt(PublicKey publicKey,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider)
+    {
+        try
+        {
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
+            int keyAlgorithm = stubKey.getAlgorithm();
+            RawAgreement agreement;
+            byte[] secret;
+            switch (keyAlgorithm)
+            {
+                case PublicKeyAlgorithmTags.ECDH:
+                    agreement = new BasicRawAgreement(new ECDHBasicAgreement());
+                    agreement.init(privateKey);
+                    secret = new byte[agreement.getAgreementSize()];
 
+                    // agreement.calculateAgreement(new ECPublicKeyParameters(null, null), secret, 0);
+                    return secret;
+
+                case PublicKeyAlgorithmTags.X25519:
+                    agreement = new X25519Agreement();
+                    agreement.init(privateKey);
+                    secret = new byte[agreement.getAgreementSize()];
+                    agreement.calculateAgreement(new X25519PublicKeyParameters(
+                            ((BCXDHPublicKey)publicKey).getUEncoding()
+                    ), secret, 0);
+                    return secret;
+
+                case PublicKeyAlgorithmTags.X448:
+                    agreement = new X448Agreement();
+                    agreement.init(privateKey);
+                    secret = new byte[agreement.getAgreementSize()];
+                    agreement.calculateAgreement(new X448PublicKeyParameters(publicKey.getEncoded()), secret, 0);
+                    return secret;
+
+                default:
+                    //return BcUtil.getSecret(new X448Agreement(), privateKey, publicKey);
+                    return null;
+            }
+        }
+        catch (PGPException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 }

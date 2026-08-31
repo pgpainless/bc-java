@@ -1,6 +1,5 @@
 package org.bouncycastle.openpgp.operator.bc;
 
-import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.openpgp.PGPException;

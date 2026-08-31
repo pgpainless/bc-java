@@ -3,4 +3,4 @@
  *
  * @see org.bouncycastle.openpgp.smartcard.yubikey.operator.YubikeyPublicKeyDataDecryptorFactory
  */
-package org.bouncycastle.openpgp.smartcard.yubikey.operator;
+package org.bouncycastle.openpgp.smartcard.operator;
