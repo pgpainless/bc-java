@@ -1,23 +1,16 @@
 package org.bouncycastle.openpgp.smartcard;
 
-import org.bouncycastle.asn1.ASN1Encoding;
-import org.bouncycastle.asn1.DERNull;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.asn1.x509.DigestInfo;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.KeyIdentifier;
-import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate.OpenPGPComponentKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPPrivateKey;
 import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.pqc.crypto.DigestUtils;
 
-import java.io.IOException;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,6 +71,9 @@ public abstract class OpenPGPSmartCard
      * @throws CardException if communication with the card fails
      */
     public abstract boolean isKeySupported(byte keyRef, OpenPGPComponentKey key)
+            throws CardException;
+
+    public abstract boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
             throws CardException;
 
     /**

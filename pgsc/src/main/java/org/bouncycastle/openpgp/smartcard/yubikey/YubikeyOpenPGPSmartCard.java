@@ -428,7 +428,8 @@ public class YubikeyOpenPGPSmartCard
             session.verifyUserPin(pin, true);
             if (openPGPHardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_DECRYPTION)
             {
-                return session.decrypt(PublicKeyValues.fromPublicKey(publicKey));
+                PublicKeyValues pkVal = PublicKeyValues.fromPublicKey(publicKey);
+                return session.decrypt(pkVal);
             }
             else
             {
@@ -494,6 +495,25 @@ public class YubikeyOpenPGPSmartCard
             throws PGPException
     {
         return getBackend().toPublicKey(pgpPublicKey);
+    }
+
+    @Override
+    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
+    {
+        List<SupportedAlgorithms.Algorithm> supported = getSupportedAlgorithms(keyRef).getAlgorithms();
+        for (SupportedAlgorithms.Algorithm alg : supported)
+        {
+            if (!(alg instanceof SupportedAlgorithms.EC))
+            {
+                continue;
+            }
+            SupportedAlgorithms.EC ec = (SupportedAlgorithms.EC) alg;
+            if (curveOID.equals(ec.curve))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

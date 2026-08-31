@@ -1,5 +1,6 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -24,6 +25,7 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
+import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Integers;
 
 import java.io.IOException;
@@ -126,6 +128,11 @@ public class SimulatorOpenPGPSmartCard
     @Override
     public boolean isKeySupported(byte keyRef, OpenPGPCertificate.OpenPGPComponentKey key)
     {
+        return true;
+    }
+
+    @Override
+    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID) throws CardException {
         return true;
     }
 
