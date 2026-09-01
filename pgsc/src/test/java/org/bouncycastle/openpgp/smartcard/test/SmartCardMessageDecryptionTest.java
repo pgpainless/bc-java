@@ -328,7 +328,7 @@ public class SmartCardMessageDecryptionTest
     {
         OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
-        System.out.println("Test on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
+        System.out.println("Decrypt on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
         card.reset();
         if (DEBUG)
         {

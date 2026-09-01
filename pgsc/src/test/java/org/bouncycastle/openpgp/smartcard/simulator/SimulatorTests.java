@@ -15,7 +15,7 @@ import org.bouncycastle.util.test.Test;
 public class SimulatorTests
         extends TestCase
 {
-    public void testSimulatorSmartCard()
+    public void testOnSimulatorSmartCard()
     {
         SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
