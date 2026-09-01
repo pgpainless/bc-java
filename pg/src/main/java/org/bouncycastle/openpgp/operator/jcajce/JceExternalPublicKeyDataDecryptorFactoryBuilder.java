@@ -2,28 +2,29 @@ package org.bouncycastle.openpgp.operator.jcajce;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.Key;
 import java.security.KeyFactory;
 import java.security.Provider;
 import java.security.PublicKey;
-import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Date;
-
-import javax.crypto.Cipher;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
+import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.asn1.x9.X9ECParametersHolder;
 import org.bouncycastle.bcpg.*;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.jcajce.util.DefaultJcaJceHelper;
 import org.bouncycastle.jcajce.util.NamedJcaJceHelper;
 import org.bouncycastle.jcajce.util.ProviderJcaJceHelper;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -44,7 +45,6 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
     private OperatorHelper helper = new OperatorHelper(new DefaultJcaJceHelper());
     private OperatorHelper contentHelper = new OperatorHelper(new DefaultJcaJceHelper());
     private JceAEADUtil aeadHelper = new JceAEADUtil(contentHelper);
-    private JcaPGPKeyConverter keyConverter = new JcaPGPKeyConverter();
     private JcaKeyFingerprintCalculator fingerprintCalculator = new JcaKeyFingerprintCalculator();
 
     public JceExternalPublicKeyDataDecryptorFactoryBuilder()
@@ -61,7 +61,6 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
     {
         softwareDecryptorFactory.setProvider(provider);
         this.helper = new OperatorHelper(new ProviderJcaJceHelper(provider));
-        keyConverter.setProvider(provider);
         this.contentHelper = helper;
         this.aeadHelper = new JceAEADUtil(contentHelper);
 
@@ -78,7 +77,6 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
     {
         softwareDecryptorFactory.setProvider(providerName);
         this.helper = new OperatorHelper(new NamedJcaJceHelper(providerName));
-        keyConverter.setProvider(providerName);
         this.contentHelper = helper;
         this.aeadHelper = new JceAEADUtil(contentHelper);
 
@@ -124,7 +122,7 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                 boolean containsSKAlg = containsSKAlg(pkeskVersion);
                 if (keyAlgorithm == PublicKeyAlgorithmTags.ECDH)
                 {
-                    return decryptSessionData(keyConverter, pubKey, secKeyData, cryptoCallback);
+                    return decryptSessionData(pubKey, secKeyData, cryptoCallback);
                 }
                 else if (keyAlgorithm == PublicKeyAlgorithmTags.X25519) {
                     try {
@@ -190,14 +188,12 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
 
     /**
      * Decrypt ECDH encrypted session keys.
-     * @param converter key converter
      * @param pubKey our public key
      * @param secKeyData encrypted session key
      * @return decrypted session key
      * @throws PGPException
      */
-    private byte[] decryptSessionData(JcaPGPKeyConverter converter,
-                                      PGPPublicKey pubKey,
+    private byte[] decryptSessionData(PGPPublicKey pubKey,
                                       byte[][] secKeyData,
                                       PublicKeyCryptoCallback cryptoCallback)
             throws PGPException
@@ -246,21 +242,7 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
             }
             else
             {
-                X9ECParametersHolder x9Params = ECNamedCurveTable.getByOIDLazy(ecKey.getCurveOID());
-                ECPoint publicPoint = x9Params.getCurve().decodePoint(pEnc);
-
-                publicKey = converter.getPublicKey(
-                        new PGPPublicKey(new PublicKeyPacket(
-                                pubKeyData.getVersion(),
-                                PublicKeyAlgorithmTags.ECDH,
-                                new Date(),
-                                new ECDHPublicBCPGKey(
-                                        ecKey.getCurveOID(),
-                                        publicPoint,
-                                        ecKey.getHashAlgorithm(),
-                                        ecKey.getSymmetricKeyAlgorithm()
-                                )
-                        ), fingerprintCalculator));
+                publicKey = getPublicKey(pEnc, ecKey.getCurveOID());
                 decSessionKey = cryptoCallback.decrypt(PublicKeyAlgorithmTags.ECDH, publicKey);
             }
 
@@ -282,56 +264,21 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
     }
 
     /**
-     * Decrypt X25519 / X448 encrypted session keys.
-     * @param converter key converter
-     * @param privKey our private key
-     * @param enc encrypted session key
-     * @param pLen Key length
-     * @param agreementAlgorithm agreement algorithm
-     * @param symmetricKeyAlgorithm wrapping algorithm
-     * @param algorithmIdentifier ephemeral key algorithm identifier
-     * @param algorithmName public key algorithm name
-     * @param containsSKAlg whether the PKESK packet is version 3
-     * @return decrypted session data
-     * @throws PGPException
+     * Parse an ephemeral ECDH public key.
+     * @param pEnc encoded ephemeral ECDH public key
+     * @param curveOID elliptic curve OID
+     * @return
      */
-    private byte[] decryptSessionData(JcaPGPKeyConverter converter, PGPPrivateKey privKey, byte[] enc, int pLen, String agreementAlgorithm,
-                                      int symmetricKeyAlgorithm, ASN1ObjectIdentifier algorithmIdentifier, String algorithmName, boolean containsSKAlg)
-            throws PGPException
+    private PublicKey getPublicKey(byte[] pEnc, ASN1ObjectIdentifier curveOID)
     {
-        try
-        {
-            // ephemeral key (32 / 56 octets)
-            byte[] ephemeralKey = Arrays.copyOf(enc, pLen);
-
-            int size = enc[pLen] & 0xff;
-
-            checkRange(pLen + 1 + size, enc);
-
-            // encrypted session key
-            int sesKeyLen = size - (containsSKAlg ? 1 : 0);
-            int sesKeyOff = pLen + 1 + (containsSKAlg ? 1 : 0);
-            byte[] keyEnc = Arrays.copyOfRange(enc, sesKeyOff, sesKeyOff + sesKeyLen);
-
-            PublicKey ephemeralPubKey = getPublicKey(ephemeralKey, algorithmIdentifier, 0);
-            Key paddedSessionKey = getSessionKey(converter, privKey, agreementAlgorithm, ephemeralPubKey, symmetricKeyAlgorithm, keyEnc,
-                    JcaJcePGPUtil.getHybridValueParameterSpecWithPrepend(ephemeralKey, privKey.getPublicKeyPacket(), algorithmName));
-            return paddedSessionKey.getEncoded();
-        }
-        catch (Exception e)
-        {
-            throw new PGPException("error decrypting session data: " + e.getMessage(), e);
-        }
-    }
-
-    private Key getSessionKey(JcaPGPKeyConverter converter, PGPPrivateKey privKey, String agreementName,
-                              PublicKey publicKey, int symmetricKeyAlgorithm, byte[] keyEnc, AlgorithmParameterSpec ukms)
-            throws PGPException, GeneralSecurityException
-    {
-        Key key = JcaJcePGPUtil.getSecret(helper, publicKey, RFC6637Utils.getKeyEncryptionOID(symmetricKeyAlgorithm).getId(), agreementName, ukms, null);
-        Cipher c = helper.createKeyWrapper(symmetricKeyAlgorithm);
-        c.init(Cipher.UNWRAP_MODE, key);
-        return c.unwrap(keyEnc, "Session", Cipher.SECRET_KEY);
+        X9ECParametersHolder x9Params = ECNamedCurveTable.getByOIDLazy(curveOID);
+        ECPoint publicPoint = x9Params.getCurve().decodePoint(pEnc);
+        X9ECParameters parms = x9Params.getParameters();
+        PublicKey publicKey = new BCECPublicKey("ECDH",
+                new ECPublicKeyParameters(publicPoint, new ECDomainParameters(parms)),
+                new ECNamedCurveSpec(ECUtil.getCurveName(curveOID), x9Params.getCurve(), parms.getG(), parms.getN(), parms.getH(), parms.getSeed()),
+                BouncyCastleProvider.CONFIGURATION);
+        return publicKey;
     }
 
     private PublicKey getPublicKey(byte[] pEnc, ASN1ObjectIdentifier algprithmIdentifier, int pEncOff)
