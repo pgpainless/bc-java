@@ -271,24 +271,27 @@ public class YubikeyOpenPGPSmartCardBackend
                                              byte[] storedFingerprint,
                                              int[] plausibleAlgorithms)
     {
-        for (int i = 0; i != plausibleAlgorithms.length; i++)
+        for (int keyVersion : new int[]{PublicKeyPacket.VERSION_4, PublicKeyPacket.VERSION_6})
         {
-            int algorithm = plausibleAlgorithms[i];
-            PGPPublicKey pgpKey;
-            try
+            for (int i = 0; i != plausibleAlgorithms.length; i++)
             {
-                pgpKey = converter.getPGPPublicKey(PublicKeyPacket.VERSION_4, algorithm, pk, creationTime);
-            }
-            catch (PGPException e)
-            {
-                // this candidate algorithm cannot represent the key at all (e.g. an Ed448 tag over an
-                // Ed25519 key) - that is a miss, not a failure of the whole search.
-                continue;
-            }
+                int algorithm = plausibleAlgorithms[i];
+                PGPPublicKey pgpKey;
+                try
+                {
+                    pgpKey = converter.getPGPPublicKey(keyVersion, algorithm, pk, creationTime);
+                }
+                catch (PGPException e)
+                {
+                    // this candidate algorithm cannot represent the key at all (e.g. an Ed448 tag over an
+                    // Ed25519 key) - that is a miss, not a failure of the whole search.
+                    continue;
+                }
 
-            if (fingerprintMatches(storedFingerprint, pgpKey.getFingerprint()))
-            {
-                return pgpKey;
+                if (fingerprintMatches(storedFingerprint, pgpKey.getFingerprint()))
+                {
+                    return pgpKey;
+                }
             }
         }
         return null;

@@ -308,7 +308,7 @@ public class YubikeyOpenPGPSmartCard
             PrivateKeyValues privVal = getBackend().convertPrivateKey(keyPair);
             session.putKey(keyRef, privVal);
             // write fingerprint
-            session.setFingerprint(keyRef, keyPair.getPublicKey().getFingerprint());
+            session.setFingerprint(keyRef, getBackend().toStoredFingerprint(keyPair.getPublicKey()));
 
             // write creation time
             int time = (int) (keyPair.getPublicKey().getCreationTime().getTime() / 1000);

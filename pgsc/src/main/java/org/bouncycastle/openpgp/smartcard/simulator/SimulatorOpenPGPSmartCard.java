@@ -122,7 +122,7 @@ public class SimulatorOpenPGPSmartCard
                 card,
                 keyRef,
                 state,
-                key.getPGPPublicKey().getFingerprint(),
+                card.getBackend().toStoredFingerprint(key.getPGPPublicKey()),
                 key.getPGPPublicKey().getCreationTime());
     }
 
