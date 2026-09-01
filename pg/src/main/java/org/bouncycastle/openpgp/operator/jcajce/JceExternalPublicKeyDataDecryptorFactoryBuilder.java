@@ -119,7 +119,7 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
             public byte[] recoverSessionData(int keyAlgorithm, byte[][] secKeyData, int pkeskVersion)
                     throws PGPException
             {
-                boolean containsSKAlg = containsSKAlg(pkeskVersion);
+                boolean includesSesKeyAlg = containsSKAlg(pkeskVersion);
                 if (keyAlgorithm == PublicKeyAlgorithmTags.ECDH)
                 {
                     return decryptSessionData(pubKey, secKeyData, cryptoCallback);
@@ -135,7 +135,6 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                         checkRange(pLen + 1 + size, enc);
 
                         // encrypted session key
-                        boolean includesSesKeyAlg = containsSKAlg(pkeskVersion);
                         int sesKeyLen = size - (includesSesKeyAlg ? 1 : 0);
                         int sesKeyOff = pLen + 1 + (includesSesKeyAlg ? 1 : 0);
                         byte[] keyEnc = Arrays.copyOfRange(enc, sesKeyOff, sesKeyOff + sesKeyLen);
