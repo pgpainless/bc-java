@@ -7,7 +7,6 @@ import org.bouncycastle.asn1.gnu.GNUObjectIdentifiers;
 import org.bouncycastle.bcpg.*;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 

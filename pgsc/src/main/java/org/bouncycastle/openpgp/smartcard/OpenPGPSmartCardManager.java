@@ -101,14 +101,14 @@ public class OpenPGPSmartCardManager
      * kept and rethrown if no backend can serve the key - so the caller sees the real reason (wrong PIN,
      * card locked, communication failure) rather than a bare "no factory".
      *
-     * @param secretKey secret key the message was encrypted to
-     * @param passphraseProvider callback supplying the device PIN
+     * @param stubbedDecryptionKey secret key the message was encrypted to
+     * @param userPinProvider callback supplying the device PIN
      * @return a decryptor factory, or null if no backend has a matching card
-     * @throws PGPException if every backend that recognised the key failed to produce a factory
+     * @throws PGPException if every backend that recognized the key failed to produce a factory
      */
     public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
-        OpenPGPKey.OpenPGPSecretKey secretKey,
-        KeyPassphraseProvider passphraseProvider)
+        OpenPGPKey.OpenPGPSecretKey stubbedDecryptionKey,
+        KeyPassphraseProvider userPinProvider)
         throws PGPException
     {
         PGPException lastException = null;
@@ -118,7 +118,7 @@ public class OpenPGPSmartCardManager
             try
             {
                 PublicKeyDataDecryptorFactory factory =
-                    backend.providePublicKeyDataDecryptorFactory(secretKey, passphraseProvider);
+                    backend.providePublicKeyDataDecryptorFactory(stubbedDecryptionKey, userPinProvider);
                 if (factory != null)
                 {
                     return factory;
@@ -144,10 +144,22 @@ public class OpenPGPSmartCardManager
         return null;
     }
 
+    /**
+     * Ask each registered backend in turn for a content signer builder provider, returning the first one produced.
+     * A backend that has no card for this key contributes null and the next backend is tried; a backend
+     * that fails outright does not stop the remaining backends from being asked, but its exception is
+     * kept and rethrown if no backend can serve the key - so the caller sees the real reason (wrong PIN,
+     * card locked, communication failure) rather than a bare "no provider".
+     *
+     * @param stubbedSigningKey stubbed secret key the message will be signed with
+     * @param userPinProvider callback supplying the device PIN
+     * @return a content signer builder provider, or null if no backend has a matching card
+     * @throws PGPException if every backend that recognized the key failed to produce a provider
+     */
     @Override
     public PGPContentSignerBuilderProvider getPGPContentSignerBuilderProvider(
-            OpenPGPKey.OpenPGPSecretKey secretKey,
-            KeyPassphraseProvider keyPassphraseProvider,
+            OpenPGPKey.OpenPGPSecretKey stubbedSigningKey,
+            KeyPassphraseProvider userPinProvider,
             int hashAlgorithmId)
             throws PGPException
     {
@@ -159,7 +171,7 @@ public class OpenPGPSmartCardManager
             {
                 PGPContentSignerBuilderProvider contentSignerBuilderProvider =
                         backend.getPGPContentSignerBuilderProvider(
-                                secretKey, keyPassphraseProvider, hashAlgorithmId);
+                                stubbedSigningKey, userPinProvider, hashAlgorithmId);
                 if (contentSignerBuilderProvider != null)
                 {
                     return contentSignerBuilderProvider;

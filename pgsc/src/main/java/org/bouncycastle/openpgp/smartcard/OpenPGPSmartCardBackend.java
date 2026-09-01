@@ -5,16 +5,11 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
-import org.bouncycastle.openpgp.api.OpenPGPImplementation;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPSecretKey;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
-import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.operator.ExternalContentSignerBuilder;
 import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;

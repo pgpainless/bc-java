@@ -46,7 +46,7 @@ public class UnrelatedSmartCardMessageDecryptionTest
         keyToCard(cardKey, card);
 
         OpenPGPCertificate.OpenPGPComponentKey cardDecryptionKey = cardKey.getEncryptionKeys().get(0);
-        cardKey = toExternalKey(cardKey, cardDecryptionKey.getKeyIdentifier(), null); // move decryption-key to hardware
+        cardKey = cardUtils.toExternalKey(cardKey, cardDecryptionKey.getKeyIdentifier(), null); // move decryption-key to hardware
 
         cardKey = api.editKey(cardKey)
                 .revokeComponentKey(cardDecryptionKey) // revoke hardware-key

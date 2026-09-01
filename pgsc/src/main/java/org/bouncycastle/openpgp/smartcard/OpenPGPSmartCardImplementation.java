@@ -20,12 +20,33 @@ public abstract class OpenPGPSmartCardImplementation
         this.implementation = implementation;
     }
 
+    /**
+     * Provide a {@link PublicKeyDataDecryptorFactory} that decrypts messages by delegating public-key cryptography
+     * to the given {@link OpenPGPSmartCard}.
+     *
+     * @param secretKey stub secret key
+     * @param card smart card for message decryption
+     * @param userPinProvider provider for the smart cards user PIN
+     * @return decryptor factory
+     * @throws PGPException
+     */
     public abstract PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
             OpenPGPKey.OpenPGPSecretKey secretKey,
             OpenPGPSmartCard card,
             KeyPassphraseProvider userPinProvider)
             throws PGPException;
 
+    /**
+     * Provide a {@link PGPContentSignerBuilderProvider} that signs messages by delegating public-key cryptography
+     * to the given {@link OpenPGPSmartCard}.
+     *
+     * @param signingKey stub secret key
+     * @param card smart card for message signing
+     * @param userPinProvider provider for the smart cards user PIN
+     * @param hashAlgorithmId signature hash algorithm ID
+     * @return content signer builder provider
+     * @throws PGPException
+     */
     public PGPContentSignerBuilderProvider providePGPContentSignerBuilderProvider(
             OpenPGPKey.OpenPGPSecretKey signingKey,
             OpenPGPSmartCard card,
@@ -60,5 +81,10 @@ public abstract class OpenPGPSmartCardImplementation
         };
     }
 
+    /**
+     * Return the implementation name (JcaJce / BC).
+     *
+     * @return implementation name
+     */
     public abstract String getName();
 }

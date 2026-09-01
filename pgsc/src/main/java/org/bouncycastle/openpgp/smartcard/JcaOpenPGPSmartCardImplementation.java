@@ -38,6 +38,6 @@ public class JcaOpenPGPSmartCardImplementation
     @Override
     public String getName()
     {
-        return "JCE";
+        return "JcaJce";
     }
 }

@@ -45,6 +45,7 @@ import java.util.Iterator;
 public class AnonymousRecipientSmartCardDecryptionTest
         extends AbstractOpenPGPSmartCardTest
 {
+
     public AnonymousRecipientSmartCardDecryptionTest(OpenPGPSmartCardManager manager,
                                                      TestProperties properties)
     {
@@ -109,7 +110,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
         OpenPGPKey.OpenPGPSecretKey decryptionKey =
                 softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
         card.uploadDecryptionKey(decryptionKey.unlock(), properties.getAdminPin());
-        OpenPGPKey externalKey = toExternalKey(softwareKey, null);
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey, null);
 
         isTrue(label + ": the stripped key must be marked external",
                 externalKey.getSecretKey(externalKey.getEncryptionKeys().get(0))

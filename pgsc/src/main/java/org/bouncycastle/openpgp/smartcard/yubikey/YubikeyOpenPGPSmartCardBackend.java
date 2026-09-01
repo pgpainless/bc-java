@@ -5,7 +5,9 @@ import com.yubico.yubikit.core.keys.PrivateKeyValues;
 import com.yubico.yubikit.core.keys.PublicKeyValues;
 import com.yubico.yubikit.desktop.YubiKitManager;
 import com.yubico.yubikit.management.DeviceInfo;
-import org.bouncycastle.bcpg.*;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.bcpg.PublicKeyPacket;
+import org.bouncycastle.bcpg.PublicKeyUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
@@ -80,7 +82,7 @@ public class YubikeyOpenPGPSmartCardBackend
     @Override
     public String getName()
     {
-        return "Yubikit " + implementation.getName();
+        return implementation.getName() + "+Yubikit";
     }
 
     /**

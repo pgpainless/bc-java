@@ -403,7 +403,7 @@ public class SmartCardMessageSigningTest
 
         char[] adminPin = properties.getAdminPin();
 
-        OpenPGPKey externalKey = toExternalKey(softwareKey, null);
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey, null);
 
         // Upload keys to card
         OpenPGPKey.OpenPGPSecretKey signingKey = softwareKey.getSecretKey(softwareKey.getSigningKeys().get(0));
