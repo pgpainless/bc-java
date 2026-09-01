@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 public class SmartCardMessageDecryptionTest
     extends AbstractOpenPGPSmartCardTest
 {
+    public static boolean DEBUG = false;
+
     public SmartCardMessageDecryptionTest(OpenPGPSmartCardManager manager,
                                           TestProperties properties)
     {
@@ -328,8 +330,11 @@ public class SmartCardMessageDecryptionTest
         // -DM System.out.println
         System.out.println("Test on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
         card.reset();
-        // -DM System.out.println
-        System.out.println(softwareKey.toAsciiArmoredString());
+        if (DEBUG)
+        {
+            // -DM System.out.println
+            System.out.println(softwareKey.toAsciiArmoredString());
+        }
 
         char[] adminPin = properties.getAdminPin();
 
@@ -348,8 +353,11 @@ public class SmartCardMessageDecryptionTest
         mOut.write(plaintext);
         mOut.close();
 
-        // -DM System.out.println
-        System.out.println(bOut);
+        if (DEBUG)
+        {
+            // -DM System.out.println
+            System.out.println(bOut);
+        }
 
         // Decrypt message using card
         ByteArrayInputStream bIn = new ByteArrayInputStream(bOut.toByteArray());
@@ -372,8 +380,11 @@ public class SmartCardMessageDecryptionTest
         // -DM System.out.println
         System.out.println("Decrypt on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
         card.reset();
-        // -DM System.out.println
-        System.out.println(softwareKey.toAsciiArmoredString());
+        if (DEBUG)
+        {
+            // -DM System.out.println
+            System.out.println(softwareKey.toAsciiArmoredString());
+        }
 
         char[] adminPin = properties.getAdminPin();
 
