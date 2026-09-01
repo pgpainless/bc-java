@@ -28,11 +28,36 @@ public class SupportedAlgorithms
         return new ArrayList<>(algorithms);
     }
 
+    /**
+     * Return true, if the set of supported algorithms signals support for the given key.
+     *
+     * @param key OpenPGP key
+     * @return true if key is supported
+     */
     public boolean supports(OpenPGPCertificate.OpenPGPComponentKey key)
     {
         for (Algorithm algorithm : algorithms)
         {
             if (algorithm.matches(key))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Return true, if the set of supported algorithms signals support for the given keyAlgorithm + curve OID.
+     *
+     * @param keyAlgorithm public key algorithm ID
+     * @param curveOID elliptic curve OID
+     * @return true if algorithm is supported
+     */
+    public boolean supports(int keyAlgorithm, ASN1ObjectIdentifier curveOID)
+    {
+        for (Algorithm algorithm : algorithms)
+        {
+            if (algorithm.matches(keyAlgorithm, curveOID))
             {
                 return true;
             }
@@ -52,6 +77,8 @@ public class SupportedAlgorithms
         }
 
         public abstract boolean matches(OpenPGPCertificate.OpenPGPComponentKey key);
+
+        public abstract boolean matches(int keyAlgorithm, ASN1ObjectIdentifier curveOID);
 
         public abstract String toString();
     }
@@ -77,12 +104,19 @@ public class SupportedAlgorithms
         }
 
         @Override
+        public boolean matches(int keyAlgorithm, ASN1ObjectIdentifier curveOID)
+        {
+            return false;
+        }
+
+        @Override
         public String toString()
         {
             return "Rsa{algorithmId=" + algorithmId + ", keySize=" + keySize + '}';
         }
     }
 
+    // Elliptic curves (Brainpool, NIST, Curve25519), ECDH/X25519
     public static class EC extends Algorithm
     {
         public final ASN1ObjectIdentifier curve;
@@ -94,11 +128,8 @@ public class SupportedAlgorithms
         }
 
         @Override
-        public boolean matches(OpenPGPCertificate.OpenPGPComponentKey key)
+        public boolean matches(int keyAlgorithm, ASN1ObjectIdentifier keyCurve)
         {
-            ASN1ObjectIdentifier keyCurve = getKeyCurveOID(key);
-            int keyAlgorithm = key.getAlgorithm();
-
             // Explicit match (NIST, Brainpool curves)
             if (algorithmId == keyAlgorithm)
             {
@@ -152,6 +183,15 @@ public class SupportedAlgorithms
             return false;
         }
 
+        @Override
+        public boolean matches(OpenPGPCertificate.OpenPGPComponentKey key)
+        {
+            ASN1ObjectIdentifier keyCurve = getKeyCurveOID(key);
+            int keyAlgorithm = key.getAlgorithm();
+
+            return matches(keyAlgorithm, keyCurve);
+        }
+
         private ASN1ObjectIdentifier getKeyCurveOID(OpenPGPCertificate.OpenPGPComponentKey key)
         {
             BCPGKey pubKey = key.getPGPPublicKey().getPublicKeyPacket().getKey();
@@ -187,6 +227,6 @@ public class SupportedAlgorithms
             sb.append(a.toString());
             sb.append("\n");
         }
-        return sb.toString();
+        return sb.deleteCharAt(sb.length() - 1).toString();
     }
 }
