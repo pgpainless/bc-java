@@ -1,6 +1,8 @@
 package org.bouncycastle.openpgp.smartcard.yubikey;
 
 
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
 
@@ -27,31 +29,31 @@ public class YubikeyTestInstanceProvider
     public static YubikeyOpenPGPSmartCardBackend prepareBackend()
             throws YubikeySetupException
     {
-        return prepareBackend(YubikeyOpenPGPSmartCardBackend.bcImpl());
+        return prepareBackend(new BcOpenPGPSmartCardImplementation());
     }
 
     public static YubikeyOpenPGPSmartCardBackend prepareBackend(
-            YubikeyOpenPGPSmartCardBackend.YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+            OpenPGPSmartCardImplementation implementation)
             throws YubikeySetupException
     {
         TestProperties p = defaultProperties();
-        return prepareBackend(p, decryptorFactoryProvider);
+        return prepareBackend(p, implementation);
     }
 
     public static YubikeyOpenPGPSmartCardBackend prepareBackend(
             TestProperties properties,
-            YubikeyOpenPGPSmartCardBackend.YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+            OpenPGPSmartCardImplementation implementation)
             throws YubikeySetupException
     {
-        return prepareBackend(Collections.singletonList(properties), decryptorFactoryProvider);
+        return prepareBackend(Collections.singletonList(properties), implementation);
     }
 
     public static YubikeyOpenPGPSmartCardBackend prepareBackend(
             List<TestProperties> propertiesList,
-            YubikeyOpenPGPSmartCardBackend.YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+            OpenPGPSmartCardImplementation implementation)
             throws YubikeySetupException
     {
-        YubikeyOpenPGPSmartCardBackend backend = YubikeyOpenPGPSmartCardBackend.createInstance(decryptorFactoryProvider);
+        YubikeyOpenPGPSmartCardBackend backend = YubikeyOpenPGPSmartCardBackend.createInstance(implementation);
         for (TestProperties properties : propertiesList)
         {
             backend.addAllowedCardSerial(properties.getSerialNumber());

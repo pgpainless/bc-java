@@ -17,8 +17,6 @@ import com.yubico.yubikit.openpgp.OpenPgpSession;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
-import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;

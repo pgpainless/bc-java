@@ -18,13 +18,17 @@ import org.bouncycastle.crypto.encodings.PKCS1Encoding;
 import org.bouncycastle.crypto.engines.RSABlindedEngine;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
+import org.bouncycastle.crypto.params.X448PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X448PublicKeyParameters;
 import org.bouncycastle.crypto.signers.DSASigner;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.signers.Ed448Signer;
 import org.bouncycastle.crypto.signers.StandardDSAEncoding;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKeyHelper;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
@@ -314,39 +318,48 @@ public class SimulatorOpenPGPSmartCard
         {
             PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
             AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
-            int keyAlgorithm = stubKey.getAlgorithm();
+
             RawAgreement agreement;
-            byte[] secret;
-            switch (keyAlgorithm)
+            AsymmetricKeyParameter pubKey;
+
+            switch (stubKey.getAlgorithm())
             {
                 case PublicKeyAlgorithmTags.ECDH:
-                    agreement = new BasicRawAgreement(new ECDHBasicAgreement());
-                    agreement.init(privateKey);
-                    secret = new byte[agreement.getAgreementSize()];
-
-                    // agreement.calculateAgreement(new ECPublicKeyParameters(null, null), secret, 0);
-                    return secret;
+                    if (privateKey instanceof X25519PrivateKeyParameters)
+                    {
+                        agreement = new X25519Agreement();
+                        pubKey = new X25519PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
+                    }
+                    else if (privateKey instanceof X448PrivateKeyParameters)
+                    {
+                        agreement = new X448Agreement();
+                        pubKey = new X448PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
+                    }
+                    else
+                    {
+                        agreement = new BasicRawAgreement(new ECDHBasicAgreement());
+                        pubKey = BCECPublicKeyHelper.getParameters((BCECPublicKey)publicKey);
+                    }
+                    break;
 
                 case PublicKeyAlgorithmTags.X25519:
                     agreement = new X25519Agreement();
-                    agreement.init(privateKey);
-                    secret = new byte[agreement.getAgreementSize()];
-                    agreement.calculateAgreement(new X25519PublicKeyParameters(
-                            ((BCXDHPublicKey)publicKey).getUEncoding()
-                    ), secret, 0);
-                    return secret;
+                    pubKey = new X25519PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
+                    break;
 
                 case PublicKeyAlgorithmTags.X448:
                     agreement = new X448Agreement();
-                    agreement.init(privateKey);
-                    secret = new byte[agreement.getAgreementSize()];
-                    agreement.calculateAgreement(new X448PublicKeyParameters(publicKey.getEncoded()), secret, 0);
-                    return secret;
+                    pubKey = new X448PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
+                    break;
 
                 default:
-                    //return BcUtil.getSecret(new X448Agreement(), privateKey, publicKey);
-                    return null;
+                    throw new PGPException("Unknown public key algorithm: " + stubKey.getAlgorithm());
             }
+
+            agreement.init(privateKey);
+            byte[] secret = new byte[agreement.getAgreementSize()];
+            agreement.calculateAgreement(pubKey, secret, 0);
+            return secret;
         }
         catch (PGPException e)
         {

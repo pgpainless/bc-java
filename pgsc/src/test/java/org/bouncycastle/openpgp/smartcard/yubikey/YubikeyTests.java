@@ -1,6 +1,8 @@
 package org.bouncycastle.openpgp.smartcard.yubikey;
 
 import junit.framework.TestCase;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
@@ -22,7 +24,7 @@ public class YubikeyTests
         {
             p = YubikeyTestInstanceProvider.defaultProperties();
             m = new OpenPGPSmartCardManager();
-            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.bcImpl()));
+            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
@@ -59,7 +61,7 @@ public class YubikeyTests
         {
             p = YubikeyTestInstanceProvider.defaultProperties();
             m = new OpenPGPSmartCardManager();
-            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.jceImpl()));
+            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {

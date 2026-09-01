@@ -10,16 +10,11 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
-import org.bouncycastle.openpgp.api.OpenPGPImplementation;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.bc.BcOpenPGPImplementation;
-import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.operator.bc.BcSmartCardPublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.smartcard.operator.jcajce.JceSmartCardPublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.util.Arrays;
 
 import java.security.NoSuchAlgorithmException;
@@ -39,7 +34,6 @@ public class YubikeyOpenPGPSmartCardBackend
 {
     private static final int X25519_SCALAR_SIZE = 32;
 
-    private final YubikeyDecryptorFactoryProvider decryptorFactoryProvider;
     private final JcaPGPKeyConverter converter;
     private boolean useAllowList = true;
     private final Set<Integer> allowedCardSerials = new HashSet<>();
@@ -47,49 +41,46 @@ public class YubikeyOpenPGPSmartCardBackend
 
     public static YubikeyOpenPGPSmartCardBackend createInstance()
     {
-        return createInstance(bcImpl());
+        return createInstance(new BcOpenPGPSmartCardImplementation());
     }
 
-    public static YubikeyOpenPGPSmartCardBackend createInstance(YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+    public static YubikeyOpenPGPSmartCardBackend createInstance(OpenPGPSmartCardImplementation implementation)
     {
         return createInstance(new YubiKitManager(),
-                decryptorFactoryProvider);
+                implementation);
     }
 
     public static YubikeyOpenPGPSmartCardBackend createInstance(YubiKitManager yubiKitManager,
-                                                                YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+                                                                OpenPGPSmartCardImplementation implementation)
     {
         return createInstance(yubiKitManager,
                 new BouncyCastleProvider(),
-                decryptorFactoryProvider);
+                implementation);
     }
 
     public static YubikeyOpenPGPSmartCardBackend createInstance(YubiKitManager yubiKitManager,
                                                                 BouncyCastleProvider provider,
-                                                                YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
+                                                                OpenPGPSmartCardImplementation implementation)
     {
         return new YubikeyOpenPGPSmartCardBackend(
                 yubiKitManager,
                 new JcaPGPKeyConverter().setProvider(provider),
-                decryptorFactoryProvider,
-                new BcOpenPGPImplementation());
+                implementation);
     }
 
     public YubikeyOpenPGPSmartCardBackend(YubiKitManager yubiKitManager,
                                           JcaPGPKeyConverter keyConverter,
-                                          YubikeyDecryptorFactoryProvider decryptorFactoryProvider,
-                                          OpenPGPImplementation implementation)
+                                          OpenPGPSmartCardImplementation implementation)
     {
         super(implementation);
         this.manager = yubiKitManager;
         this.converter = keyConverter;
-        this.decryptorFactoryProvider = decryptorFactoryProvider;
     }
 
     @Override
     public String getName()
     {
-        return "Yubikit " + decryptorFactoryProvider.getName();
+        return "Yubikit " + implementation.getName();
     }
 
     /**
@@ -137,16 +128,6 @@ public class YubikeyOpenPGPSmartCardBackend
             allowedDevices.add(new YubikeyOpenPGPSmartCard(this, entry.getValue(), entry.getKey()));
         }
         return allowedDevices;
-    }
-
-    @Override
-    public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
-            OpenPGPKey.OpenPGPSecretKey secretKey,
-            YubikeyOpenPGPSmartCard card,
-            KeyPassphraseProvider userPinProvider)
-            throws PGPException
-    {
-        return decryptorFactoryProvider.provide(secretKey, card, userPinProvider);
     }
 
     /**
@@ -309,59 +290,5 @@ public class YubikeyOpenPGPSmartCardBackend
             }
         }
         return null;
-    }
-
-    public interface YubikeyDecryptorFactoryProvider
-    {
-        PublicKeyDataDecryptorFactory provide(OpenPGPKey.OpenPGPSecretKey secretKey,
-                                              YubikeyOpenPGPSmartCard card,
-                                              KeyPassphraseProvider userPinProvider)
-                throws PGPException;
-
-        String getName();
-    }
-
-    public static YubikeyDecryptorFactoryProvider bcImpl()
-    {
-        return new YubikeyDecryptorFactoryProvider()
-        {
-            @Override
-            public PublicKeyDataDecryptorFactory provide(OpenPGPKey.OpenPGPSecretKey secretKey,
-                                                         YubikeyOpenPGPSmartCard card,
-                                                         KeyPassphraseProvider userPinProvider)
-                    throws PGPException
-            {
-                return new BcSmartCardPublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
-            }
-
-            @Override
-            public String getName()
-            {
-                return "BCYK";
-            }
-        };
-    }
-
-    public static YubikeyDecryptorFactoryProvider jceImpl()
-    {
-        return new YubikeyDecryptorFactoryProvider()
-        {
-            @Override
-            public PublicKeyDataDecryptorFactory provide(OpenPGPKey.OpenPGPSecretKey secretKey,
-                                                         YubikeyOpenPGPSmartCard card,
-                                                         KeyPassphraseProvider userPinProvider)
-                    throws PGPException
-            {
-                return new JceSmartCardPublicKeyDataDecryptorFactoryBuilder(card, userPinProvider)
-                        .setProvider(new BouncyCastleProvider())
-                        .build(secretKey);
-            }
-
-            @Override
-            public String getName()
-            {
-                return "JCYK";
-            }
-        };
     }
 }

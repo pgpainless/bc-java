@@ -1,6 +1,5 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
-import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
@@ -18,8 +17,7 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
     public void performTest()
         throws Exception
     {
-        OpenPGPImplementation implementation = OpenPGPImplementation.getInstance();
-        SimulatorOpenPGPSmartCardBackend backend = new SimulatorOpenPGPSmartCardBackend(implementation);
+        SimulatorOpenPGPSmartCardBackend backend = new SimulatorOpenPGPSmartCardBackend();
 
         testV4FingerprintIsNotShortened(backend);
         testV6FingerprintShortening(backend);

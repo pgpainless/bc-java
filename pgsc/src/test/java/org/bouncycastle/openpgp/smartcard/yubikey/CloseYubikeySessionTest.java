@@ -2,6 +2,8 @@ package org.bouncycastle.openpgp.smartcard.yubikey;
 
 import com.yubico.yubikit.core.smartcard.ApduException;
 import com.yubico.yubikit.openpgp.OpenPgpSession;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
@@ -75,13 +77,13 @@ public class CloseYubikeySessionTest
             // BCYK
             m = new OpenPGPSmartCardManager();
             m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.bcImpl()));
+                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
             runTest(new CloseYubikeySessionTest(m, p));
 
             // JCYK
             m = new OpenPGPSmartCardManager();
             m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, YubikeyOpenPGPSmartCardBackend.jceImpl()));
+                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
             runTest(new CloseYubikeySessionTest(m, p));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)

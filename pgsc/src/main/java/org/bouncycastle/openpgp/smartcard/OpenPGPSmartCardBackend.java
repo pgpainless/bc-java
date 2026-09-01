@@ -34,9 +34,9 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
      */
     protected static final int SHORTENED_IDENTIFIER_LENGTH = 8;
 
-    protected final OpenPGPImplementation implementation;
+    protected final OpenPGPSmartCardImplementation implementation;
 
-    public OpenPGPSmartCardBackend(OpenPGPImplementation implementation)
+    public OpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
     {
         this.implementation = implementation;
     }
@@ -121,11 +121,14 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         return null;
     }
 
-    public abstract PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
+    public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
             OpenPGPSecretKey secretKey,
             T card,
             KeyPassphraseProvider userPinProvider)
-            throws PGPException;
+            throws PGPException
+    {
+        return implementation.providePublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
+    }
 
     /**
      * Return true if the full fingerprint matches the stored fingerprint.
@@ -331,27 +334,7 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             }
 
             // found matching card
-            PGPDigestCalculatorProvider digestCalculatorProvider = implementation.pgpDigestCalculatorProvider();
-
-            return new PGPContentSignerBuilderProvider(hashAlgorithmId)
-            {
-                @Override
-                public PGPContentSignerBuilder get(PGPPublicKey signingPubKey)
-                {
-                    if (!signingKey.getPGPPublicKey().getKeyIdentifier().matchesExplicit(signingPubKey.getKeyIdentifier()))
-                    {
-                        throw new IllegalArgumentException("Wrong public key provided.");
-                    }
-
-                    return get(signingKey);
-                }
-
-                @Override
-                public PGPContentSignerBuilder get(OpenPGPKey.OpenPGPSecretKey signingKey)
-                {
-                    return new ExternalContentSignerBuilder(card.getSignatureKey(), signingKey, userPinProvider, hashAlgorithmId, digestCalculatorProvider);
-                }
-            };
+            return implementation.providePGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId);
         }
         return null;
     }
