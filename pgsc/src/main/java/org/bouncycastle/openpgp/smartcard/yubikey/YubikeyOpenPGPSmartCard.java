@@ -508,12 +508,6 @@ public class YubikeyOpenPGPSmartCard
         throw new IllegalArgumentException("unknown key ref: " + k);
     }
 
-    public PublicKey convertPublicKey(PGPPublicKey pgpPublicKey)
-            throws PGPException
-    {
-        return getBackend().toPublicKey(pgpPublicKey);
-    }
-
     @Override
     public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
     {

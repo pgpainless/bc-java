@@ -207,12 +207,6 @@ public class YubikeyOpenPGPSmartCardBackend
         }
     }
 
-    PublicKey toPublicKey(PGPPublicKey pgpPublicKey)
-            throws PGPException
-    {
-        return converter.getPublicKey(pgpPublicKey);
-    }
-
     /**
      * Convert the key from {@link PublicKeyValues} into a bare {@link PGPPublicKey}, brute-forcing the
      * algorithm id.
