@@ -95,9 +95,12 @@ public abstract class OpenPGPSmartCard
      * <p>
      * Note: The fingerprint field of OpenPGP smart cards is a 20-octet field that can contain arbitrary
      * data.
+     * When comparing 32-octet OpenPGP v6 fingerprints, those are shortened according to guidance in
+     * <a href="https://datatracker.ietf.org/doc/draft-hko-openpgp-identifiers-for-legacy-devices/">
+     *     OpenPGP key identifiers for legacy hardware devices</a>
+     * before the comparison is performed.
      * Since the smart card does not make use of this field and does not validate its contents, you MUST NOT
      * rely on this field to identify keys.
-     * Notably OpenPGP v6 keys, which have a 32-octet fingerprint, will cause mismatches with the 20-octet field.
      *
      * @param fingerprint fingerprint
      * @return hardware key
@@ -106,7 +109,7 @@ public abstract class OpenPGPSmartCard
     {
         for (OpenPGPHardwareKey key : getKeys())
         {
-            if (org.bouncycastle.util.Arrays.constantTimeAreEqual(key.getFingerprint(), fingerprint))
+            if (backend.fingerprintMatches(key.getFingerprint(), fingerprint))
             {
                 return key;
             }
