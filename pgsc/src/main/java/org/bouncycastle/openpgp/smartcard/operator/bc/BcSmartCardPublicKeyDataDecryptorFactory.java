@@ -6,11 +6,14 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverter;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.bc.BcExternalPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyCryptoCallback;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
+import org.bouncycastle.openpgp.smartcard.card.CardException;
 
 import java.security.PublicKey;
 
@@ -48,14 +51,38 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
             @Override
             public byte[] decrypt(int keyAlgorithm, byte[][] pEnc)
             {
-                return smartcard.decrypt(pEnc[0], smartcard.getDecryptionKey(), getSecretKey(), userPinProvider);
+                try
+                {
+                    return smartcard.getDecryptionKey().decrypt(userPinProvider, getSecretKey(), pEnc[0]);
+                }
+                catch (CardException e)
+                {
+                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
+                }
+                catch (KeyPassphraseException e)
+                {
+                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                }
             }
 
             @Override
             public byte[] decrypt(int keyAlgorithm, AsymmetricKeyParameter peerKey)
                     throws PGPException
             {
-                return smartcard.decrypt(toPublicKey(peerKey), smartcard.getDecryptionKey(), getSecretKey(), userPinProvider);
+                try
+                {
+                    return smartcard.getDecryptionKey()
+                            .decrypt(userPinProvider, getSecretKey(), toPublicKey(keyAlgorithm, peerKey));
+                }
+                catch (CardException e)
+                {
+                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
+                }
+                catch (KeyPassphraseException e)
+                {
+                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                }
+
             }
         };
     }

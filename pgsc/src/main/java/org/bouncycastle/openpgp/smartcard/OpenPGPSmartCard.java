@@ -369,10 +369,12 @@ public abstract class OpenPGPSmartCard
     public abstract byte[] decrypt(byte[] message,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
-                          KeyPassphraseProvider userPinProvider);
+                          KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException;
 
     public abstract byte[] decrypt(PublicKey publicKey,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
-                          KeyPassphraseProvider userPinProvider);
+                          KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException;
 }

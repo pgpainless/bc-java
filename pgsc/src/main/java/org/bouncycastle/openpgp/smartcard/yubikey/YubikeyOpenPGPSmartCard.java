@@ -386,7 +386,7 @@ public class YubikeyOpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-    {
+            throws KeyPassphraseException, CardException {
         char[] pin;
         try
         {
@@ -411,12 +411,11 @@ public class YubikeyOpenPGPSmartCard
         }
         catch (ApduException | IOException | CardException e)
         {
-            throw new RuntimeException("Exception communicating with card. Cannot decrypt.", e);
+            throw new CardException("Exception communicating with card " + getSerialNumber() + ". Cannot decrypt.", e);
         }
         catch (InvalidPinException e)
         {
-            throw new IllegalStateException("Wrong PIN for card " + getSerialNumber(),
-                    new KeyPassphraseException(stubKey, e));
+            throw new KeyPassphraseException(stubKey, "Wrong PIN for card " + getSerialNumber(), e);
         }
         finally
         {
@@ -429,6 +428,7 @@ public class YubikeyOpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException
     {
         char[] pin;
         try
@@ -455,12 +455,11 @@ public class YubikeyOpenPGPSmartCard
         }
         catch (ApduException | IOException | CardException e)
         {
-            throw new RuntimeException("Exception communicating with card. Cannot decrypt.", e);
+            throw new CardException("Exception communicating with card " + getSerialNumber() + ". Cannot decrypt.", e);
         }
         catch (InvalidPinException e)
         {
-            throw new IllegalStateException("Wrong PIN for card " + getSerialNumber(),
-                    new KeyPassphraseException(stubKey, e));
+            throw new KeyPassphraseException(stubKey, "Wrong PIN for card " + getSerialNumber(), e);
         }
         finally
         {
