@@ -13,8 +13,6 @@ import org.bouncycastle.openpgp.smartcard.card.CardException;
 
 import java.security.PublicKey;
 
-import static org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey.KEY_REF_DECRYPTION;
-
 public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPSmartCard>
         extends JceExternalPublicKeyDataDecryptorFactoryBuilder
 {
@@ -80,14 +78,5 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
                 }
             }
         });
-    }
-
-    private void validateCurveSupport(PublicKey peerKey)
-            throws PGPException
-    {
-        if (!smartcard.isKeySupported(KEY_REF_DECRYPTION, peerKey))
-        {
-            throw new PGPException("Curve not supported: " + peerKey.getAlgorithm());
-        }
     }
 }

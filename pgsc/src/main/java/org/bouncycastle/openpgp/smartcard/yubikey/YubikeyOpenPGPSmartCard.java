@@ -17,7 +17,6 @@ import com.yubico.yubikit.openpgp.OpenPgpSession;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
-import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
@@ -126,17 +125,6 @@ public class YubikeyOpenPGPSmartCard
             throws CardException
     {
         return getSupportedAlgorithms(keyRef).supports(key);
-    }
-
-    @Override
-    public boolean isKeySupported(byte keyRef, PublicKey publicKey)
-    {
-        if (publicKey instanceof BCXDHPublicKey)
-        {
-            BCXDHPublicKey pk = (BCXDHPublicKey)publicKey;
-            pk.getAlgorithm();
-        }
-        return true;
     }
 
     /**
@@ -505,25 +493,6 @@ public class YubikeyOpenPGPSmartCard
             }
         }
         throw new IllegalArgumentException("unknown key ref: " + k);
-    }
-
-    @Override
-    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
-    {
-        List<SupportedAlgorithms.Algorithm> supported = getSupportedAlgorithms(keyRef).getAlgorithms();
-        for (SupportedAlgorithms.Algorithm alg : supported)
-        {
-            if (!(alg instanceof SupportedAlgorithms.EC))
-            {
-                continue;
-            }
-            SupportedAlgorithms.EC ec = (SupportedAlgorithms.EC) alg;
-            if (curveOID.equals(ec.curve))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

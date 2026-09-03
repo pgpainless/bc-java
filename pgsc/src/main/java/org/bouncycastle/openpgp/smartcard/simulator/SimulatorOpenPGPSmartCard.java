@@ -1,6 +1,5 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -140,18 +139,6 @@ public class SimulatorOpenPGPSmartCard
 
     @Override
     public boolean isKeySupported(byte keyRef, OpenPGPCertificate.OpenPGPComponentKey key)
-    {
-        return true;
-    }
-
-    @Override
-    public boolean isKeySupported(byte keyRef, PublicKey publicKey)
-    {
-        return true;
-    }
-
-    @Override
-    public boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID)
     {
         return true;
     }

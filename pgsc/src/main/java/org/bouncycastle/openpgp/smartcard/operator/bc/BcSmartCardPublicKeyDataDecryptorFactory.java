@@ -1,10 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.operator.bc;
 
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.params.ECNamedDomainParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverter;
-import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
@@ -16,8 +13,6 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 
 import java.security.PublicKey;
-
-import static org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey.KEY_REF_DECRYPTION;
 
 /**
  * {@link BcExternalPublicKeyDataDecryptorFactory} routing the private-key operation of OpenPGP session-key
@@ -87,24 +82,9 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
         };
     }
 
-    private PublicKey toPublicKey(AsymmetricKeyParameter peerKey)
+    private PublicKey toPublicKey(int keyAlgorithm, AsymmetricKeyParameter peerKey)
             throws PGPException
     {
-        validateCurveSupport(peerKey);
         return EDECPublicKeyConverter.toPublicKey(peerKey);
-    }
-
-    protected void validateCurveSupport(AsymmetricKeyParameter peerKey)
-            throws PGPException
-    {
-        if (peerKey instanceof ECPublicKeyParameters)
-        {
-            ECPublicKeyParameters ecpk = (ECPublicKeyParameters) peerKey;
-            ECNamedDomainParameters dParm = (ECNamedDomainParameters) ecpk.getParameters();
-            if (!smartcard.isCurveSupported(KEY_REF_DECRYPTION, dParm.getName()))
-            {
-                throw new PGPException("Curve not supported: " + ECUtil.getCurveName(dParm.getName()));
-            }
-        }
     }
 }

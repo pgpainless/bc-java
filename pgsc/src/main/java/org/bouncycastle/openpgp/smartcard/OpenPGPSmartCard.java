@@ -1,6 +1,5 @@
 package org.bouncycastle.openpgp.smartcard;
 
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
@@ -72,10 +71,6 @@ public abstract class OpenPGPSmartCard
      */
     public abstract boolean isKeySupported(byte keyRef, OpenPGPComponentKey key)
             throws CardException;
-
-    public abstract boolean isKeySupported(byte keyRef, PublicKey publicKey);
-
-    public abstract boolean isCurveSupported(byte keyRef, ASN1ObjectIdentifier curveOID);
 
     /**
      * Return the {@link OpenPGPHardwareKey} identified by the given key reference.
