@@ -3,6 +3,7 @@ package org.bouncycastle.openpgp.smartcard.test;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
@@ -44,7 +45,9 @@ public class SmartCardWithV6KeysTest
                 "k0mXubZvyl4GBg==\n" +
                 "-----END PGP PRIVATE KEY BLOCK-----";
         byte[] V6_PRIMARY_FP = Hex.decode("CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9");
+        byte[] SHORTENED_V6_PRIMARY_FP = Hex.decode("000000000000000000000006cb186c4f0609a697");
         byte[] V6_ENCRYPTION_FP = Hex.decode("12C83F1E706F6308FE151A417743A1F033790E93E9978488D1DB378DA9930885");
+        byte[] SHORTENED_V6_ENCRYPTION_FP = Hex.decode("00000000000000000000000612c83f1e706f6308");
 
         OpenPGPKey key = api.readKeyOrCertificate().parseKey(V6_KEY);
         OpenPGPKey.OpenPGPSecretKey signingKey = key.getSecretKey(key.getSigningKeys().get(0));
@@ -54,24 +57,32 @@ public class SmartCardWithV6KeysTest
         card.reset();
 
         card.uploadSigningKey(signingKey.unlock(), properties.getAdminPin());
+        isTrue(card.hasKeyWithFingerprint(V6_PRIMARY_FP));
+        isTrue(card.hasKeyWithFingerprint(SHORTENED_V6_PRIMARY_FP));
+        OpenPGPHardwareKey hwSignatureKey = card.getSignatureKey();
+        isEquals("Signature key KeyRef mismatch", OpenPGPHardwareKey.KEY_REF_SIGNATURE, hwSignatureKey.getKeyRef());
+        isTrue("Signature key MUST be imported", hwSignatureKey.isImported());
+        isTrue("Signature key MUST NOT be generated", !hwSignatureKey.isGenerated());
         isTrue("Shortened signing key fingerprint mismatch",
-                Arrays.areEqual(
-                        Hex.decode("000000000000000000000006cb186c4f0609a697"),
-                        card.getSignatureKey().getFingerprint()));
+                Arrays.areEqual(SHORTENED_V6_PRIMARY_FP, hwSignatureKey.getFingerprint()));
         isTrue("Reconstructed signing key fingerprint mismatch",
-                Arrays.areEqual(
-                        V6_PRIMARY_FP,
-                        card.getSignatureKey().getFullKeyIdentifier().getFingerprint()));
+                Arrays.areEqual(V6_PRIMARY_FP, hwSignatureKey.getFullKeyIdentifier().getFingerprint()));
 
         card.uploadDecryptionKey(encryptionKey.unlock(), properties.getAdminPin());
+        isTrue(card.hasKeyWithFingerprint(V6_ENCRYPTION_FP));
+        isTrue(card.hasKeyWithFingerprint(SHORTENED_V6_ENCRYPTION_FP));
+        OpenPGPHardwareKey hwDecryptionKey = card.getKeyByFingerprint(V6_ENCRYPTION_FP);
+        isEquals("Decryption key KeyRef mismatch", OpenPGPHardwareKey.KEY_REF_DECRYPTION, hwDecryptionKey.getKeyRef());
+        isTrue("Decryption key MUST be imported", hwDecryptionKey.isImported());
+        isTrue("Decryption key MUST NOT be generated", !hwDecryptionKey.isGenerated());
+        isEquals("Decryption key creation time mismatch",
+                encryptionKey.getCreationTime(), hwDecryptionKey.getCreationTime());
         isTrue("Shortened decryption key fingerprint mismatch",
-                Arrays.areEqual(
-                        Hex.decode("00000000000000000000000612c83f1e706f6308"),
-                        card.getDecryptionKey().getFingerprint()));
+                Arrays.areEqual(SHORTENED_V6_ENCRYPTION_FP, hwDecryptionKey.getFingerprint()));
         isTrue("Reconstructed decryption key fingerprint mismatch",
                 Arrays.areEqual(
                         V6_ENCRYPTION_FP,
-                        card.getDecryptionKey().getFullKeyIdentifier().getFingerprint()));
+                        hwDecryptionKey.getFullKeyIdentifier().getFingerprint()));
     }
 
     public static void main(String[] args)

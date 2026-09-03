@@ -5,6 +5,7 @@ import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverterTe
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
+import org.bouncycastle.openpgp.smartcard.test.MultiBackendTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
@@ -32,7 +33,8 @@ public class SimulatorTests
                         new SmartCardWithV6KeysTest(m, p),
                         new SimulatorSmartCardTest(m, p),
                         new EDECPublicKeyConverterTest(),
-                        new ShortenedOpenPGPIdentifierForLegacyDevicesTest()
+                        new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
+                        new MultiBackendTest()
                 };
 
         for (int i = 0; i != tests.length; i++)
