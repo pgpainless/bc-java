@@ -146,7 +146,7 @@ public class SimulatorOpenPGPSmartCard
     @Override
     public SimulatorOpenPGPSmartCard reset()
     {
-        keys.clear();
+        clearKeys();
         secretKeys.clear();
         return this;
     }
@@ -162,7 +162,7 @@ public class SimulatorOpenPGPSmartCard
                                                char[] adminPin)
     {
         secretKeys.put(keyRef, key.getSecretKey());
-        keys.put(keyRef, asHardwareKey(this, key.getSecretKey(), keyRef, OpenPGPHardwareKey.STATE_IMPORTED));
+        putKey(asHardwareKey(this, key.getSecretKey(), keyRef, OpenPGPHardwareKey.STATE_IMPORTED));
         return this;
     }
 

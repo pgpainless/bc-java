@@ -72,7 +72,7 @@ public class YubikeyOpenPGPSmartCard
     private void readMetadata(OpenPgpSession session)
             throws CardException
     {
-        keys.clear();
+        clearKeys();
         DiscretionaryDataObjects discretionary = getDiscretionary(session);
 
         for (KeyRef keyRef : KeyRef.values())
@@ -85,7 +85,7 @@ public class YubikeyOpenPGPSmartCard
 
             byte[] fingerprint = discretionary.getFingerprint(keyRef);
             Date generationTime = new Date(discretionary.getGenerationTime(keyRef) * 1000L);
-            keys.put(keyRef.getValue(), new OpenPGPHardwareKey(
+            putKey(new OpenPGPHardwareKey(
                     this,
                     keyRef.getValue(),
                     keyStatus.value,

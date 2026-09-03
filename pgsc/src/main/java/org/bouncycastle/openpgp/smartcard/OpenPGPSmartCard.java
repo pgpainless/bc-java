@@ -24,7 +24,7 @@ public abstract class OpenPGPSmartCard
 {
 
     private final OpenPGPSmartCardBackend backend;
-    protected final Map<Byte, OpenPGPHardwareKey> keys = new HashMap<>();
+    private final Map<Byte, OpenPGPHardwareKey> keys = new HashMap<>();
 
     public OpenPGPSmartCard(OpenPGPSmartCardBackend backend)
     {
@@ -54,6 +54,11 @@ public abstract class OpenPGPSmartCard
      * @return version number
      */
     public abstract String getVersion();
+
+    protected void clearKeys()
+    {
+        keys.clear();
+    }
 
     protected void putKey(OpenPGPHardwareKey key)
     {
