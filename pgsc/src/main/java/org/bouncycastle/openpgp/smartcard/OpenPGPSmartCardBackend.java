@@ -1,6 +1,8 @@
 package org.bouncycastle.openpgp.smartcard;
 
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
@@ -9,10 +11,13 @@ import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPSecretKey;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;
+import java.security.PublicKey;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -30,10 +35,12 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
     protected static final int SHORTENED_IDENTIFIER_LENGTH = 8;
 
     protected final OpenPGPSmartCardImplementation implementation;
+    protected final JcaPGPKeyConverter converter;
 
     public OpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
     {
         this.implementation = implementation;
+        this.converter = new JcaPGPKeyConverter().setProvider(new BouncyCastleProvider());
     }
     /**
      * Return the name of the backend.
@@ -330,6 +337,76 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
 
             // found matching card
             return implementation.providePGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId);
+        }
+        return null;
+    }
+
+    protected PGPPublicKey convertPublicKey(PublicKey pk,
+                                          byte[] storedFingerprint,
+                                          Date creationTime)
+            throws PGPException
+    {
+        String alg = pk.getAlgorithm();
+        int[] candidates;
+        if ("RSA".equals(alg))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.RSA_GENERAL, PublicKeyAlgorithmTags.RSA_ENCRYPT,
+                PublicKeyAlgorithmTags.RSA_SIGN};
+        }
+        else if ("EC".equals(alg))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.ECDSA, PublicKeyAlgorithmTags.ECDH};
+        }
+        else if ("EdDSA".equals(alg))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.EDDSA_LEGACY, PublicKeyAlgorithmTags.Ed25519,
+                PublicKeyAlgorithmTags.Ed448};
+        }
+        else if ("XDH".equals(alg))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.ECDH, PublicKeyAlgorithmTags.X25519};
+        }
+        else
+        {
+            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
+        }
+
+        PGPPublicKey pgpKey = bruteForcePublicKey(pk, creationTime, storedFingerprint, candidates);
+        if (pgpKey == null)
+        {
+            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
+        }
+        return pgpKey;
+    }
+
+    protected PGPPublicKey bruteForcePublicKey(
+            PublicKey pk,
+            Date creationTime,
+            byte[] storedFingerprint,
+            int[] plausibleAlgorithms)
+    {
+        for (int keyVersion : new int[]{PublicKeyPacket.VERSION_4, PublicKeyPacket.VERSION_6})
+        {
+            for (int i = 0; i != plausibleAlgorithms.length; i++)
+            {
+                int algorithm = plausibleAlgorithms[i];
+                PGPPublicKey pgpKey;
+                try
+                {
+                    pgpKey = converter.getPGPPublicKey(keyVersion, algorithm, pk, creationTime);
+                }
+                catch (PGPException e)
+                {
+                    // this candidate algorithm cannot represent the key at all (e.g. an Ed448 tag over an
+                    // Ed25519 key) - that is a miss, not a failure of the whole search.
+                    continue;
+                }
+
+                if (fingerprintMatches(storedFingerprint, pgpKey.getFingerprint()))
+                {
+                    return pgpKey;
+                }
+            }
         }
         return null;
     }

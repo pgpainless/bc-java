@@ -20,6 +20,11 @@ public class OpenPGPSmartCardUtils
         this.implementation = implementation;
     }
 
+    public OpenPGPKey toExternalKey(OpenPGPKey key)
+    {
+        return toExternalKey(key, null);
+    }
+
     public OpenPGPKey toExternalKey(OpenPGPKey key, byte[] locatorHint)
     {
         List<OpenPGPKey.OpenPGPSecretKey> secretKeys = new ArrayList<>();

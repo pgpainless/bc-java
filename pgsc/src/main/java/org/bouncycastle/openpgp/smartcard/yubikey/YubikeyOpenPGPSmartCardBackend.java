@@ -5,8 +5,6 @@ import com.yubico.yubikit.core.keys.PrivateKeyValues;
 import com.yubico.yubikit.core.keys.PublicKeyValues;
 import com.yubico.yubikit.desktop.YubiKitManager;
 import com.yubico.yubikit.management.DeviceInfo;
-import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
-import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.PublicKeyUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
@@ -161,29 +159,34 @@ public class YubikeyOpenPGPSmartCardBackend
             throws PGPException
     {
         final PrivateKey converted = converter.getPrivateKey(keyPair.getPrivateKey());
-        if (!PublicKeyUtils.isX25519Key(keyPair.getPublicKey().getPublicKeyPacket()))
-        {
-            return PrivateKeyValues.fromPrivateKey(converted);
-        }
 
-        return PrivateKeyValues.fromPrivateKey(new PrivateKey()
+        if (PublicKeyUtils.isX25519Key(keyPair.getPublicKey().getPublicKeyPacket()))
+        {
+            // the YubiKey expects the X25519 scalar big-endian, the reverse of the PKCS#8 encoding.
+            // Copy first: getEncoded() is not contractually required to hand back a fresh array, and
+            // reversing in place would corrupt the source key for any provider that shares one.
+            return PrivateKeyValues.fromPrivateKey(bigEndian(converted));
+        }
+        return PrivateKeyValues.fromPrivateKey(converted);
+    }
+
+    private PrivateKey bigEndian(PrivateKey privateKey)
+    {
+        return new PrivateKey()
         {
             public String getAlgorithm()
             {
-                return converted.getAlgorithm();
+                return privateKey.getAlgorithm();
             }
 
             public String getFormat()
             {
-                return converted.getFormat();
+                return privateKey.getFormat();
             }
 
             public byte[] getEncoded()
             {
-                // the YubiKey expects the X25519 scalar big-endian, the reverse of the PKCS#8 encoding.
-                // Copy first: getEncoded() is not contractually required to hand back a fresh array, and
-                // reversing in place would corrupt the source key for any provider that shares one.
-                byte[] encoding = Arrays.clone(converted.getEncoded());
+                byte[] encoding = Arrays.clone(privateKey.getEncoded());
                 if (encoding == null || encoding.length < X25519_SCALAR_SIZE)
                 {
                     throw new IllegalStateException("X25519 private key encoding too short to contain a scalar");
@@ -191,7 +194,7 @@ public class YubikeyOpenPGPSmartCardBackend
                 Arrays.reverseInPlace(encoding, encoding.length - X25519_SCALAR_SIZE, X25519_SCALAR_SIZE);
                 return encoding;
             }
-        });
+        };
     }
 
     PublicKeyValues convertPublicKey(PGPPublicKey pgpPublicKey)
@@ -223,71 +226,12 @@ public class YubikeyOpenPGPSmartCardBackend
      * @throws InvalidKeySpecException if the PublicKeyValues specification is inappropriate to produce a public key
      */
     public PGPPublicKey convertPublicKey(PublicKeyValues pkVal,
-                                    byte[] storedFingerprint,
-                                    Date creationTime)
+                                         byte[] storedFingerprint,
+                                         Date creationTime)
             throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         PublicKey pk = pkVal.toPublicKey();
-        String alg = pk.getAlgorithm();
-        int[] candidates;
-        if ("RSA".equals(alg))
-        {
-            candidates = new int[]{PublicKeyAlgorithmTags.RSA_GENERAL, PublicKeyAlgorithmTags.RSA_ENCRYPT,
-                PublicKeyAlgorithmTags.RSA_SIGN};
-        }
-        else if ("EC".equals(alg))
-        {
-            candidates = new int[]{PublicKeyAlgorithmTags.ECDSA, PublicKeyAlgorithmTags.ECDH};
-        }
-        else if ("EdDSA".equals(alg))
-        {
-            candidates = new int[]{PublicKeyAlgorithmTags.EDDSA_LEGACY, PublicKeyAlgorithmTags.Ed25519,
-                PublicKeyAlgorithmTags.Ed448};
-        }
-        else if ("XDH".equals(alg))
-        {
-            candidates = new int[]{PublicKeyAlgorithmTags.ECDH, PublicKeyAlgorithmTags.X25519};
-        }
-        else
-        {
-            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
-        }
-
-        PGPPublicKey pgpKey = bruteForcePublicKey(pk, creationTime, storedFingerprint, candidates);
-        if (pgpKey == null)
-        {
-            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
-        }
-        return pgpKey;
+        return convertPublicKey(pk, storedFingerprint, creationTime);
     }
 
-    private PGPPublicKey bruteForcePublicKey(PublicKey pk, Date creationTime,
-                                             byte[] storedFingerprint,
-                                             int[] plausibleAlgorithms)
-    {
-        for (int keyVersion : new int[]{PublicKeyPacket.VERSION_4, PublicKeyPacket.VERSION_6})
-        {
-            for (int i = 0; i != plausibleAlgorithms.length; i++)
-            {
-                int algorithm = plausibleAlgorithms[i];
-                PGPPublicKey pgpKey;
-                try
-                {
-                    pgpKey = converter.getPGPPublicKey(keyVersion, algorithm, pk, creationTime);
-                }
-                catch (PGPException e)
-                {
-                    // this candidate algorithm cannot represent the key at all (e.g. an Ed448 tag over an
-                    // Ed25519 key) - that is a miss, not a failure of the whole search.
-                    continue;
-                }
-
-                if (fingerprintMatches(storedFingerprint, pgpKey.getFingerprint()))
-                {
-                    return pgpKey;
-                }
-            }
-        }
-        return null;
-    }
 }

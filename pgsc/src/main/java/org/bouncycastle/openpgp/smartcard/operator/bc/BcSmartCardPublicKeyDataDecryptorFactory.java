@@ -16,7 +16,7 @@ import java.security.PublicKey;
 
 /**
  * {@link BcExternalPublicKeyDataDecryptorFactory} routing the private-key operation of OpenPGP session-key
- * recovery to a YubiKey's OpenPGP applet.
+ * recovery to a Smart Card OpenPGP applet.
  * <p>
  * The card performs the RSA decryption or the ECDH / X25519 agreement; all packet parsing, KDF and key
  * unwrap work stays in {@link org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory}.
