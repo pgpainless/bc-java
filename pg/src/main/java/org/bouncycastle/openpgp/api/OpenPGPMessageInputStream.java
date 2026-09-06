@@ -33,6 +33,21 @@ import org.bouncycastle.openpgp.PGPSignatureList;
  * You can get information about the message (signatures, encryption method, message metadata)
  * by reading ALL data from the stream, closing it with {@link #close()} and then retrieving a {@link Result} object
  * by calling {@link #getResult()}.
+ * <p>
+ * <b>Unauthenticated plaintext note:</b> data read from this stream has not yet been checked for integrity.
+ * Decryption is performed as the stream is read, and the integrity of the message is only established once
+ * {@link #close()} has returned without throwing. For a version 1 Symmetrically Encrypted and Integrity Protected
+ * Data packet, the Modification Detection Code covers the whole message and is verified at the end of the data,
+ * so every plaintext byte is emitted before the check runs; a tampered message is reported by an
+ * {@link IOException} from the final {@link #read()} or from {@link #close()}, after the plaintext has already
+ * been handed over. A caller should therefore treat everything read from this stream as unverified, and should not
+ * act on it, pass it on or parse it further until {@link #close()} has completed normally. RFC 9580 sec. 13.7
+ * discusses what releasing decrypted data before confirming its integrity can leak.
+ * <p>
+ * A version 2 packet is not affected in the same way: it is encrypted with an AEAD algorithm in chunks, and each
+ * chunk's authentication tag is verified before that chunk's plaintext is emitted, so the unverified window is
+ * bounded by one chunk. Signature verification is separate from either and is only complete once
+ * {@link #close()} has returned and {@link #getResult()} has been consulted.
  */
 public class OpenPGPMessageInputStream
     extends InputStream

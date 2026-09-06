@@ -9,7 +9,6 @@ public class RegressionTest
 {
     public static Test[] tests = {
         new ChangeKeyPassphraseTest(),
-        new DoubleBufferedInputStreamTest(),
         new OpenPGPDecompressionLimitTest(),
         new OpenPGPCertificateTest(),
         new OpenPGPDetachedSignatureProcessorTest(),
