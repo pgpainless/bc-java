@@ -1,5 +1,6 @@
 package org.bouncycastle.openpgp.smartcard;
 
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
@@ -8,14 +9,12 @@ import org.bouncycastle.openpgp.api.jcajce.JcaOpenPGPImplementation;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.operator.jcajce.JceSmartCardPublicKeyDataDecryptorFactoryBuilder;
 
-import java.security.SecureRandom;
-
 public class JcaOpenPGPSmartCardImplementation
         extends OpenPGPSmartCardImplementation
 {
     public JcaOpenPGPSmartCardImplementation()
     {
-        this(new JcaOpenPGPImplementation(new BouncyCastleProvider(), new SecureRandom()));
+        this(new JcaOpenPGPImplementation(new BouncyCastleProvider(), CryptoServicesRegistrar.getSecureRandom()));
     }
 
     public JcaOpenPGPSmartCardImplementation(JcaOpenPGPImplementation implementation)
