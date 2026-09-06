@@ -38,6 +38,7 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.util.Integers;
 
 import java.io.IOException;
@@ -126,6 +127,12 @@ public class SimulatorOpenPGPSmartCard
     }
 
     @Override
+    public SimulatorOpenPGPSmartCardBackend getBackend()
+    {
+        return (SimulatorOpenPGPSmartCardBackend) super.getBackend();
+    }
+
+    @Override
     public Integer getSerialNumber()
     {
         return serialNumber;
@@ -182,7 +189,7 @@ public class SimulatorOpenPGPSmartCard
         return secretKey.getPublicKey().getPGPPublicKey();
     }
 
-    public PGPPrivateKey getSoftwareKey(OpenPGPCertificate.OpenPGPComponentKey key,
+    private PGPPrivateKey getSoftwareKey(OpenPGPCertificate.OpenPGPComponentKey key,
                                         KeyPassphraseProvider passphraseProvider)
             throws PGPException
     {
