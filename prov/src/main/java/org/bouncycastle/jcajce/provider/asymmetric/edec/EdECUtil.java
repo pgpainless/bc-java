@@ -117,24 +117,35 @@ class EdECUtil
         return new X448PrivateKeyParameters(keyData, 0);
     }
 
+    private static final BigInteger X25519_P = BigIntegers.ONE.shiftLeft(255).subtract(BigInteger.valueOf(19));
+    private static final BigInteger X448_P = BigIntegers.ONE.shiftLeft(448).subtract(BigIntegers.ONE.shiftLeft(224)).subtract(BigIntegers.ONE);
+
     static X25519PublicKeyParameters getX25519PublicKey(BigInteger u)
         throws InvalidKeyException
     {
-        return new X25519PublicKeyParameters(getXDHPublicKeyData(X25519PublicKeyParameters.KEY_SIZE, u), 0);
+        return new X25519PublicKeyParameters(getXDHPublicKeyData(X25519PublicKeyParameters.KEY_SIZE, X25519_P, u), 0);
     }
 
     static X448PublicKeyParameters getX448PublicKey(BigInteger u)
         throws InvalidKeyException
     {
-        return new X448PublicKeyParameters(getXDHPublicKeyData(X448PublicKeyParameters.KEY_SIZE, u), 0);
+        return new X448PublicKeyParameters(getXDHPublicKeyData(X448PublicKeyParameters.KEY_SIZE, X448_P, u), 0);
     }
 
-    private static byte[] getXDHPublicKeyData(int length, BigInteger u)
+    private static byte[] getXDHPublicKeyData(int length, BigInteger p, BigInteger u)
         throws InvalidKeyException
     {
+        if (u.signum() < 0)
+        {
+            throw new InvalidKeyException("cannot use XEC public key with negative U value");
+        }
+
         try
         {
-            return Arrays.reverseInPlace(BigIntegers.asUnsignedByteArray(length, u));
+            // RFC 7748 sec. 5 requires a u at or past the field prime to be accepted and processed
+            // as though it had been reduced, so reduce rather than reject; a conforming key or spec
+            // carries a value already below p, for which this does nothing
+            return Arrays.reverseInPlace(BigIntegers.asUnsignedByteArray(length, u.mod(p)));
         }
         catch (RuntimeException e)
         {

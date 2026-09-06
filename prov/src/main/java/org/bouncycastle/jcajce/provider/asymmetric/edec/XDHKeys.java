@@ -2,9 +2,11 @@ package org.bouncycastle.jcajce.provider.asymmetric.edec;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -57,5 +59,35 @@ class XDHKeys
         throws InvalidKeyException
     {
         return EdECUtil.generatePublicKeyParameter(key);
+    }
+
+    /**
+     * Return a KeySpec for a version-specific spec type - on JDK 11+ the XEC key specs -
+     * or null when the request is not one this JDK version bridges.
+     */
+    static KeySpec getKeySpec(Key key, Class<?> spec)
+        throws InvalidKeySpecException
+    {
+        return null;
+    }
+
+    /**
+     * Generate a private key from a version-specific KeySpec - on JDK 11+ the
+     * XECPrivateKeySpec - or return null when the spec is not one this JDK version bridges.
+     */
+    static PrivateKey generatePrivate(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        return null;
+    }
+
+    /**
+     * Generate a public key from a version-specific KeySpec - on JDK 11+ the
+     * XECPublicKeySpec - or return null when the spec is not one this JDK version bridges.
+     */
+    static PublicKey generatePublic(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        return null;
     }
 }

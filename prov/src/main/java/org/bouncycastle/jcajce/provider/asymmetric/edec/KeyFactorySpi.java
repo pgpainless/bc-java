@@ -131,8 +131,13 @@ public class KeyFactorySpi
         }
         else
         {
-            // on JDK 15+ the EdDSAKeys twin also serves the standard EdEC key specs here.
+            // on JDK 15+ the EdDSAKeys twin also serves the standard EdEC key specs here, and
+            // on JDK 11+ the XDHKeys twin the standard XEC ones.
             KeySpec versionSpec = EdDSAKeys.getKeySpec(key, spec);
+            if (versionSpec == null)
+            {
+                versionSpec = XDHKeys.getKeySpec(key, spec);
+            }
             if (versionSpec != null)
             {
                 return versionSpec;
@@ -167,8 +172,13 @@ public class KeyFactorySpi
             throw new InvalidKeySpecException("openssh private key not Ed25519 private key");
         }
 
-        // on JDK 15+ the EdDSAKeys twin also serves the standard EdECPrivateKeySpec here.
+        // on JDK 15+ the EdDSAKeys twin also serves the standard EdECPrivateKeySpec here, and
+        // on JDK 11+ the XDHKeys twin the standard XECPrivateKeySpec.
         PrivateKey versionKey = EdDSAKeys.generatePrivate(keySpec);
+        if (versionKey == null)
+        {
+            versionKey = XDHKeys.generatePrivate(keySpec);
+        }
         if (versionKey != null)
         {
             return versionKey;
@@ -268,8 +278,13 @@ public class KeyFactorySpi
             throw new InvalidKeySpecException("openssh public key not Ed25519 public key");
         }
 
-        // on JDK 15+ the EdDSAKeys twin also serves the standard EdECPublicKeySpec here.
+        // on JDK 15+ the EdDSAKeys twin also serves the standard EdECPublicKeySpec here, and
+        // on JDK 11+ the XDHKeys twin the standard XECPublicKeySpec.
         PublicKey versionKey = EdDSAKeys.generatePublic(keySpec);
+        if (versionKey == null)
+        {
+            versionKey = XDHKeys.generatePublic(keySpec);
+        }
         if (versionKey != null)
         {
             return versionKey;
