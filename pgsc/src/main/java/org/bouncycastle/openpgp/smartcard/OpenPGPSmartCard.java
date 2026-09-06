@@ -351,7 +351,21 @@ public abstract class OpenPGPSmartCard
         return sb.toString();
     }
 
-    public abstract byte[] sign(byte[] data, OpenPGPHardwareKey key, OpenPGPKey.OpenPGPSecretKey stubKey, KeyPassphraseProvider userPinProvider)
+    /**
+     * Create a raw signature over the provided data.
+     * @param data algorithm-specific encoding of a message digest
+     * @param key hardware-backed key to create the signature with
+     * @param stubKey stub of the signing key
+     * @param userPinProvider provider for the device user PIN
+     * @return raw signature
+     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardException if communication with the card fails
+     * @throws PGPException if the signature cannot be created
+     */
+    public abstract byte[] sign(byte[] data,
+                                OpenPGPHardwareKey key,
+                                OpenPGPKey.OpenPGPSecretKey stubKey,
+                                KeyPassphraseProvider userPinProvider)
         throws KeyPassphraseException, CardException, PGPException;
 
     /**
@@ -369,12 +383,34 @@ public abstract class OpenPGPSmartCard
         return pin;
     }
 
+    /**
+     * Decrypt public-key-encrypted session-data.
+     *
+     * @param message algorithm-specific ciphertext of the encrypted session data
+     * @param openPGPHardwareKey hardware-backed key to perform decryption with
+     * @param stubKey stub of the decryption key
+     * @param userPinProvider provider for the devices user PIN
+     * @return decrypted session data
+     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+     */
     public abstract byte[] decrypt(byte[] message,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
             throws KeyPassphraseException, CardException;
 
+    /**
+     * Decrypt a public-key-encrypted session-key.
+     *
+     * @param publicKey algorithm-specific ephemeral per-message public key
+     * @param openPGPHardwareKey hardware-backed key to perform decryption with
+     * @param stubKey stub of the decryption key
+     * @param userPinProvider provider for the devices user PIN
+     * @return decrypted session data
+     * @throws KeyPassphraseException if the wrong passphrase was provided
+     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+     */
     public abstract byte[] decrypt(PublicKey publicKey,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,

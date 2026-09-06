@@ -17,6 +17,11 @@ import org.bouncycastle.util.test.SimpleTest;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
+/**
+ * Register multiple {@link SimulatorOpenPGPSmartCardBackend} instances, each managing
+ * a different {@link SimulatorOpenPGPSmartCard} (one v4, one v6).
+ * Next, sign and encrypt a message using multiple hardware keys, then decrypt and verify.
+ */
 public class MultiBackendTest extends SimpleTest
 {
     private final ExternalOpenPGPKeyUtils cardUtils = new ExternalOpenPGPKeyUtils(new BcOpenPGPImplementation());
@@ -34,6 +39,7 @@ public class MultiBackendTest extends SimpleTest
         OpenPGPApi api = new BcOpenPGPApi();
         OpenPGPSmartCardManager manager = new OpenPGPSmartCardManager();
 
+        // Alice' v4 key on card #1
         OpenPGPKey aliceKey = api.generateKey(4)
                 .ed25519x25519Key("Alice <alice@example.org>")
                 .build();
@@ -44,6 +50,7 @@ public class MultiBackendTest extends SimpleTest
         b1.addSmartCard(c1);
         manager.addBackend(b1);
 
+        // Bobs v6 key on card #2
         OpenPGPKey bobKey = api.generateKey(6)
                 .ed25519x25519Key("Bob <bob@example.org>")
                 .build();
@@ -54,6 +61,7 @@ public class MultiBackendTest extends SimpleTest
         b2.addSmartCard(c2);
         manager.addBackend(b2);
 
+        // Sign and encrypt with both keys
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         OpenPGPMessageOutputStream mOut = api.signAndOrEncryptMessage()
                 .addCustomPGPContentSignerBuilderProviderFactory(manager)
@@ -65,6 +73,7 @@ public class MultiBackendTest extends SimpleTest
         mOut.write("Hello, World!".getBytes());
         mOut.close();
 
+        // Decrypt and verify
         ByteArrayInputStream bIn = new ByteArrayInputStream(bOut.toByteArray());
         OpenPGPMessageInputStream mIn = api.decryptAndOrVerifyMessage()
                 .addVerificationCertificate(aliceExt)
