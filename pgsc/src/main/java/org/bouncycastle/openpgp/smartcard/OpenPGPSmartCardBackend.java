@@ -35,6 +35,7 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
     protected static final int SHORTENED_IDENTIFIER_LENGTH = 8;
 
     protected final OpenPGPSmartCardImplementation implementation;
+    // Some smart cards expect keys to be passed in JCA format (PublicKey, PrivateKey)
     protected final JcaPGPKeyConverter converter;
 
     public OpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
@@ -62,18 +63,18 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
      * Provide a {@link PublicKeyDataDecryptorFactory} for the given {@link OpenPGPSecretKey} which has its
      * private key material stored on a {@link OpenPGPSmartCard} managed by this backend.
      *
-     * @param secretKey OpenPGP secret key
+     * @param decryptionKeyStub OpenPGP secret key which is the stubbed decryption key
      * @param userPinProvider callback to provide the keys user pin
      * @return public key data decryptor factory using the decryption key, or null if no matching key
      * or card is available.
      * @throws PGPException if the key is not usable or if communication with the card fails
      */
     public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
-            OpenPGPSecretKey secretKey,
+            OpenPGPSecretKey decryptionKeyStub,
             KeyPassphraseProvider userPinProvider)
             throws PGPException
     {
-        if (!secretKey.getPGPSecretKey().isExternalKey())
+        if (!decryptionKeyStub.getPGPSecretKey().isExternalKey())
         {
             throw new PGPException("Provided secret key is not external");
         }
@@ -111,25 +112,34 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             // 32-octet fingerprint and every v6 card key would be missed. fingerprintMatches also applies
             // the shortened legacy-hardware identifier rule described in
             // https://datatracker.ietf.org/doc/draft-hko-openpgp-identifiers-for-legacy-devices/
-            if (!fingerprintMatches(fingerprint, secretKey.getPGPPublicKey().getFingerprint()))
+            if (!fingerprintMatches(fingerprint, decryptionKeyStub.getPGPPublicKey().getFingerprint()))
             {
                 continue;
             }
 
             // found matching card
-            return providePublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
+            return providePublicKeyDataDecryptorFactory(decryptionKeyStub, card, userPinProvider);
         }
         // no card of this backend holds the key: null lets the caller try the next backend
         return null;
     }
 
-    public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
-            OpenPGPSecretKey secretKey,
+    /**
+     * Provide a {@link PublicKeyDataDecryptorFactory} for the given stubbed decryption key and hardware token.
+     *
+     * @param decryptionKeyStub stubbed decryption key
+     * @param card smart card or hardware token
+     * @param userPinProvider provider for the cards USER PIN
+     * @return public key data decryptor factory
+     * @throws PGPException
+     */
+    protected PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
+            OpenPGPSecretKey decryptionKeyStub,
             T card,
             KeyPassphraseProvider userPinProvider)
             throws PGPException
     {
-        return implementation.providePublicKeyDataDecryptorFactory(secretKey, card, userPinProvider);
+        return implementation.providePublicKeyDataDecryptorFactory(decryptionKeyStub, card, userPinProvider);
     }
 
     /**
@@ -336,9 +346,30 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
             }
 
             // found matching card
-            return implementation.providePGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId);
+            return providePGPContentSignerBuilderProvider(signingKey, card, userPinProvider, hashAlgorithmId);
         }
         return null;
+    }
+
+    /**
+     * Provide a {@link PGPContentSignerBuilderProvider} for the given stubbed signing key and smart card.
+     *
+     * @param signingKeyStub stub of the signing key
+     * @param card smart card of hardware token
+     * @param userPinProvider provider for the cards USER PIN
+     * @param hashAlgorithmId hash algorithm for the signature
+     * @return pgp content signer builder provider
+     * @throws PGPException
+     */
+    protected PGPContentSignerBuilderProvider providePGPContentSignerBuilderProvider(
+            OpenPGPSecretKey signingKeyStub,
+            T card,
+            KeyPassphraseProvider userPinProvider,
+            int hashAlgorithmId)
+            throws PGPException
+    {
+        return implementation.providePGPContentSignerBuilderProvider(
+                signingKeyStub, card, userPinProvider, hashAlgorithmId);
     }
 
     protected PGPPublicKey convertPublicKey(PublicKey pk,
