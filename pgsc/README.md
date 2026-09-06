@@ -136,3 +136,17 @@ OpenPGPMessageInputStream mIn = api.decryptAndOrVerifyMessage()
 Streams.pipeAll(mIn, out); // process all the ciphertext
 mIn.close();
 ```
+
+## Extend With Custom Backends
+
+If you want to add support for a custom set of hardware tokens, you need to inherit from two classes:
+
+* `OpenPGPSmartCardBackend` is in duty of discovering your hardware tokens.
+   Its most important method is the `listSmartCards()` method, which emits all cards that your user should 
+   be able to access.
+* `OpenPGPSmartCard` represents an abstraction of your hardware token.
+  You need to implement the `sign()` and `decrypt()` methods, which perform the low-level public key crypto operations.
+
+Your card may perform logic different from the generic implementation (e.g. support for custom PGP variants).
+In this case, you can make apply custom logic on a deeper level by overriding `OpenPGPSmartCardBackend`s
+`providePublicKeyDataDecryptorFactory()` or `providePGPContentSignerBuilderProvider()` methods.
