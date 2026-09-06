@@ -1,0 +1,138 @@
+# OpenPGP Smart Card Support
+
+This module contains code extending Bouncy Castle's OpenPGP API
+with support for hardware security devices, such as OpenPGP Smart Cards.
+
+## Usage
+At the heart of the Smart Card API is the `OpenPGPSmartCardManager`.
+It can manage one or more `OpenPGPSmartCardBackend`s.
+Each backend implements support for a certain type of `OpenPGPSmartCard`.
+
+One available implementation is the `YubikeyOpenPGPSmartCardBackend`, which implements support for Yubico's Yubikey
+hardware tokens.
+
+For testing purposes, there is the `SimulatorOpenPGPSmartCardBackend`, which emulates hardware support through OpenPGP
+software keys.
+
+### Set up
+The basic setup looks as follows:
+
+```java
+OpenPGPApi openPGPApi = new BcOpenPGPApi(); // ...or JcaOpenPGPApi();
+OpenPGPSmartCardManager smartCardManager = new OpenPGPSmartCardManager();
+
+// Set up smart card backends
+YubikeyOpenPGPSmartCardBackend ykBackend = YubikeyOpenPGPSmartCardBackend.createInstance();
+ykBackend.addAllowedCardSerial(12345678); // Add your device serial number to the allow-list.
+// Alternatively, disable the allow-list to allow all available devices to be used:
+// ykBackend.setEnableAllowList(false);
+```
+
+### Manage Smart Cards
+The `OpenPGPSmartCardManager` can enumerate all available (allow-listed) smart cards:
+
+```java
+List<OpenPGPSmartCard> cards = smartCardManager.listSmartCards();
+
+// or you can search by serial number:
+OpenPGPSmartCard card = smartCardManager.findSmartCard(12345678);
+```
+
+### Change key PINs
+**TODO**: Implement
+
+### Key Upload
+You can either upload an existing `OpenPGPSecretKey` to the card, or generate one on the device itself.
+The OpenPGP Smart Card Specification defines 3 different 'KEYREF' values that refer to keys used for different purposes:
+* `OpenPGPHardwareKey.KEY_REF_SIGNATURE` refers to keys used to generate document signatures
+* `OpenPGPHardwareKey.KEY_REF_DECRYPTION` refers to keys that can decrypt messages
+* `OpenPGPHardwareKey.KEY_REF_AUTHENTICATION` refers to authentication keys
+
+In order to upload a key to the card, you need to unlock the `OpenPGPSecretKey` and then call the respective
+method on the `OpenPGPSmartCard`.
+
+In this example, we upload a signing key to the card:
+
+```java
+OpenPGPKey key; // retrieve key, e.g. by generating it or parsing an existing key
+OpenPGPSmartCard card = smartCardManager.findSmartCard(12345678); // get your card
+
+OpenPGPKey.OpenPGPSecretKey signingKey = key.getSecretKey(key.getSigningKeys().get(0));
+// unlock the signing key, pass in passphrase if required
+OpenPGPKey.OpenPGPPrivateKey privSigningKey = signingKey.unlock(keyPassphrase);
+card.uploadSigningKey(privSigningKey, cardAdminPin);
+```
+
+Uploading decryption / authentication keys works analogous.
+
+The implementation automatically checks key/algorithm compatibility.
+Bouncy Castle's Smart Card API supports uploading both OpenPGP v4 and OpenPGP v6 keys.
+
+Uploading a key this way leaves the software-key intact.
+It is advisable to strip the secret key material from the software key in order to gain the benefits
+of hardware-backed secret keys:
+
+```java
+OpenPGPImplementation implementation = new BcOpenPGPImplementation(); // or JcaOpenPGPImplementation()
+ExternalOpenPGPKeyUtils keyUtils = new ExternalOpenPGPKeyUtils(implementation);
+OpenPGPKey key = ...; // "full" software key
+OpenPGPKey fullyStrippedKey = keyUtils.toExternalKey(key); // strip all component keys secret key material
+
+// in order to strip only a certain component keys secret key material:
+KeyIdentifier keyIdentifier = key.getSigningKeys().get(0).getKeyIdentifier();
+OpenPGPKey partiallyStrippedKey = keyUtils.toExternalKey(key, keyIdentifier);
+```
+
+Note: Uploading a key to a card and stripping secret key material from a software key are two distinct operations.
+
+### On-Device Key Generation
+**TODO**: Implement
+
+### Signing
+To make use of OpenPGP keys on Smart Cards, you need access to an `OpenPGPKey` object that
+contains `OpenPGPSecretKey` stubs for the hardware-backed component keys.
+See `ExternalOpenPGPKeyUtils` on how to obtain a stubbed key.
+
+The process of signing with a hardware-backed key is pretty much analogous to signing with software keys.
+One difference is, that you need to register the `OpenPGPSmartCardManager` as a custom signature factory.
+
+```java
+OpenPGPApi openPGPApi = ...;
+OpenPGPSmartCardManager smartCardManager; // See section "Set Up"
+
+OpenPGPKey stubbedKey = ...; // See ExternalOpenPGPKeyUtils or section "Key Upload"
+KeyPassphraseProvider userPinProvider = ...; // Callback to retrieve the cards USER PIN
+
+OutputStream out = ...; // wherever you want to emit the signed message to
+OpenPGPMessageOutputStream mOut = openPGPApi.signAndOrEncryptMessage()
+        .addCustomPGPContentSignerBuilderProviderFactory(manager) // first add the smart card manager
+        .addSigningKey(stubbedKey, userPinProvider) // then add one or more stubbed signing keys
+        .open(out);
+
+mOut.write(plaintext); // pass in the plaintext
+mOut.close();
+```
+
+### Decryption
+To use a hardware-backed key for asymmetric message decryption, you need to register the `OpenPGPSmartCardManager` as
+a custom decryptor factory.
+Similar to message signing, you need to provide the stub of the hardware-backed decryption secret key during
+decryption stream setup.
+
+```java
+OpenPGPApi openPGPApi = ...;
+OpenPGPSmartCardManager smartCardManager; // See section "Set Up"
+
+OpenPGPKey stubbedKey = ...; // See ExternalOpenPGPKeyUtils or section "Key Upload"
+KeyPassphraseProvider userPinProvider = ...; // Callback to retrieve the cards USER PIN
+
+InputStream ciphertextIn = ...; // the message ciphertext
+OutputStream out = ...;
+OpenPGPMessageInputStream mIn = api.decryptAndOrVerifyMessage()
+        .addPublicKeyDataDecryptorFactoryProvider(manager) // add the smart card manager as decryptor factory
+        .addDecryptionKey(externalKey, userPinProvider) // add key as decryption key
+        .process(bIn);
+
+Streams.pipeAll(mIn, out); // process all the ciphertext
+mIn.close();
+```
