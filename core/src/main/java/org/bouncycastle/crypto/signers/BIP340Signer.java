@@ -321,7 +321,8 @@ public class BIP340Signer
 
         // Steps 11-12: e = int(H_challenge(bytes(R) || bytes(P) || m)) mod n; sig = bytes(R) || bytes((k + e*d) mod n).
         BigInteger e = challengeScalar(rBytes, pBytes, m);
-        BigInteger s = k.add(e.multiply(d)).mod(n);
+        // the secret d and nonce k are kept off BigInteger.mod, whose cost follows the quotient; both are in [1, n-1] after the conditional negations above, e is reduced by challengeScalar, and n is odd
+        BigInteger s = BigIntegers.modAdd(n, k, BigIntegers.modMult(n, e, d));
 
         byte[] sig = new byte[SIGNATURE_SIZE];
         System.arraycopy(rBytes, 0, sig, 0, X_SIZE);

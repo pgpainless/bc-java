@@ -312,6 +312,51 @@ public final class BigIntegers
     }
 
     /**
+     * Return (X - Y) mod M for X and Y already in the range [0, M). The difference is formed at a
+     * fixed width and brought back into range by adding M unconditionally and then keeping or
+     * discarding the result with a mask, so neither the running time nor the memory access pattern
+     * depends on the values.
+     * <p>
+     * Use this rather than {@code X.subtract(Y).mod(M)} when either operand is secret. A negative
+     * value costs the reduction more work than a non-negative one, so whether the difference
+     * underflowed is distinguishable, and that is a comparison between the two operands - which,
+     * where one of them is public, is a threshold predicate on the secret one.
+     * </p>
+     *
+     * @param M the modulus, which must be positive.
+     * @param X a value in the range [0, M).
+     * @param Y a value in the range [0, M).
+     * @return (X - Y) mod M.
+     */
+    public static BigInteger modSubtract(BigInteger M, BigInteger X, BigInteger Y)
+    {
+        if (M.signum() != 1)
+        {
+            throw new ArithmeticException("BigInteger: modulus not positive");
+        }
+        if (X.signum() < 0 || X.compareTo(M) >= 0 || Y.signum() < 0 || Y.compareTo(M) >= 0)
+        {
+            throw new IllegalArgumentException("'X' and 'Y' must be in the range [0, M)");
+        }
+
+        // X - Y lies in (-M, M), so a single conditional addition of M reduces it; the width is
+        // the one modAdd uses, which leaves the borrow room to be seen rather than lost off the top
+        int bits = M.bitLength() + 1;
+        int[] m = Nat.fromBigInteger(bits, M);
+        int len = m.length;
+        int[] x = Nat.fromBigInteger(bits, X);
+        int[] y = Nat.fromBigInteger(bits, Y);
+        int[] z = Nat.create(len);
+        int[] t = Nat.create(len);
+
+        int borrow = Nat.sub(len, x, y, z);     // borrow non-zero exactly when X < Y
+        Nat.add(len, z, m, t);                  // t = z + M, discarding the carry off the top
+        Nat.cmov(len, borrow, t, 0, z, 0);      // take t only where the difference went negative
+
+        return Nat.toBigInteger(len, z);
+    }
+
+    /**
      * Return (X * Y) mod M for an odd M and X, Y already in the range [0, M), by Montgomery
      * multiplication over a fixed number of words. Every loop runs a value-independent number of
      * times and no index depends on the operands.

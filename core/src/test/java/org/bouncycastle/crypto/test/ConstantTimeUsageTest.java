@@ -76,6 +76,51 @@ public class ConstantTimeUsageTest
         {"org/bouncycastle/crypto/params/SM9EncMasterPrivateKeyParameters", "modMult", REQUIRED},
         {"org/bouncycastle/crypto/params/SM9EncMasterPrivateKeyParameters", "modOddInverse", REQUIRED},
         {"org/bouncycastle/crypto/params/SM9EncMasterPrivateKeyParameters", "modInverse", FORBIDDEN},
+
+        // SEC 1 sec. 4.1.3 ECDSA signing, s = k^-1 * (e + d * r) mod n, over the signing key d and
+        // the nonce inverse. No modOddInverse row: verifySignature calls modOddInverseVar on the
+        // public s, and the scan cannot tell that name from the one signing needs, since the
+        // shorter is a substring of the longer.
+        {"org/bouncycastle/crypto/signers/ECDSASigner", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/ECDSASigner", "modMult", REQUIRED},
+        {"org/bouncycastle/crypto/signers/ECDSASigner", "modInverse", FORBIDDEN},
+
+        // GM/T 0003.2 SM2 signing, s = (1 + d)^-1 * (k - r * d) mod n, over the same secrets
+        {"org/bouncycastle/crypto/signers/SM2Signer", "modSubtract", REQUIRED},
+        {"org/bouncycastle/crypto/signers/SM2Signer", "modMult", REQUIRED},
+        {"org/bouncycastle/crypto/signers/SM2Signer", "modOddInverse", REQUIRED},
+        {"org/bouncycastle/crypto/signers/SM2Signer", "modInverse", FORBIDDEN},
+
+        // ISO/IEC 15946-2 EC-NR signing, s = u - r * x mod n, over the signing key and the
+        // ephemeral private value
+        {"org/bouncycastle/crypto/signers/ECNRSigner", "modSubtract", REQUIRED},
+        {"org/bouncycastle/crypto/signers/ECNRSigner", "modMult", REQUIRED},
+
+        // BIP-340 Schnorr signing, s = k + e * d mod n, over the nonce and the signing key -
+        // both after the conditional negations that put them back in [1, n-1]
+        {"org/bouncycastle/crypto/signers/BIP340Signer", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/BIP340Signer", "modMult", REQUIRED},
+
+        // DSTU 4145 signing, s = r * d + e mod n, over the signing key and the ephemeral e
+        {"org/bouncycastle/crypto/signers/DSTU4145Signer", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/DSTU4145Signer", "modMult", REQUIRED},
+
+        // FIPS 186-4 DSA signing, s = k^-1 * (m + x * r) mod q. As with ECDSA there is no
+        // modOddInverse row: verifySignature calls modOddInverseVar on the public s, and the
+        // shorter name is a substring of the longer one.
+        {"org/bouncycastle/crypto/signers/DSASigner", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/DSASigner", "modMult", REQUIRED},
+        {"org/bouncycastle/crypto/signers/DSASigner", "modInverse", FORBIDDEN},
+
+        // GOST R 34.10-94 signing, s = k * m + x * r mod q
+        {"org/bouncycastle/crypto/signers/GOST3410Signer", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/GOST3410Signer", "modMult", REQUIRED},
+
+        // GOST R 34.10-2001/2012 signing, s = k * e + d * r mod n. The nonce is redrawn until it
+        // is below n, which the constant-time assembly requires - see ECGOST3410Test - so this
+        // also guards the range check the draw depends on.
+        {"org/bouncycastle/crypto/signers/ECGOST3410Signer", "modAdd", REQUIRED},
+        {"org/bouncycastle/crypto/signers/ECGOST3410Signer", "modMult", REQUIRED},
     };
 
     public String getName()

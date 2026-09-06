@@ -257,6 +257,100 @@ public class BigIntegersTest
         }
     }
 
+    public void testModSubtract()
+    {
+        BigInteger[] moduli = new BigInteger[]
+        {
+            // the 1022-bit RFC 6509 SAKKE q, whose top word has slack, and SM9's N and P-256's
+            // order, both exactly 256 bits, so a borrow has to be seen in the array's top word
+            new BigInteger(
+                "265EAEC7C2958FF69971846636B4195E905B0338672D20986FA6B8D62CF8068B" +
+                "BD02AAC9F8BF03C6C8A1CC354C69672C39E46CE7FDF222864D5B49FD2999A9B4" +
+                "389B1921CC9AD335144AB173595A07386DABFD2A0C614AA0A9F3CF14870F026A" +
+                "A7E535ABD5A5C7C7FF38FA08E2615F6C203177C42B1EB3A1D99B601EBFAA17FB", 16),
+            new BigInteger("B640000002A3A6F1D603AB4FF58EC74521F2934B1A7AEEDBE56F9B27E351457D", 16),
+            new BigInteger("FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551", 16),
+            BigIntegers.ONE,
+            BigInteger.valueOf(3),
+            BigInteger.valueOf(4),
+            BigIntegers.ONE.shiftLeft(32),
+            BigIntegers.ONE.shiftLeft(32).subtract(BigIntegers.ONE),
+            BigIntegers.ONE.shiftLeft(31).add(BigIntegers.ONE)
+        };
+
+        SecureRandom random = new SecureRandom();
+
+        for (int i = 0; i != moduli.length; i++)
+        {
+            BigInteger m = moduli[i];
+            BigInteger last = m.subtract(BigIntegers.ONE);
+
+            // zero minus zero is the one difference that neither underflows nor needs reducing;
+            // zero minus last is the deepest underflow the range allows
+            checkModSubtract(m, BigIntegers.ZERO, BigIntegers.ZERO);
+            checkModSubtract(m, BigIntegers.ZERO, last);
+            checkModSubtract(m, last, BigIntegers.ZERO);
+            checkModSubtract(m, last, last);
+            checkModSubtract(m, last.shiftRight(1), last);
+
+            if (m.compareTo(BigIntegers.TWO) > 0)
+            {
+                // either side of the boundary: one short of underflowing, and one past it
+                checkModSubtract(m, BigIntegers.ONE, BigIntegers.ONE);
+                checkModSubtract(m, BigIntegers.ZERO, BigIntegers.ONE);
+                checkModSubtract(m, BigIntegers.ONE, last);
+                checkModSubtract(m, last, BigIntegers.ONE);
+            }
+
+            for (int j = 0; j != 200; j++)
+            {
+                checkModSubtract(m, new BigInteger(m.bitLength() + 8, random).mod(m),
+                    new BigInteger(m.bitLength() + 8, random).mod(m));
+            }
+        }
+
+        // as with modAdd, an operand outside [0, M) is rejected rather than reduced
+        BigInteger q = moduli[0];
+        expectModSubtractError(q, q, BigIntegers.ONE);
+        expectModSubtractError(q, BigIntegers.ONE, q);
+        expectModSubtractError(q, BigIntegers.ONE.negate(), BigIntegers.ONE);
+        expectModSubtractError(q, BigIntegers.ONE, BigIntegers.ONE.negate());
+
+        try
+        {
+            BigIntegers.modSubtract(BigIntegers.ZERO, BigIntegers.ZERO, BigIntegers.ZERO);
+
+            fail("no exception thrown");
+        }
+        catch (ArithmeticException e)
+        {
+            // ignore
+        }
+    }
+
+    private void checkModSubtract(BigInteger m, BigInteger x, BigInteger y)
+    {
+        BigInteger z = BigIntegers.modSubtract(m, x, y);
+
+        Assert.assertEquals("m=" + m.toString(16) + " x=" + x.toString(16) + " y=" + y.toString(16),
+            x.subtract(y).mod(m), z);
+        Assert.assertTrue("not reduced: " + z.toString(16), z.signum() >= 0 && z.compareTo(m) < 0);
+    }
+
+    private void expectModSubtractError(BigInteger m, BigInteger x, BigInteger y)
+    {
+        try
+        {
+            BigIntegers.modSubtract(m, x, y);
+
+            fail("no exception thrown");
+        }
+        catch (IllegalArgumentException e)
+        {
+            // ignore
+        }
+    }
+
     private void expectModAddError(BigInteger m, BigInteger x, BigInteger y)
     {
         try

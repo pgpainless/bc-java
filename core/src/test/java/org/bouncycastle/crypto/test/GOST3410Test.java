@@ -20,6 +20,7 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.GOST3410KeyGenerationParameters;
 import org.bouncycastle.crypto.params.GOST3410Parameters;
+import org.bouncycastle.crypto.params.GOST3410PrivateKeyParameters;
 import org.bouncycastle.crypto.params.ParametersWithRandom;
 import org.bouncycastle.crypto.signers.GOST3410Signer;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
@@ -70,7 +71,8 @@ public class GOST3410Test
             new GOST3410_AExParam(),
             new GOST3410_BExParam(),
             new GOST3410_CExParam(),
-            new GOST3410_BlindedNonce()
+            new GOST3410_BlindedNonce(),
+            new GOST3410_ZeroNonce()
         };
 
     public static void main(
@@ -156,6 +158,93 @@ public class GOST3410Test
             }
 
             return new SimpleTestResult(true, getName() + ": Okay");
+        }
+    }
+
+    /**
+     * A nonce of zero has to be discarded and redrawn. It was not: the draw was rejected only for
+     * landing at or past q, so a zero survived, and a zero is the one value that gives the signing
+     * key away outright - the blinded exponent becomes a multiple of q so r is 1, and s = k * m +
+     * x * r then collapses to x itself. It is a 2^-256 event, but it is the sibling of the range
+     * check the GOST R 34.10-2001 signer needed, and free to close.
+     */
+    private static class GOST3410_ZeroNonce
+        implements Test
+    {
+        public String getName()
+        {
+            return "GOST3410-ZERO-NONCE";
+        }
+
+        public TestResult perform()
+        {
+            GOST3410Parameters params = new GOST3410Parameters(
+                new BigInteger("EE8172AE8996608FB69359B89EB82A69854510E2977A4D63BC97322CE5DC3386"
+                    + "EA0A12B343E9190F23177539845839786BB0C345D165976EF2195EC9B1C379E3", 16),
+                new BigInteger("98915E7EC8265EDFCDA31E88F24809DDB064BDC7285DD50D7289F0AC6F49DD2D", 16),
+                new BigInteger("9E96031500C8774A869582D4AFDE2127AFAD2538B4B6270A6F7C8837B50D50F2"
+                    + "06755984A49E509304D648BE2AB5AAB18EBE2CD46AC3D8495B142AA6CE23E21C", 16));
+
+            GOST3410KeyPairGenerator kpGen = new GOST3410KeyPairGenerator();
+            kpGen.init(new GOST3410KeyGenerationParameters(new SecureRandom(), params));
+            AsymmetricCipherKeyPair pair = kpGen.generateKeyPair();
+
+            BigInteger x = ((GOST3410PrivateKeyParameters)pair.getPrivate()).getX();
+
+            GOST3410Signer signer = new GOST3410Signer();
+            signer.init(true, new ParametersWithRandom(pair.getPrivate(),
+                new ZeroFirstRandom(new SecureRandom())));
+
+            byte[] message = Hex.decode("3042453136414534424341374533364339313734453431443642453241453435");
+
+            BigInteger[] sig = signer.generateSignature(message);
+
+            if (sig[1].equals(x))
+            {
+                return new SimpleTestResult(false, getName()
+                    + ": zero nonce was used - s is the private key");
+            }
+
+            GOST3410Signer verifier = new GOST3410Signer();
+            verifier.init(false, pair.getPublic());
+
+            if (!verifier.verifySignature(message, sig[0], sig[1]))
+            {
+                return new SimpleTestResult(false, getName()
+                    + ": signature after a rejected zero nonce did not verify");
+            }
+
+            return new SimpleTestResult(true, getName() + ": Okay");
+        }
+    }
+
+    /**
+     * Zero for the first request - the nonce - then real randomness, so the redraw that has to
+     * follow gets a usable value. Signing draws k before the exponent randomiser.
+     */
+    private static class ZeroFirstRandom
+        extends SecureRandom
+    {
+        private final SecureRandom delegate;
+
+        private boolean first = true;
+
+        ZeroFirstRandom(SecureRandom delegate)
+        {
+            this.delegate = delegate;
+        }
+
+        public void nextBytes(byte[] bytes)
+        {
+            if (first)
+            {
+                first = false;
+                Arrays.fill(bytes, (byte)0);
+            }
+            else
+            {
+                delegate.nextBytes(bytes);
+            }
         }
     }
 

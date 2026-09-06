@@ -228,8 +228,9 @@ public class SM2Signer
             // A6
             BigInteger dPlus1ModN = BigIntegers.modOddInverse(n, d.add(ONE));
 
-            s = k.subtract(r.multiply(d)).mod(n);
-            s = dPlus1ModN.multiply(s).mod(n);
+            // the secret d and (1 + d)^-1 are kept off BigInteger.mod, whose cost follows the quotient; d is in [1, n-1] by validatePrivateScalar, k and r are reduced, and n is odd
+            s = BigIntegers.modSubtract(n, k, BigIntegers.modMult(n, r, d));
+            s = BigIntegers.modMult(n, dPlus1ModN, s);
         }
         while (s.equals(ZERO));
 
