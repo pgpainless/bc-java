@@ -4,25 +4,45 @@ import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.bcpg.PublicSubkeyPacket;
 import org.bouncycastle.bcpg.SecretKeyPacket;
 import org.bouncycastle.bcpg.SecretSubkeyPacket;
+import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class OpenPGPSmartCardUtils
+public class ExternalOpenPGPKeyUtils
 {
     private final OpenPGPImplementation implementation;
 
-    public OpenPGPSmartCardUtils(OpenPGPImplementation implementation)
+    public ExternalOpenPGPKeyUtils(OpenPGPImplementation implementation)
     {
         this.implementation = implementation;
     }
 
+    public OpenPGPKey fromCertificate(OpenPGPCertificate certificate)
+    {
+        return fromCertificate(certificate, null);
+    }
+
+    public OpenPGPKey fromCertificate(OpenPGPCertificate certificate, byte[] locatorHint)
+    {
+        List<PGPSecretKey> keys = new ArrayList<>();
+        for (OpenPGPCertificate.OpenPGPComponentKey componentKey : certificate.getKeys())
+        {
+            PGPPublicKey publicKey = componentKey.getPGPPublicKey();
+            keys.add(toExternalKey(publicKey, locatorHint));
+        }
+
+        return new OpenPGPKey(new PGPSecretKeyRing(keys));
+    }
+
     public OpenPGPKey toExternalKey(OpenPGPKey key)
     {
-        return toExternalKey(key, null);
+        return toExternalKey(key, (byte[]) null);
     }
 
     public OpenPGPKey toExternalKey(OpenPGPKey key, byte[] locatorHint)
@@ -42,6 +62,11 @@ public class OpenPGPSmartCardUtils
     {
         PGPSecretKey externalKey = toExternalKey(key.getPGPSecretKey(), locatorHint);
         return new OpenPGPKey.OpenPGPSecretKey(key.getPublicKey(), externalKey, implementation.pbeSecretKeyDecryptorBuilderProvider());
+    }
+
+    public OpenPGPKey toExternalKey(OpenPGPKey key, KeyIdentifier componentKey)
+    {
+        return toExternalKey(key, componentKey, null);
     }
 
     public OpenPGPKey toExternalKey(OpenPGPKey key, KeyIdentifier componentKey, byte[] locatorHint)
@@ -66,21 +91,26 @@ public class OpenPGPSmartCardUtils
 
     public PGPSecretKey toExternalKey(PGPSecretKey secretKey, byte[] locatorHint)
     {
-        if (secretKey.isMasterKey())
+        return toExternalKey(secretKey.getPublicKey(), locatorHint);
+    }
+
+    public PGPSecretKey toExternalKey(PGPPublicKey publicKey, byte[] locatorHint)
+    {
+        if (publicKey.isMasterKey())
         {
             return new PGPSecretKey(
                     new SecretKeyPacket(
-                            secretKey.getPublicKey().getPublicKeyPacket(),
+                            publicKey.getPublicKeyPacket(),
                             locatorHint),
-                    secretKey.getPublicKey());
+                    publicKey);
         }
         else
         {
             return new PGPSecretKey(
                     new SecretSubkeyPacket(
-                            (PublicSubkeyPacket) secretKey.getPublicKey().getPublicKeyPacket(),
+                            (PublicSubkeyPacket) publicKey.getPublicKeyPacket(),
                             locatorHint),
-                    secretKey.getPublicKey());
+                    publicKey);
         }
     }
 }

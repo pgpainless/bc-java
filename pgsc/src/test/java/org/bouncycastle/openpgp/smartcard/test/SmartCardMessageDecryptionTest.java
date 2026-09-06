@@ -338,7 +338,7 @@ public class SmartCardMessageDecryptionTest
 
         char[] adminPin = properties.getAdminPin();
 
-        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey, null);
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
 
         // Upload keys to card
         OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
@@ -388,7 +388,7 @@ public class SmartCardMessageDecryptionTest
 
         char[] adminPin = properties.getAdminPin();
 
-        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey, null);
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
 
         // Upload keys to card
         OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));

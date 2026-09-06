@@ -8,10 +8,9 @@ import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.bc.BcOpenPGPApi;
 import org.bouncycastle.openpgp.api.bc.BcOpenPGPImplementation;
-import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
-import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardUtils;
+import org.bouncycastle.openpgp.smartcard.ExternalOpenPGPKeyUtils;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.test.SimpleTest;
@@ -28,7 +27,7 @@ public abstract class AbstractOpenPGPSmartCardTest
 {
     protected final OpenPGPImplementation implementation = new BcOpenPGPImplementation();
     protected final OpenPGPApi api = new BcOpenPGPApi(implementation);
-    protected final OpenPGPSmartCardUtils cardUtils = new OpenPGPSmartCardUtils(implementation);
+    protected final ExternalOpenPGPKeyUtils cardUtils = new ExternalOpenPGPKeyUtils(implementation);
 
     protected final OpenPGPSmartCardManager manager;
     protected final TestProperties properties;
@@ -48,21 +47,21 @@ public abstract class AbstractOpenPGPSmartCardTest
         if (!signingKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(signingKeys.get(0));
-            card.uploadKey(OpenPGPHardwareKey.KEY_REF_SIGNATURE, secretKey.unlock(), properties.getAdminPin());
+            card.uploadSigningKey(secretKey.unlock(), properties.getAdminPin());
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> decryptionKeys = key.getEncryptionKeys();
         if (!decryptionKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(decryptionKeys.get(0));
-            card.uploadKey(OpenPGPHardwareKey.KEY_REF_DECRYPTION, secretKey.unlock(), properties.getAdminPin());
+            card.uploadDecryptionKey(secretKey.unlock(), properties.getAdminPin());
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> authenticationKeys = key.getComponentKeysWithFlag(new Date(), KeyFlags.AUTHENTICATION);
         if (!authenticationKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(authenticationKeys.get(0));
-            card.uploadKey(OpenPGPHardwareKey.KEY_REF_AUTHENTICATION, secretKey.unlock(), properties.getAdminPin());
+            card.uploadAuthenticationKey(secretKey.unlock(), properties.getAdminPin());
         }
     }
 
