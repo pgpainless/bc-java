@@ -139,14 +139,14 @@ public class TimeStampToken
 
                 if (attr.getAttrValues().size() < 1)
                 {
-                    throw new TSPException("signing certificate attribute MUST contain at least one AttributeValue");
+                    throw new TSPException("signing certificate v2 attribute MUST contain at least one AttributeValue");
                 }
 
                 SigningCertificateV2 signCertV2 = SigningCertificateV2.getInstance(attr.getAttrValues().getObjectAt(0));
 
                 if (signCertV2.getCerts().length < 1)
                 {
-                    throw new TSPException("signing certificate attribute MUST contain at least one ESSCertID");
+                    throw new TSPException("signing certificate v2 attribute MUST contain at least one ESSCertIDv2");
                 }
 
                 this.certID = ESSCertIDv2.getInstance(signCertV2.getCerts()[0]);
