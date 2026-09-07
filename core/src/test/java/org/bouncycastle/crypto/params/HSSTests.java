@@ -1240,17 +1240,6 @@ public class HSSTests
     }
 
     /**
-     * Wrapping an LMS key as a single level HSS key keeps the key it was given, rather than
-     * regenerating it. resetKeyToIndex compares each level's q against the value derived from the
-     * HSS index, and an intermediate level reads one past that value because it has already post
-     * incremented past the leaf it signed - but the last level reads the derived value itself, and
-     * when the hierarchy has one level the root is the last level. Applying the intermediate rule
-     * there made the comparison always fail, so every wrap rebuilt the whole Merkle tree: this is
-     * what BCLMSPrivateKey does for every LMS key pair the JCE produces, so the tree was built
-     * twice - once to get the public key, once here - and the node cache the first build filled
-     * was discarded with it.
-     */
-    /**
      * The lower half of a hierarchy repositions within its own tree - identifier and seed
      * unchanged, only q moves - so resetKeyToIndex must share the tree the component key already
      * has rather than regenerate one identical to it.
@@ -1299,6 +1288,17 @@ public class HSSTests
             verifier.verifySignature(msg, sig));
     }
 
+    /**
+     * Wrapping an LMS key as a single level HSS key keeps the key it was given, rather than
+     * regenerating it. resetKeyToIndex compares each level's q against the value derived from the
+     * HSS index, and an intermediate level reads one past that value because it has already post
+     * incremented past the leaf it signed - but the last level reads the derived value itself, and
+     * when the hierarchy has one level the root is the last level. Applying the intermediate rule
+     * there made the comparison always fail, so every wrap rebuilt the whole Merkle tree: this is
+     * what BCLMSPrivateKey does for every LMS key pair the JCE produces, so the tree was built
+     * twice - once to get the public key, once here - and the node cache the first build filled
+     * was discarded with it.
+     */
     public void testSingleLevelWrapKeepsTheKey()
         throws Exception
     {
