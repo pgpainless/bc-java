@@ -15,11 +15,13 @@ import org.bouncycastle.util.Arrays;
  * RFC 9850 (SSLKEYLOGFILE) key logging, as built into <code>bctls-klog</code>.
  * <p>
  * This class replaces the no-op of the same name in the standard <code>bctls</code> build, and is
- * the only difference between the two: the seam calls in {@link TlsUtils} are the same in both, and
- * in <code>bctls</code> they go nowhere. Here they end up at a {@link TlsKeyLog} named by the
- * <code>org.bouncycastle.tls.keylog.class</code> security property. Choosing to run this jar is
- * what makes a JVM capable of disclosing its own TLS secrets; the property only selects where they
- * go, and if it is unset nothing is loaded and nothing is disclosed.
+ * the whole of the behavioural difference between the two - the only other difference being the
+ * " (Key Logger)" label <code>ProviderInfoSuffix</code> adds to the BCJSSE provider's info string,
+ * so that the two can be told apart in a running JVM. The seam calls in {@link TlsUtils} are the
+ * same in both, and in <code>bctls</code> they go nowhere. Here they end up at a {@link TlsKeyLog}
+ * named by the <code>org.bouncycastle.tls.keylog.class</code> security property. Choosing to run
+ * this jar is what makes a JVM capable of disclosing its own TLS secrets; the property only selects
+ * where they go, and if it is unset nothing is loaded and nothing is disclosed.
  * <p>
  * All of the RFC's vocabulary lives here rather than in {@link TlsUtils}: the seam reports secrets
  * in the key schedule's own terms and this class decides which of them RFC 9850 names, what it

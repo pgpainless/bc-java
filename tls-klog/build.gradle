@@ -4,9 +4,11 @@ plugins {
 
 // bctls-klog is the RFC 9850 (SSLKEYLOGFILE) key-logging build of the TLS API: bctls with the
 // org.bouncycastle.tls.KeyLog no-op replaced by one that reports connection secrets to a
-// TlsKeyLog named in the JVM's java.security file. It is a separate artifact rather than a
-// property on the standard jar because RFC 9850 1.1 asks that a deployed binary not be able to
-// disclose its own keys at all; swapping the jar is the act that grants it that ability.
+// TlsKeyLog named in the JVM's java.security file, and with " (Key Logger)" added to the BCJSSE
+// provider's info string so a running JVM says which of the two jars it has. It is a separate
+// artifact rather than a property on the standard jar because RFC 9850 1.1 asks that a deployed
+// binary not be able to disclose its own keys at all; swapping the jar is the act that grants it
+// that ability.
 //
 // Built the way bcjmail is built from bcmail: copy ../tls/src over our own src (Copy processes
 // each 'from' in turn and, under DuplicatesStrategy.INCLUDE, the last writer of a path wins), then
