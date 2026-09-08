@@ -3,16 +3,22 @@ package org.bouncycastle.openpgp.test;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Date;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
+import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.bcpg.AEADAlgorithmTags;
 import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
@@ -96,14 +102,28 @@ public class JceExternalPublicKeyDataDecryptorFactoryBuilderTest
             return build(new PGPKeyPair(pubKey, null), new PublicKeyCryptoCallback()
             {
                 @Override
-                public byte[] decryptRSA(int keyAlgorithm, byte[] pEnc)
+                public byte[] decrypt(int keyAlgorithm, byte[][] pEnc)
                     throws PGPException
                 {
+                    Cipher c;
                     try
                     {
-                        Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+                        switch (keyAlgorithm)
+                        {
+                            case PublicKeyAlgorithmTags.RSA_GENERAL:
+                            case PublicKeyAlgorithmTags.RSA_ENCRYPT:
+                                c = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+                                break;
+
+                                case PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT:
+                                case PublicKeyAlgorithmTags.ELGAMAL_GENERAL:
+                                    throw new PGPException("ElGamal not supported by the external key");
+                            default:
+                                throw new PGPException("Unsupported key algorithm: " + keyAlgorithm);
+                        }
+
                         c.init(Cipher.DECRYPT_MODE, externalKey);
-                        return c.doFinal(pEnc);
+                        return c.doFinal(pEnc[0]);
                     }
                     catch (Exception e)
                     {
@@ -112,31 +132,23 @@ public class JceExternalPublicKeyDataDecryptorFactoryBuilderTest
                 }
 
                 @Override
-                public byte[] decryptElGamal(int keyAlgorithm, byte[][] secKeyData)
+                public byte[] decrypt(int keyAlgorithm, PublicKey ephemeralKey)
                     throws PGPException
                 {
-                    throw new PGPException("ElGamal not supported by the external key");
-                }
+                    switch (keyAlgorithm)
+                    {
+                        case PublicKeyAlgorithmTags.ECDH:
+                            return agree("ECDH", ephemeralKey);
 
-                @Override
-                public byte[] decryptECDH(ECDHPublicBCPGKey pubKey, PublicKey ephemeralKey)
-                    throws PGPException
-                {
-                    return agree("ECDH", ephemeralKey);
-                }
+                        case PublicKeyAlgorithmTags.X25519:
+                            return agree("X25519", ephemeralKey);
 
-                @Override
-                public byte[] decryptX25519(PublicKey ephemeralKey)
-                    throws PGPException
-                {
-                    return agree("X25519", ephemeralKey);
-                }
+                        case PublicKeyAlgorithmTags.X448:
+                            return agree("X448", ephemeralKey);
 
-                @Override
-                public byte[] decryptX448(PublicKey ephemeralKey)
-                    throws PGPException
-                {
-                    return agree("X448", ephemeralKey);
+                        default:
+                            throw new PGPException("Unsupported key algorithm: " + keyAlgorithm);
+                    }
                 }
 
                 private byte[] agree(String algorithm, PublicKey ephemeralKey)

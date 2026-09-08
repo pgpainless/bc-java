@@ -1,6 +1,7 @@
 package org.bouncycastle.openpgp.operator;
 
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 
 /**
  * Provider class for {@link PGPContentSignerBuilder} instances.
@@ -27,4 +28,9 @@ public abstract class PGPContentSignerBuilderProvider
      * @return content signer builder
      */
     public abstract PGPContentSignerBuilder get(PGPPublicKey signingKey);
+
+    public PGPContentSignerBuilder get(OpenPGPKey.OpenPGPSecretKey signingKey)
+    {
+        return get(signingKey.getPGPPublicKey());
+    }
 }

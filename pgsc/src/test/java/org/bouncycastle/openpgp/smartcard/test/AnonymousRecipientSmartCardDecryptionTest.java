@@ -6,20 +6,17 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.openpgp.api.KeyPairGeneratorCallback;
-import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
-import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
+import org.bouncycastle.openpgp.api.*;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeySmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestProperties;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
 
@@ -48,8 +45,9 @@ import java.util.Iterator;
 public class AnonymousRecipientSmartCardDecryptionTest
         extends AbstractOpenPGPSmartCardTest
 {
+
     public AnonymousRecipientSmartCardDecryptionTest(OpenPGPSmartCardManager manager,
-                                                     SmartCardTestProperties properties)
+                                                     TestProperties properties)
     {
         super(manager, properties);
     }
@@ -112,7 +110,7 @@ public class AnonymousRecipientSmartCardDecryptionTest
         OpenPGPKey.OpenPGPSecretKey decryptionKey =
                 softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
         card.uploadDecryptionKey(decryptionKey.unlock(), properties.getAdminPin());
-        OpenPGPKey externalKey = toExternalKey(softwareKey, null);
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
 
         isTrue(label + ": the stripped key must be marked external",
                 externalKey.getSecretKey(externalKey.getEncryptionKeys().get(0))
@@ -186,40 +184,35 @@ public class AnonymousRecipientSmartCardDecryptionTest
     public static void main(String[] args)
         throws CardException
     {
-        SmartCardTestProperties p;
         OpenPGPSmartCardManager m;
-
-        // BCYK
+        TestProperties p;
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+
+            // BCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
+            runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
+
+            // JCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
             runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.out.println
-            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on BC Yubikey.");
+            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on Yubikey: " + e.getMessage());
         }
 
-        // JCYK
-        try
-        {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.jceImpl());
-            runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of AnonymousRecipientSmartCardDecryptionTest on JCE Yubikey.");
-        }
-
-
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
+        p = new TestProperties(1312);
+        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
         m = new OpenPGPSmartCardManager().addBackend(sim);
 
-        runTest(new AnonymousRecipientSmartCardDecryptionTest(m, new SmartCardTestProperties(1312)));
+        runTest(new AnonymousRecipientSmartCardDecryptionTest(m, p));
     }
 }

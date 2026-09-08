@@ -1,38 +1,75 @@
 package org.bouncycastle.openpgp.smartcard.yubikey;
 
 
-import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
+import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
+
+import java.io.FileNotFoundException;
+import java.util.Collections;
+import java.util.List;
 
 public class YubikeyTestInstanceProvider
 {
-
-    public static OpenPGPSmartCardManager prepareOneYubikeySmartCardManager(
-            SmartCardTestProperties testProperties)
-            throws YubikeySetupException, CardException
+    public static TestProperties defaultProperties()
+            throws YubikeySetupException
     {
-        return prepareOneYubikeySmartCardManager(testProperties, YubikeySmartCardBackend.bcImpl());
+        try
+        {
+            TestProperties p = TestProperties.fromFile("yubikey.properties");
+            return p;
+        }
+        catch (FileNotFoundException e)
+        {
+            throw new YubikeySetupException("Missing yubikey.properties file");
+        }
     }
 
-    public static OpenPGPSmartCardManager prepareOneYubikeySmartCardManager(
-            SmartCardTestProperties testProperties,
-            YubikeySmartCardBackend.YubikeyDecryptorFactoryProvider decryptorFactoryProvider)
-            throws YubikeySetupException, CardException
+    public static YubikeyOpenPGPSmartCardBackend prepareBackend()
+            throws YubikeySetupException
     {
-        if (testProperties.getSerialNumber() == null)
-        {
-            throw new YubikeySetupException("Missing yubikey.properties file.");
-        }
+        return prepareBackend(new BcOpenPGPSmartCardImplementation());
+    }
 
-        YubikeySmartCardBackend backend = YubikeySmartCardBackend.createInstance(decryptorFactoryProvider)
-                .addAllowedCardSerial(testProperties.getSerialNumber());
-        if (backend.listSmartCards().isEmpty())
+    public static YubikeyOpenPGPSmartCardBackend prepareBackend(
+            OpenPGPSmartCardImplementation implementation)
+            throws YubikeySetupException
+    {
+        TestProperties p = defaultProperties();
+        return prepareBackend(p, implementation);
+    }
+
+    public static YubikeyOpenPGPSmartCardBackend prepareBackend(
+            TestProperties properties,
+            OpenPGPSmartCardImplementation implementation)
+            throws YubikeySetupException
+    {
+        return prepareBackend(Collections.singletonList(properties), implementation);
+    }
+
+    public static YubikeyOpenPGPSmartCardBackend prepareBackend(
+            List<TestProperties> propertiesList,
+            OpenPGPSmartCardImplementation implementation)
+            throws YubikeySetupException
+    {
+        YubikeyOpenPGPSmartCardBackend backend = YubikeyOpenPGPSmartCardBackend.createInstance(implementation);
+        for (TestProperties properties : propertiesList)
         {
-            throw new YubikeySetupException("No allowed Yubikey devices present. Did you add your device serial number to the yubikey.properties file?");
+            backend.addAllowedCardSerial(properties.getSerialNumber());
         }
-        return new OpenPGPSmartCardManager()
-                .addBackend(backend);
+        try
+        {
+            if (backend.listSmartCards().isEmpty())
+            {
+                throw new CardException("No devices found.");
+            }
+        }
+        catch (CardException e)
+        {
+            throw new YubikeySetupException("No devices plugged in.");
+        }
+        return backend;
     }
 
     public static class YubikeySetupException extends Exception

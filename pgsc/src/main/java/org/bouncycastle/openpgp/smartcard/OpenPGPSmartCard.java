@@ -3,10 +3,14 @@ package org.bouncycastle.openpgp.smartcard;
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate.OpenPGPComponentKey;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPPrivateKey;
+import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,7 +24,7 @@ public abstract class OpenPGPSmartCard
 {
 
     private final OpenPGPSmartCardBackend backend;
-    protected final Map<Byte, OpenPGPHardwareKey> keys = new HashMap<>();
+    private final Map<Byte, OpenPGPHardwareKey> keys = new HashMap<>();
 
     public OpenPGPSmartCard(OpenPGPSmartCardBackend backend)
     {
@@ -50,6 +54,11 @@ public abstract class OpenPGPSmartCard
      * @return version number
      */
     public abstract String getVersion();
+
+    protected void clearKeys()
+    {
+        keys.clear();
+    }
 
     protected void putKey(OpenPGPHardwareKey key)
     {
@@ -91,9 +100,12 @@ public abstract class OpenPGPSmartCard
      * <p>
      * Note: The fingerprint field of OpenPGP smart cards is a 20-octet field that can contain arbitrary
      * data.
+     * When comparing 32-octet OpenPGP v6 fingerprints, those are shortened according to guidance in
+     * <a href="https://datatracker.ietf.org/doc/draft-hko-openpgp-identifiers-for-legacy-devices/">
+     *     OpenPGP key identifiers for legacy hardware devices</a>
+     * before the comparison is performed.
      * Since the smart card does not make use of this field and does not validate its contents, you MUST NOT
      * rely on this field to identify keys.
-     * Notably OpenPGP v6 keys, which have a 32-octet fingerprint, will cause mismatches with the 20-octet field.
      *
      * @param fingerprint fingerprint
      * @return hardware key
@@ -102,7 +114,7 @@ public abstract class OpenPGPSmartCard
     {
         for (OpenPGPHardwareKey key : getKeys())
         {
-            if (org.bouncycastle.util.Arrays.constantTimeAreEqual(key.getFingerprint(), fingerprint))
+            if (backend.fingerprintMatches(key.getFingerprint(), fingerprint))
             {
                 return key;
             }
@@ -339,4 +351,69 @@ public abstract class OpenPGPSmartCard
         return sb.toString();
     }
 
+    /**
+     * Create a raw signature over the provided data.
+     * @param data algorithm-specific encoding of a message digest
+     * @param key hardware-backed key to create the signature with
+     * @param stubKey stub of the signing key
+     * @param userPinProvider provider for the device user PIN
+     * @return raw signature
+     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardException if communication with the card fails
+     * @throws PGPException if the signature cannot be created
+     */
+    public abstract byte[] sign(byte[] data,
+                                OpenPGPHardwareKey key,
+                                OpenPGPKey.OpenPGPSecretKey stubKey,
+                                KeyPassphraseProvider userPinProvider)
+        throws KeyPassphraseException, CardException, PGPException;
+
+    /**
+     * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
+     * verified it.
+     */
+    protected char[] requireUserPin(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey signingKey)
+            throws KeyPassphraseException
+    {
+        char[] pin = userPinProvider.getKeyPassword(signingKey);
+        if (pin == null || pin.length == 0)
+        {
+            throw new KeyPassphraseException(signingKey, new IllegalStateException("PIN required."));
+        }
+        return pin;
+    }
+
+    /**
+     * Decrypt public-key-encrypted session-data.
+     *
+     * @param message algorithm-specific ciphertext of the encrypted session data
+     * @param openPGPHardwareKey hardware-backed key to perform decryption with
+     * @param stubKey stub of the decryption key
+     * @param userPinProvider provider for the devices user PIN
+     * @return decrypted session data
+     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+     */
+    public abstract byte[] decrypt(byte[] message,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException;
+
+    /**
+     * Decrypt a public-key-encrypted session-key.
+     *
+     * @param publicKey algorithm-specific ephemeral per-message public key
+     * @param openPGPHardwareKey hardware-backed key to perform decryption with
+     * @param stubKey stub of the decryption key
+     * @param userPinProvider provider for the devices user PIN
+     * @return decrypted session data
+     * @throws KeyPassphraseException if the wrong passphrase was provided
+     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+     */
+    public abstract byte[] decrypt(PublicKey publicKey,
+                          OpenPGPHardwareKey openPGPHardwareKey,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException;
 }

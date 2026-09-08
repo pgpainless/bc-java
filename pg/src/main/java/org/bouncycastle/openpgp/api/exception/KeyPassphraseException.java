@@ -7,6 +7,12 @@ public class KeyPassphraseException
 {
     private final Exception cause;
 
+    public KeyPassphraseException(OpenPGPCertificate.OpenPGPComponentKey key, String message, Exception cause)
+    {
+        super(key, message + "\n" + componentKeyErrorMessage(key, cause));
+        this.cause = cause;
+    }
+
     public KeyPassphraseException(OpenPGPCertificate.OpenPGPComponentKey key, Exception cause)
     {
         super(key, componentKeyErrorMessage(key, cause));

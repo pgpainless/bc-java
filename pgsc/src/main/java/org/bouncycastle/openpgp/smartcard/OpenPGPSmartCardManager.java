@@ -4,6 +4,8 @@ import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.PublicKeyDataDecryptorFactoryProvider;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 
@@ -24,7 +26,8 @@ import java.util.Set;
  * {@link OpenPGPKey} still has to be added as a decryption key.
  */
 public class OpenPGPSmartCardManager
-    implements PublicKeyDataDecryptorFactoryProvider
+    implements PublicKeyDataDecryptorFactoryProvider,
+        PGPContentSignerBuilderProviderFactory
 {
     private final Set<OpenPGPSmartCardBackend<?>> backends = new LinkedHashSet<OpenPGPSmartCardBackend<?>>();
 
@@ -98,14 +101,14 @@ public class OpenPGPSmartCardManager
      * kept and rethrown if no backend can serve the key - so the caller sees the real reason (wrong PIN,
      * card locked, communication failure) rather than a bare "no factory".
      *
-     * @param secretKey secret key the message was encrypted to
-     * @param passphraseProvider callback supplying the device PIN
+     * @param stubbedDecryptionKey secret key the message was encrypted to
+     * @param userPinProvider callback supplying the device PIN
      * @return a decryptor factory, or null if no backend has a matching card
-     * @throws PGPException if every backend that recognised the key failed to produce a factory
+     * @throws PGPException if every backend that recognized the key failed to produce a factory
      */
     public PublicKeyDataDecryptorFactory providePublicKeyDataDecryptorFactory(
-        OpenPGPKey.OpenPGPSecretKey secretKey,
-        KeyPassphraseProvider passphraseProvider)
+        OpenPGPKey.OpenPGPSecretKey stubbedDecryptionKey,
+        KeyPassphraseProvider userPinProvider)
         throws PGPException
     {
         PGPException lastException = null;
@@ -115,10 +118,63 @@ public class OpenPGPSmartCardManager
             try
             {
                 PublicKeyDataDecryptorFactory factory =
-                    backend.providePublicKeyDataDecryptorFactory(secretKey, passphraseProvider);
+                    backend.providePublicKeyDataDecryptorFactory(stubbedDecryptionKey, userPinProvider);
                 if (factory != null)
                 {
                     return factory;
+                }
+            }
+            catch (NoSuchElementException e)
+            {
+                // this backend has no card holding the key - try the next one
+            }
+            catch (PGPException e)
+            {
+                if (lastException == null)
+                {
+                    lastException = e;
+                }
+            }
+        }
+
+        if (lastException != null)
+        {
+            throw lastException;
+        }
+        return null;
+    }
+
+    /**
+     * Ask each registered backend in turn for a content signer builder provider, returning the first one produced.
+     * A backend that has no card for this key contributes null and the next backend is tried; a backend
+     * that fails outright does not stop the remaining backends from being asked, but its exception is
+     * kept and rethrown if no backend can serve the key - so the caller sees the real reason (wrong PIN,
+     * card locked, communication failure) rather than a bare "no provider".
+     *
+     * @param stubbedSigningKey stubbed secret key the message will be signed with
+     * @param userPinProvider callback supplying the device PIN
+     * @return a content signer builder provider, or null if no backend has a matching card
+     * @throws PGPException if every backend that recognized the key failed to produce a provider
+     */
+    @Override
+    public PGPContentSignerBuilderProvider getPGPContentSignerBuilderProvider(
+            OpenPGPKey.OpenPGPSecretKey stubbedSigningKey,
+            KeyPassphraseProvider userPinProvider,
+            int hashAlgorithmId)
+            throws PGPException
+    {
+        PGPException lastException = null;
+        for (Iterator<OpenPGPSmartCardBackend<?>> it = backends.iterator(); it.hasNext();)
+        {
+            OpenPGPSmartCardBackend<?> backend = it.next();
+            try
+            {
+                PGPContentSignerBuilderProvider contentSignerBuilderProvider =
+                        backend.getPGPContentSignerBuilderProvider(
+                                stubbedSigningKey, userPinProvider, hashAlgorithmId);
+                if (contentSignerBuilderProvider != null)
+                {
+                    return contentSignerBuilderProvider;
                 }
             }
             catch (NoSuchElementException e)

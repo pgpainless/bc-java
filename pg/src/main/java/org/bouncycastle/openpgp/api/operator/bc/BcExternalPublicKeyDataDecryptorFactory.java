@@ -1,5 +1,6 @@
 package org.bouncycastle.openpgp.api.operator.bc;
 
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -17,7 +18,7 @@ import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
  * private-key operation by implementing {@link #getExternalKeyCryptoCallback()}.
  * <p>
  * Note that a secret key handled through this class need not actually be external: if the supplied key
- * does carry usable software key material, {@link #getCryptoCallback()} returns the inherited software
+ * does carry usable software key material, {@link #getCryptoCallback(AsymmetricKeyParameter)} returns the inherited software
  * callback so the (much cheaper) in-process path is used instead.
  */
 public abstract class BcExternalPublicKeyDataDecryptorFactory
@@ -61,12 +62,12 @@ public abstract class BcExternalPublicKeyDataDecryptorFactory
     }
 
     @Override
-    protected BcPublicKeyCryptoCallback getCryptoCallback()
+    protected BcPublicKeyCryptoCallback getCryptoCallback(AsymmetricKeyParameter privKey)
     {
         // if software key material is available we can skip the costly hardware round trip
         if (!secretKey.getPGPSecretKey().isExternalKey())
         {
-            return super.getCryptoCallback();
+            return super.getCryptoCallback(privKey);
         }
         return getExternalKeyCryptoCallback();
     }

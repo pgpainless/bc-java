@@ -1,31 +1,40 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
 import junit.framework.TestCase;
+import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverterTest;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
+import org.bouncycastle.openpgp.smartcard.test.MultiBackendTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
 import org.bouncycastle.openpgp.smartcard.test.UnrelatedSmartCardMessageDecryptionTest;
 import org.bouncycastle.util.test.SimpleTestResult;
+import org.bouncycastle.util.test.Test;
 
 public class SimulatorTests
         extends TestCase
 {
-    public void testSimulatorSmartCard()
+    public void testOnSimulatorSmartCard()
     {
-        SimulatorSmartCardBackend sim = new SimulatorSmartCardBackend();
+        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
         sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, 1312));
         OpenPGPSmartCardManager m = new OpenPGPSmartCardManager()
                 .addBackend(sim);
-        SmartCardTestProperties p = new SmartCardTestProperties(1312);
+        AbstractOpenPGPSmartCardTest.TestProperties p = new AbstractOpenPGPSmartCardTest.TestProperties(1312);
 
-        AbstractOpenPGPSmartCardTest[] tests = new AbstractOpenPGPSmartCardTest[]
+        Test[] tests = new Test[]
                 {
                         new SmartCardMessageDecryptionTest(m, p),
+                        new SmartCardMessageSigningTest(m, p),
                         new AnonymousRecipientSmartCardDecryptionTest(m, p),
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
-                        new SimulatorSmartCardTest(m, p)
+                        new SmartCardWithV6KeysTest(m, p),
+                        new SimulatorSmartCardTest(m, p),
+                        new EDECPublicKeyConverterTest(),
+                        new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
+                        new MultiBackendTest()
                 };
 
         for (int i = 0; i != tests.length; i++)

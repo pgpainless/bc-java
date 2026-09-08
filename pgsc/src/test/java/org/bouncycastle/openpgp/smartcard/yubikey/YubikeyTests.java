@@ -1,42 +1,46 @@
 package org.bouncycastle.openpgp.smartcard.yubikey;
 
 import junit.framework.TestCase;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
-import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
+import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
 import org.bouncycastle.openpgp.smartcard.test.UnrelatedSmartCardMessageDecryptionTest;
 import org.bouncycastle.util.test.SimpleTestResult;
+import org.bouncycastle.util.test.Test;
 
 public class YubikeyTests
         extends TestCase
 {
 
-    public void testBCYK()
-            throws CardException
+    public void testOnBcYubikeySmartCard()
     {
-        SmartCardTestProperties p;
+        TestProperties p;
         OpenPGPSmartCardManager m;
-
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.bcImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.err.println
-            System.err.println("Skipping run of OpenPGP Smart Card tests on BC Yubikey.");
+            System.err.println("Skipping run of OpenPGP Smart Card tests on BC Yubikey: " + e.getMessage());
             return;
         }
 
-        AbstractOpenPGPSmartCardTest[] tests = new AbstractOpenPGPSmartCardTest[]
+        Test[] tests = new Test[]
                 {
                         new SmartCardMessageDecryptionTest(m, p),
+                        new SmartCardMessageSigningTest(m, p),
                         new AnonymousRecipientSmartCardDecryptionTest(m, p),
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
+                        new SmartCardWithV6KeysTest(m, p),
                         new CloseYubikeySessionTest(m, p),
                 };
 
@@ -51,29 +55,30 @@ public class YubikeyTests
         }
     }
 
-    public void testJCEYK()
-            throws CardException
+    public void testOnJcaJceYubikeySmartCard()
     {
-        SmartCardTestProperties p;
+        TestProperties p;
         OpenPGPSmartCardManager m;
-
         try
         {
-            p = new YubikeyTestProperties();
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p, YubikeySmartCardBackend.jceImpl());
+            p = YubikeyTestInstanceProvider.defaultProperties();
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
         }
         catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
             // -DM System.err.println
-            System.err.println("Skipping run of OpenPGP Smart Card tests on JCE Yubikey.");
+            System.err.println("Skipping run of OpenPGP Smart Card tests on JCE Yubikey: " + e.getMessage());
             return;
         }
 
-        AbstractOpenPGPSmartCardTest[] tests = new AbstractOpenPGPSmartCardTest[]
+        Test[] tests = new Test[]
                 {
                         new SmartCardMessageDecryptionTest(m, p),
+                        new SmartCardMessageSigningTest(m, p),
                         new AnonymousRecipientSmartCardDecryptionTest(m, p),
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
+                        new SmartCardWithV6KeysTest(m, p),
                         new CloseYubikeySessionTest(m, p),
                 };
 

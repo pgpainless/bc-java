@@ -180,35 +180,35 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
         protected byte[] decryptRSA(int keyAlgorithm, byte[] sessionKey)
             throws PGPException
         {
-            return cryptoCallback.decryptRSA(keyAlgorithm, sessionKey);
+            return cryptoCallback.decrypt(keyAlgorithm, new byte[][]{sessionKey});
         }
 
         @Override
         protected byte[] decryptElGamal(int keyAlgorithm, byte[][] secKeyData)
             throws PGPException
         {
-            return cryptoCallback.decryptElGamal(keyAlgorithm, secKeyData);
+            return cryptoCallback.decrypt(keyAlgorithm, secKeyData);
         }
 
         @Override
         protected byte[] agreeECDH(ECDHPublicBCPGKey ecKey, byte[] ephemeralKeyBytes)
             throws PGPException
         {
-            return cryptoCallback.decryptECDH(ecKey, toECPublicKey(ecKey, ephemeralKeyBytes));
+            return cryptoCallback.decrypt(PublicKeyAlgorithmTags.ECDH, toECPublicKey(ecKey, ephemeralKeyBytes));
         }
 
         @Override
         protected byte[] agreeX25519(byte[] ephemeralKey)
             throws PGPException
         {
-            return cryptoCallback.decryptX25519(toXDHPublicKey(EdECObjectIdentifiers.id_X25519, ephemeralKey));
+            return cryptoCallback.decrypt(PublicKeyAlgorithmTags.X25519, toXDHPublicKey(EdECObjectIdentifiers.id_X25519, ephemeralKey));
         }
 
         @Override
         protected byte[] agreeX448(byte[] ephemeralKey)
             throws PGPException
         {
-            return cryptoCallback.decryptX448(toXDHPublicKey(EdECObjectIdentifiers.id_X448, ephemeralKey));
+            return cryptoCallback.decrypt(PublicKeyAlgorithmTags.X448, toXDHPublicKey(EdECObjectIdentifiers.id_X448, ephemeralKey));
         }
 
         @Override
@@ -385,59 +385,26 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
     public static abstract class PublicKeyCryptoCallback
     {
         /**
-         * Perform RSA decryption of an encrypted session key.
+         * Perform RSA/ElGamal decryption of an encrypted session key.
          *
          * @param keyAlgorithm public key algorithm
          * @param pEnc encrypted session key
          * @return decrypted session key
          * @throws PGPException if the message cannot be decrypted
          */
-        public abstract byte[] decryptRSA(int keyAlgorithm,
-                                          byte[] pEnc)
+        public abstract byte[] decrypt(int keyAlgorithm,
+                                          byte[][] pEnc)
             throws PGPException;
 
         /**
-         * Perform ElGamal decryption of an encrypted session key.
+         * Perform an ECDH / X25519 / X448 agreement to calculate a shared secret.
          *
-         * @param keyAlgorithm public key algorithm
-         * @param secKeyData encrypted session key data
-         * @return decrypted session key
-         * @throws PGPException if the message cannot be decrypted
-         */
-        public abstract byte[] decryptElGamal(int keyAlgorithm,
-                                              byte[][] secKeyData)
-            throws PGPException;
-
-        /**
-         * Perform an ECDH agreement to calculate a shared secret.
-         *
-         * @param pubKey our ECDH public key
-         * @param ephemeralKey the sender's ephemeral public key
+         * @param ephemeralKey the message's ephemeral public key
          * @return shared secret
          * @throws PGPException if the message cannot be decrypted
          */
-        public abstract byte[] decryptECDH(ECDHPublicBCPGKey pubKey,
-                                           PublicKey ephemeralKey)
+        public abstract byte[] decrypt(int keyAlgorithm, PublicKey ephemeralKey)
             throws PGPException;
 
-        /**
-         * Perform an X25519 agreement to calculate a shared secret.
-         *
-         * @param ephemeralKey the sender's ephemeral X25519 public key
-         * @return shared secret
-         * @throws PGPException if the message cannot be decrypted
-         */
-        public abstract byte[] decryptX25519(PublicKey ephemeralKey)
-            throws PGPException;
-
-        /**
-         * Perform an X448 agreement to calculate a shared secret.
-         *
-         * @param ephemeralKey the sender's ephemeral X448 public key
-         * @return shared secret
-         * @throws PGPException if the message cannot be decrypted
-         */
-        public abstract byte[] decryptX448(PublicKey ephemeralKey)
-            throws PGPException;
     }
 }

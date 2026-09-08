@@ -2,9 +2,13 @@ package org.bouncycastle.openpgp.smartcard;
 
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
+import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Arrays;
 
+import java.security.PublicKey;
 import java.util.Date;
 
 /**
@@ -157,5 +161,59 @@ public class OpenPGPHardwareKey
     public boolean isGenerated()
     {
         return state == STATE_GENERATED;
+    }
+
+    /**
+     * Perform a public-key signing operation over the given <pre>digest</pre> using this hardware key.
+     * Note: The resulting signature is a raw cryptographic signature and needs to be framed into an OpenPGP signature
+     * packet.
+     *
+     * @param userPinProvider provider for the PIN of this key
+     * @param stubKey stubbed OpenPGPSecretKey corresponding to this hardware key.
+     * @param digest encoded message digest
+     * @return raw cryptographic signature
+     */
+    public byte[] sign(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] digest)
+            throws PGPException, CardException
+    {
+        return getSmartCard().sign(digest, this, stubKey, userPinProvider);
+    }
+
+    /**
+     * Perform a public-key decryption operation over the given ciphertext using this hardware key.
+     * Note: The <pre>message</pre> ciphertext is not an OpenPGP message, but represents the algorithm-specific
+     * encrypted session-key data as specified in RFC9580.
+     * This method is used with RSA and ElGamal keys.
+     *
+     * @param userPinProvider provider for this keys user PIN
+     * @param stubKey stubbed OpenPGPSecretKey corresponding to this hardware key.
+     * @param message algorithm-specific encrypted session key data
+     * @return decrypted algorithm-specific session key data
+     */
+    public byte[] decrypt(KeyPassphraseProvider userPinProvider,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          byte[] message)
+            throws CardException, KeyPassphraseException
+    {
+        return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
+    }
+
+    /**
+     * Perform a public-key handshake to establish a shared secret using this hardware key.
+     * Note: The <pre>ephemeralKey</pre> represents an algorithm-specific ephemeral key used to encrypt/decrypt
+     * a message session key.
+     * This method is used with ECDH, X25519, X448 keys.
+     *
+     * @param userPinProvider provider for this keys user PIN
+     * @param stubKey stubbed OpenPGPSecretKey corresponding to this hardware key.
+     * @param ephemeralKey algorithm-specific ephemeral message public key
+     * @return decrypted algorithm-specific session key data
+     */
+    public byte[] decrypt(KeyPassphraseProvider userPinProvider,
+                          OpenPGPKey.OpenPGPSecretKey stubKey,
+                          PublicKey ephemeralKey)
+            throws CardException, KeyPassphraseException
+    {
+        return getSmartCard().decrypt(ephemeralKey, this, stubKey, userPinProvider);
     }
 }

@@ -2,11 +2,12 @@ package org.bouncycastle.openpgp.smartcard.yubikey;
 
 import com.yubico.yubikit.core.smartcard.ApduException;
 import com.yubico.yubikit.openpgp.OpenPgpSession;
+import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardTestProperties;
 
 import java.io.IOException;
 
@@ -14,7 +15,7 @@ public class CloseYubikeySessionTest
         extends AbstractOpenPGPSmartCardTest
 {
 
-    public CloseYubikeySessionTest(OpenPGPSmartCardManager manager, SmartCardTestProperties properties)
+    public CloseYubikeySessionTest(OpenPGPSmartCardManager manager, TestProperties properties)
     {
         super(manager, properties);
     }
@@ -66,16 +67,29 @@ public class CloseYubikeySessionTest
 
     public static void main(String[] args)
     {
-        SmartCardTestProperties p = new YubikeyTestProperties();
         OpenPGPSmartCardManager m;
+        TestProperties p;
+
         try
         {
-            m = YubikeyTestInstanceProvider.prepareOneYubikeySmartCardManager(p);
+            p = YubikeyTestInstanceProvider.defaultProperties();
+
+            // BCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
+            runTest(new CloseYubikeySessionTest(m, p));
+
+            // JCYK
+            m = new OpenPGPSmartCardManager();
+            m.addBackend(
+                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
+            runTest(new CloseYubikeySessionTest(m, p));
         }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException | CardException e)
+        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
         {
-            throw new RuntimeException(e);
+            // -DM System.out.println
+            System.out.println("Skipping run of CloseYubikeySessionTest on Yubikey: " + e.getMessage());
         }
-        runTest(new CloseYubikeySessionTest(m, p));
     }
 }

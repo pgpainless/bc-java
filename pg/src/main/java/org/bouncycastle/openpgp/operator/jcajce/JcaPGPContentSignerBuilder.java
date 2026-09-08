@@ -86,6 +86,13 @@ public class JcaPGPContentSignerBuilder
         }
     }
 
+    @Override
+    public PGPContentSigner build(int signatureType)
+            throws PGPException
+    {
+        throw new PGPException("Needs to be implemented for hardware keys.");
+    }
+
     public PGPContentSigner build(final int signatureType, final long keyID, final PrivateKey privateKey)
         throws PGPException
     {
