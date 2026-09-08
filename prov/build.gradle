@@ -178,6 +178,7 @@ compileJava {
 compileJava9Java {
     options.release = 9
     options.sourcepath = files(['../core/src/main/java', '../core/src/main/jdk1.9', 'src/main/java', 'src/main/jdk1.9'])
+    options.compilerArgs << '-implicit:none'  // avoid recompiling every baseline class implicitly loaded via sourcepath
 }
 
 compileJava11Java {

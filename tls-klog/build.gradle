@@ -122,6 +122,7 @@ compileJava9Java {
     ]
 
     options.sourcepath = files(['build/src/main/java', 'build/src/main/jdk1.9'])
+    options.compilerArgs << '-implicit:none'  // avoid recompiling every baseline class implicitly loaded via sourcepath
 }
 
 compileJava17Java {
