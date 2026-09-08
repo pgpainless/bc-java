@@ -839,6 +839,18 @@ public class X509RevocationChecker
             {
                 lastException = e;
             }
+            catch (CRLNotFoundException e)
+            {
+                // The fallback runs without the CRLDP-derived stores, so finding nothing here says
+                // nothing about the distribution point attempts above (github #2427).
+                if (lastException == null)
+                {
+                    throw e;
+                }
+                throw new CRLNotFoundException(e.getMessage()
+                    + ". The CRL distribution points of the certificate were tried first and failed: "
+                    + lastException.getMessage(), lastException);
+            }
         }
 
         if (!validCrlFound)
