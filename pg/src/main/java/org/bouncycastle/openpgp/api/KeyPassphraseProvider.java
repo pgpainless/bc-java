@@ -128,5 +128,21 @@ public interface KeyPassphraseProvider
             this.callback = callback;
             return this;
         }
+
+        public DefaultKeyPassphraseProvider addPassphrases(OpenPGPKey key,
+                                                           KeyPassphraseProvider passphraseProvider)
+        {
+            Iterator<OpenPGPCertificate.OpenPGPComponentKey> it = key.getKeys().iterator();
+            while (it.hasNext())
+            {
+                OpenPGPKey.OpenPGPSecretKey secKey = key.getSecretKey(it.next());
+                if (secKey == null)
+                {
+                    continue;
+                }
+                addPassphrase(secKey, passphraseProvider.getKeyPassword(secKey));
+            }
+            return this;
+        }
     }
 }
