@@ -8,6 +8,7 @@ import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
 import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
 import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
@@ -380,7 +381,7 @@ public class SmartCardMessageSigningTest
     }
 
     private void testSigningWithV4BrainpoolP512r1Key()
-            throws PGPException, CardException, IOException
+            throws PGPException, CardException, IOException, CardPinException
     {
         // -DM System.out.println
         System.out.println("Test signing with Brainpool P512r1 ECDSA(19) v4 key");
@@ -392,7 +393,7 @@ public class SmartCardMessageSigningTest
     }
 
     private void testSigningWithKey(OpenPGPKey softwareKey)
-            throws CardException, IOException, PGPException
+            throws CardException, IOException, PGPException, CardPinException
     {
         OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
@@ -411,7 +412,7 @@ public class SmartCardMessageSigningTest
 
         // Upload keys to card
         OpenPGPKey.OpenPGPSecretKey signingKey = softwareKey.getSecretKey(softwareKey.getSigningKeys().get(0));
-        card.uploadSigningKey(signingKey.unlock(), adminPin);
+        card.uploadSigningKey(signingKey.unlock(), k -> adminPin);
         KeyPassphraseProvider userPinProvider = new KeyPassphraseProvider.DefaultKeyPassphraseProvider()
                 .addPassphrase(externalKey, properties.getUserPin());
 

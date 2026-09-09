@@ -2,6 +2,7 @@ package org.bouncycastle.openpgp.smartcard.simulator;
 
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
@@ -35,7 +36,7 @@ public class SimulatorSmartCardTest
     }
 
     private void testSignOnlyKey()
-            throws PGPException, CardException, IOException
+            throws PGPException, CardException, IOException, CardPinException
     {
         OpenPGPKey key = api.generateKey(4)
                 .signOnlyKey()
@@ -57,7 +58,7 @@ public class SimulatorSmartCardTest
     }
 
     private void testEncryptOnlyKey()
-            throws PGPException, CardException, IOException
+            throws PGPException, CardException, IOException, CardPinException
     {
         OpenPGPKey key = api.generateKey(4)
                 .withPrimaryKey()
@@ -80,7 +81,7 @@ public class SimulatorSmartCardTest
     }
 
     private void testSignEncryptKey()
-            throws PGPException, CardException, IOException
+            throws PGPException, CardException, IOException, CardPinException
     {
         OpenPGPKey key = api.generateKey(4)
                 .withPrimaryKey()
@@ -104,7 +105,7 @@ public class SimulatorSmartCardTest
     }
 
     public void testEmptyKey()
-            throws PGPException, CardException, IOException
+            throws PGPException, CardException, IOException, CardPinException
     {
         OpenPGPKey key = api.generateKey(4)
                 .withPrimaryKey()

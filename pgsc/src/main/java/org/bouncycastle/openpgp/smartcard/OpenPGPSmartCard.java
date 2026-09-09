@@ -9,6 +9,7 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPPrivateKey;
 import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 
 import java.security.PublicKey;
 import java.util.ArrayList;
@@ -248,6 +249,30 @@ public abstract class OpenPGPSmartCard
     public abstract OpenPGPSmartCard reset() throws CardException;
 
     /**
+     * Change the user PIN of the card.
+     * @param oldPinProvider provider for the old PIN
+     * @param newPinProvider provider for the new PIN
+     * @return card
+     * @throws CardException if communication with the card failed
+     * @throws CardPinException if the old PIN is not correct
+     */
+    public abstract OpenPGPSmartCard changeUserPIN(CardPinProvider oldPinProvider,
+                                                   CardPinProvider newPinProvider)
+            throws CardException, CardPinException;
+
+    /**
+     * Change the admin PIN of the card.
+     * @param oldPinProvider provider for the old PIN
+     * @param newPinProvider provider for the new PIN
+     * @return card
+     * @throws CardException if communication with the card failed
+     * @throws CardPinException if the old PIN is not correct
+     */
+    public abstract OpenPGPSmartCard changeAdminPIN(CardPinProvider oldPinProvider,
+                                                    CardPinProvider newPinProvider)
+            throws CardException, CardPinException;
+
+    /**
      * Upload the given {@link OpenPGPPrivateKey} to the signing key slot on the card.
      *
      * @param key OpenPGP private key
@@ -256,8 +281,9 @@ public abstract class OpenPGPSmartCard
      * @throws CardException if communication with the card fails
      * @throws PGPException if the key cannot be prepared for the card
      */
-    public OpenPGPSmartCard uploadSigningKey(OpenPGPPrivateKey key, KeyPassphraseProvider adminPinProvider)
-            throws PGPException, CardException
+    public OpenPGPSmartCard uploadSigningKey(OpenPGPPrivateKey key,
+                                             KeyPassphraseProvider adminPinProvider)
+            throws PGPException, CardException, CardPinException
     {
         return uploadKey(OpenPGPHardwareKey.KEY_REF_SIGNATURE, key, adminPinProvider);
     }
@@ -271,8 +297,9 @@ public abstract class OpenPGPSmartCard
      * @throws CardException if communication with the card fails
      * @throws PGPException if the key cannot be prepared for the card
      */
-    public OpenPGPSmartCard uploadDecryptionKey(OpenPGPPrivateKey key, KeyPassphraseProvider adminPinProvider)
-            throws CardException, PGPException
+    public OpenPGPSmartCard uploadDecryptionKey(OpenPGPPrivateKey key,
+                                                KeyPassphraseProvider adminPinProvider)
+            throws CardException, PGPException, CardPinException
     {
         return uploadKey(OpenPGPHardwareKey.KEY_REF_DECRYPTION, key, adminPinProvider);
     }
@@ -286,8 +313,9 @@ public abstract class OpenPGPSmartCard
      * @throws CardException if communication with the card fails
      * @throws PGPException if the key cannot be prepared for the card
      */
-    public OpenPGPSmartCard uploadAuthenticationKey(OpenPGPPrivateKey key, KeyPassphraseProvider adminPinProvider)
-            throws CardException, PGPException
+    public OpenPGPSmartCard uploadAuthenticationKey(OpenPGPPrivateKey key,
+                                                    KeyPassphraseProvider adminPinProvider)
+            throws CardException, PGPException, CardPinException
     {
         return uploadKey(OpenPGPHardwareKey.KEY_REF_AUTHENTICATION, key, adminPinProvider);
     }
@@ -305,7 +333,7 @@ public abstract class OpenPGPSmartCard
     public OpenPGPSmartCard uploadKey(byte keyRef,
                                       OpenPGPPrivateKey key,
                                       KeyPassphraseProvider adminPinProvider)
-            throws PGPException, CardException
+            throws PGPException, CardException, CardPinException
     {
         char[] adminPin = requireUserPin(adminPinProvider, key.getSecretKey());
         OpenPGPSmartCard card;
@@ -333,7 +361,7 @@ public abstract class OpenPGPSmartCard
     protected abstract OpenPGPSmartCard uploadKey(byte keyRef,
                                                OpenPGPPrivateKey key,
                                                char[] adminPin)
-            throws CardException, PGPException;
+            throws CardException, PGPException, CardPinException;
 
 
     /**
@@ -388,7 +416,7 @@ public abstract class OpenPGPSmartCard
      * @param stubKey stub of the signing key
      * @param userPinProvider provider for the device user PIN
      * @return raw signature
-     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardPinException if the wrong PIN was provided
      * @throws CardException if communication with the card fails
      * @throws PGPException if the signature cannot be created
      */
@@ -396,7 +424,7 @@ public abstract class OpenPGPSmartCard
                                 OpenPGPHardwareKey key,
                                 OpenPGPKey.OpenPGPSecretKey stubKey,
                                 KeyPassphraseProvider userPinProvider)
-        throws KeyPassphraseException, CardException, PGPException;
+        throws CardPinException, CardException;
 
     /**
      * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
@@ -421,14 +449,14 @@ public abstract class OpenPGPSmartCard
      * @param stubKey stub of the decryption key
      * @param userPinProvider provider for the devices user PIN
      * @return decrypted session data
-     * @throws KeyPassphraseException if the wrong PIN was provided
+     * @throws CardPinException if the wrong PIN was provided
      * @throws CardException if the message cannot be decrypted, e.g. because communication fails
      */
     public abstract byte[] decrypt(byte[] message,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+            throws CardException, CardPinException;
 
     /**
      * Decrypt a public-key-encrypted session-key.
@@ -438,12 +466,18 @@ public abstract class OpenPGPSmartCard
      * @param stubKey stub of the decryption key
      * @param userPinProvider provider for the devices user PIN
      * @return decrypted session data
-     * @throws KeyPassphraseException if the wrong passphrase was provided
+     * @throws CardPinException if the wrong passphrase was provided
      * @throws CardException if the message cannot be decrypted, e.g. because communication fails
      */
     public abstract byte[] decrypt(PublicKey publicKey,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+            throws CardException, CardPinException;
+
+    @FunctionalInterface
+    public interface CardPinProvider
+    {
+        char[] providePIN(OpenPGPSmartCard card);
+    }
 }

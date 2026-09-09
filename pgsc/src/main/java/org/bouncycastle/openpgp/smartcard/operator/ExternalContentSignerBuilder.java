@@ -7,6 +7,7 @@ import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -84,7 +85,7 @@ public class ExternalContentSignerBuilder
                 }
                 catch (PGPException | IOException e)
                 {
-                    throw new RuntimeException("Cannot encode digest value.", e);
+                    throw new PGPRuntimeOperationException("Cannot encode digest value.", e);
                 }
 
                 try
@@ -93,7 +94,7 @@ public class ExternalContentSignerBuilder
                 }
                 catch (PGPException | CardException e)
                 {
-                    throw new RuntimeException(e);
+                    throw new PGPRuntimeOperationException("Cannot sign with hardware key", e);
                 }
             }
 

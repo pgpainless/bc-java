@@ -8,6 +8,7 @@ import org.bouncycastle.openpgp.api.OpenPGPImplementation;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.bc.BcOpenPGPApi;
 import org.bouncycastle.openpgp.api.bc.BcOpenPGPImplementation;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.ExternalOpenPGPKeyUtils;
@@ -40,28 +41,28 @@ public abstract class AbstractOpenPGPSmartCardTest
     }
 
     public void keyToCard(OpenPGPKey key, OpenPGPSmartCard card)
-            throws PGPException, CardException
+            throws PGPException, CardException, CardPinException
     {
         card.reset();
         List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
         if (!signingKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(signingKeys.get(0));
-            card.uploadSigningKey(secretKey.unlock(), properties.getAdminPin());
+            card.uploadSigningKey(secretKey.unlock(), k -> properties.getAdminPin());
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> decryptionKeys = key.getEncryptionKeys();
         if (!decryptionKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(decryptionKeys.get(0));
-            card.uploadDecryptionKey(secretKey.unlock(), properties.getAdminPin());
+            card.uploadDecryptionKey(secretKey.unlock(), k -> properties.getAdminPin());
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> authenticationKeys = key.getComponentKeysWithFlag(new Date(), KeyFlags.AUTHENTICATION);
         if (!authenticationKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(authenticationKeys.get(0));
-            card.uploadAuthenticationKey(secretKey.unlock(), properties.getAdminPin());
+            card.uploadAuthenticationKey(secretKey.unlock(), k -> properties.getAdminPin());
         }
     }
 

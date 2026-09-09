@@ -4,8 +4,8 @@ import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.util.Arrays;
 
 import java.security.PublicKey;
@@ -173,8 +173,10 @@ public class OpenPGPHardwareKey
      * @param digest encoded message digest
      * @return raw cryptographic signature
      */
-    public byte[] sign(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] digest)
-            throws PGPException, CardException
+    public byte[] sign(KeyPassphraseProvider userPinProvider,
+                       OpenPGPKey.OpenPGPSecretKey stubKey,
+                       byte[] digest)
+            throws PGPException, CardException, CardPinException
     {
         return getSmartCard().sign(digest, this, stubKey, userPinProvider);
     }
@@ -193,7 +195,7 @@ public class OpenPGPHardwareKey
     public byte[] decrypt(KeyPassphraseProvider userPinProvider,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           byte[] message)
-            throws CardException, KeyPassphraseException
+            throws PGPException, CardException, CardPinException
     {
         return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
     }
@@ -212,7 +214,7 @@ public class OpenPGPHardwareKey
     public byte[] decrypt(KeyPassphraseProvider userPinProvider,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           PublicKey ephemeralKey)
-            throws CardException, KeyPassphraseException
+            throws PGPException, CardException, CardPinException
     {
         return getSmartCard().decrypt(ephemeralKey, this, stubKey, userPinProvider);
     }

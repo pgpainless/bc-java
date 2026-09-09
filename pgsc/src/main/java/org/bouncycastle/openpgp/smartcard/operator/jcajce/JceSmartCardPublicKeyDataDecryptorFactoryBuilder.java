@@ -5,9 +5,9 @@ import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.api.operator.jcajce.JceExternalPublicKeyDataDecryptorFactoryBuilder;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 
@@ -50,13 +50,13 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
                 {
                     return smartcard.getDecryptionKey().decrypt(userPinProvider, secretKey, secKeyData[0]);
                 }
-                catch (CardException e)
+                catch (CardPinException e)
+                {
+                    throw new PGPRuntimeOperationException("Wrong smart card user PIN provided.", e);
+                }
+                catch (PGPException | CardException e)
                 {
                     throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
                 }
             }
 
@@ -68,13 +68,13 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
                 {
                     return smartcard.getDecryptionKey().decrypt(userPinProvider, secretKey, peerKey);
                 }
-                catch (CardException e)
+                catch (CardPinException e)
+                {
+                    throw new PGPRuntimeOperationException("Wrong smart card user PIN provided.", e);
+                }
+                catch (PGPException | CardException e)
                 {
                     throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
                 }
             }
         });

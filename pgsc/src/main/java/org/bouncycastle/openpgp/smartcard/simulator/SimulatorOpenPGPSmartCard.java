@@ -35,11 +35,12 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
+import org.bouncycastle.openpgp.smartcard.card.CardPinException;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Integers;
 
 import java.io.IOException;
@@ -62,6 +63,10 @@ import java.util.Map;
 public class SimulatorOpenPGPSmartCard
         extends OpenPGPSmartCard
 {
+    public static final char[] DEFAULT_USER_PIN = "123456".toCharArray();
+    public static final char[] DEFAULT_ADMIN_PIN = "12345678".toCharArray();
+    private char[] userPin = Arrays.clone(DEFAULT_USER_PIN); // only for test purposes
+    private char[] adminPin = Arrays.clone(DEFAULT_ADMIN_PIN);
     private final Integer serialNumber;
     private final Map<Byte, OpenPGPKey.OpenPGPSecretKey> secretKeys = new HashMap<>();
     private final BcPGPKeyConverter keyConverter = new BcPGPKeyConverter();
@@ -75,7 +80,7 @@ public class SimulatorOpenPGPSmartCard
 
     public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorOpenPGPSmartCardBackend backend,
                                                                     OpenPGPKey softwareKey)
-            throws PGPException, CardException
+            throws PGPException, CardException, CardPinException
     {
         // the serial only has to be unique among simulated cards; it is not security relevant, but
         // take it from the registrar's RNG rather than introducing a java.util.Random into the tree.
@@ -86,7 +91,7 @@ public class SimulatorOpenPGPSmartCard
     public static SimulatorOpenPGPSmartCard createSimulatedCardFrom(SimulatorOpenPGPSmartCardBackend backend,
                                                                     Integer serialNumber,
                                                                     OpenPGPKey softwareKey)
-            throws PGPException, CardException
+            throws PGPException, CardException, CardPinException
     {
         SimulatorOpenPGPSmartCard card = new SimulatorOpenPGPSmartCard(backend, serialNumber);
 
@@ -94,21 +99,21 @@ public class SimulatorOpenPGPSmartCard
         if (!signingKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = softwareKey.getSecretKey(signingKeys.get(0));
-            card.uploadSigningKey(secretKey.unlock(), key -> null);
+            card.uploadSigningKey(secretKey.unlock(), key -> card.adminPin);
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> decryptionKeys = softwareKey.getEncryptionKeys();
         if (!decryptionKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = softwareKey.getSecretKey(decryptionKeys.get(0));
-            card.uploadDecryptionKey(secretKey.unlock(), key -> null);
+            card.uploadDecryptionKey(secretKey.unlock(), key -> card.adminPin);
         }
 
         List<OpenPGPCertificate.OpenPGPComponentKey> authenticationKeys = softwareKey.getComponentKeysWithFlag(new Date(), KeyFlags.AUTHENTICATION);
         if (!authenticationKeys.isEmpty())
         {
             OpenPGPKey.OpenPGPSecretKey secretKey = softwareKey.getSecretKey(authenticationKeys.get(0));
-            card.uploadAuthenticationKey(secretKey.unlock(), key -> null);
+            card.uploadAuthenticationKey(secretKey.unlock(), key -> card.adminPin);
         }
 
         return card;
@@ -159,16 +164,54 @@ public class SimulatorOpenPGPSmartCard
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * The simulator enforces no admin PIN, so <code>adminPin</code> is ignored.
-     */
+    @Override
+    public OpenPGPSmartCard changeUserPIN(CardPinProvider oldPinProvider,
+                                          CardPinProvider newPinProvider)
+            throws CardException, CardPinException
+    {
+        char[] oldPin = oldPinProvider.providePIN(this);
+        char[] newPin = newPinProvider.providePIN(this);
+
+        if (Arrays.areEqual(userPin, oldPin))
+        {
+            userPin = newPin;
+        }
+        else
+        {
+            throw new CardPinException(this, "Invalid simulator user pin", null);
+        }
+        return this;
+    }
+
+    @Override
+    public OpenPGPSmartCard changeAdminPIN(CardPinProvider oldPinProvider,
+                                           CardPinProvider newPinProvider)
+            throws CardException, CardPinException
+    {
+        char[] oldPin = oldPinProvider.providePIN(this);
+        char[] newPin = newPinProvider.providePIN(this);
+
+        if (Arrays.areEqual(adminPin, oldPin))
+        {
+            adminPin = newPin;
+        }
+        else
+        {
+            throw new CardPinException(this, "Invalid simulator admin pin", null);
+        }
+        return this;
+    }
+
     @Override
     public SimulatorOpenPGPSmartCard uploadKey(byte keyRef,
                                                OpenPGPKey.OpenPGPPrivateKey key,
                                                char[] adminPin)
+            throws CardPinException
     {
+        if (!Arrays.areEqual(this.adminPin, adminPin))
+        {
+            throw new CardPinException(this, "Invalid simulator admin pin", null);
+        }
         secretKeys.put(keyRef, key.getSecretKey());
         putKey(asHardwareKey(this, key.getSecretKey(), keyRef, OpenPGPHardwareKey.STATE_IMPORTED));
         return this;
@@ -190,8 +233,7 @@ public class SimulatorOpenPGPSmartCard
         return secretKey.getPublicKey().getPGPPublicKey();
     }
 
-    private PGPPrivateKey getSoftwareKey(OpenPGPCertificate.OpenPGPComponentKey key,
-                                        KeyPassphraseProvider passphraseProvider)
+    private PGPPrivateKey getSoftwareKey(OpenPGPCertificate.OpenPGPComponentKey key)
             throws PGPException
     {
         for (Iterator<OpenPGPKey.OpenPGPSecretKey> it = secretKeys.values().iterator(); it.hasNext();)
@@ -199,7 +241,7 @@ public class SimulatorOpenPGPSmartCard
             OpenPGPKey.OpenPGPSecretKey k = it.next();
             if (k.getKeyIdentifier().matchesExplicit(key.getKeyIdentifier()))
             {
-                return k.unlock(passphraseProvider).getKeyPair().getPrivateKey();
+                return k.unlock().getKeyPair().getPrivateKey();
             }
         }
         return null;
@@ -216,10 +258,19 @@ public class SimulatorOpenPGPSmartCard
                        OpenPGPHardwareKey key,
                        OpenPGPKey.OpenPGPSecretKey stubKey,
                        KeyPassphraseProvider userPinProvider)
+            throws CardPinException, CardException
     {
+        if (!Arrays.areEqual(userPin, userPinProvider.getKeyPassword(stubKey)))
+        {
+            throw new CardPinException(this, "Invalid simulator user PIN", null);
+        }
         try
         {
-            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey);
+            if (pgpPrivateKey == null)
+            {
+                throw new CardException("No signing key");
+            }
             AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
 
             switch (stubKey.getAlgorithm())
@@ -265,7 +316,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException | IOException | CryptoException e)
         {
-            throw new RuntimeException(e);
+            throw new CardException("Cannot sign", e);
         }
     }
 
@@ -274,10 +325,20 @@ public class SimulatorOpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
+            throws CardPinException, CardException
     {
+        if (!Arrays.areEqual(userPin, userPinProvider.getKeyPassword(stubKey)))
+        {
+            throw new CardPinException(this, "Invalid simulator user PIN", null);
+        }
+
         try
         {
-            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey);
+            if (pgpPrivateKey == null)
+            {
+                throw new CardException("No decryption key");
+            }
             AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
             int keyAlgorithm = stubKey.getAlgorithm();
             switch (keyAlgorithm)
@@ -299,7 +360,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException | InvalidCipherTextException e)
         {
-            throw new RuntimeException(e);
+            throw new CardException("Cannot decrypt", e);
         }
     }
 
@@ -308,10 +369,20 @@ public class SimulatorOpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
+            throws CardPinException, CardException
     {
+        if (!Arrays.areEqual(userPin, userPinProvider.getKeyPassword(stubKey)))
+        {
+            throw new CardPinException(this, "Invalid simulator user PIN", null);
+        }
+
         try
         {
-            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey, userPinProvider);
+            PGPPrivateKey pgpPrivateKey = getSoftwareKey(stubKey);
+            if (pgpPrivateKey == null)
+            {
+                throw new CardException("No decryption key");
+            }
             AsymmetricKeyParameter privateKey = keyConverter.getPrivateKey(pgpPrivateKey);
 
             RawAgreement agreement;
@@ -358,7 +429,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException e)
         {
-            throw new RuntimeException(e);
+            throw new CardException("Cannot decrypt", e);
         }
     }
 }
