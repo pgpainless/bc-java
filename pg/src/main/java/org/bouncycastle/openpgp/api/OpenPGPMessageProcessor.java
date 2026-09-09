@@ -113,6 +113,13 @@ public class OpenPGPMessageProcessor
         return this;
     }
 
+    public OpenPGPMessageProcessor addDecryptionKey(OpenPGPKey key, KeyPassphraseProvider passphraseProvider)
+    {
+        configuration.keyPool.addItem(key);
+        configuration.keyPassphraseProvider.addPassphrases(key, passphraseProvider);
+        return this;
+    }
+
     /**
      * Add a passphrase for secret key decryption.
      * If the corresponding {@link OpenPGPKey} which key this passphrase for is known in advance,
