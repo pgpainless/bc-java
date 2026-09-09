@@ -108,9 +108,12 @@ public class OpenPGPMessageProcessor
      */
     public OpenPGPMessageProcessor addDecryptionKey(OpenPGPKey key, char[] passphrase)
     {
-        configuration.keyPool.addItem(key);
-        configuration.keyPassphraseProvider.addPassphrase(key, passphrase);
-        return this;
+        return addDecryptionKey(key, new KeyPassphraseProvider() {
+            @Override
+            public char[] getKeyPassword(OpenPGPKey.OpenPGPSecretKey key) {
+                return Arrays.clone(passphrase);
+            }
+        });
     }
 
     public OpenPGPMessageProcessor addDecryptionKey(OpenPGPKey key, KeyPassphraseProvider passphraseProvider)
