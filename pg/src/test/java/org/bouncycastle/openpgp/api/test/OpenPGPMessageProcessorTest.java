@@ -458,7 +458,7 @@ public class OpenPGPMessageProcessorTest
         ByteArrayInputStream bIn = new ByteArrayInputStream(ciphertext);
         bOut = new ByteArrayOutputStream();
         OpenPGPMessageInputStream decIn = api.decryptAndOrVerifyMessage()
-            .addDecryptionKey(key, OpenPGPTestKeys.V6_KEY_LOCKED_PASSPHRASE.toCharArray())
+            .addDecryptionKey(key, k -> OpenPGPTestKeys.V6_KEY_LOCKED_PASSPHRASE.toCharArray())
             .process(bIn);
         Streams.pipeAll(decIn, bOut);
         decIn.close();
