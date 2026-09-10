@@ -194,9 +194,9 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         // a shortened identifier repeats the key version number in the leading 12 octets
         int verIdx = STORED_FINGERPRINT_LENGTH - SHORTENED_IDENTIFIER_LENGTH - 1;
         byte version = storedFingerprint[verIdx];
-        if (version != PublicKeyPacket.VERSION_6)
+        if (version <= PublicKeyPacket.VERSION_4)
         {
-            return false; // TODO: What about version 5, 6+?
+            return false; // v4 keys and lower do not need shortened fingerprints
         }
         for (int i = 0; i < verIdx; i++)
         {
