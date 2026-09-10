@@ -444,6 +444,7 @@ public class SmartCardMessageSigningTest
         boolean valid = result.getSignatures().get(0).isValid();
         if (!valid)
         {
+            // -DM System.out.println
             System.out.println(softwareKey.toAsciiArmoredString());
         }
         isTrue("Signature MUST be valid.", valid);
