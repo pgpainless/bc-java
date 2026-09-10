@@ -97,11 +97,4 @@ public class BcPGPContentSignerBuilder
             }
         };
     }
-
-    @Override
-    public PGPContentSigner build(int signatureType)
-            throws PGPException
-    {
-        throw new PGPException("Needs to be implemented for hardware keys.");
-    }
 }

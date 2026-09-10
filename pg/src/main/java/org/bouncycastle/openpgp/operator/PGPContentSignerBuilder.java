@@ -12,7 +12,4 @@ public interface PGPContentSignerBuilder
 {
     PGPContentSigner build(final int signatureType, final PGPPrivateKey privateKey)
         throws PGPException;
-
-    PGPContentSigner build(final int signatureType)
-        throws PGPException;
 }

@@ -14,6 +14,7 @@ import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
+import org.bouncycastle.openpgp.operator.PGPExternalContentSignerBuilder;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.pqc.crypto.DigestUtils;
@@ -23,7 +24,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class ExternalContentSignerBuilder
-        implements PGPContentSignerBuilder
+        implements PGPExternalContentSignerBuilder
 {
     protected final OpenPGPHardwareKey hardwareKey;
     protected final OpenPGPKey.OpenPGPSecretKey stubKey;

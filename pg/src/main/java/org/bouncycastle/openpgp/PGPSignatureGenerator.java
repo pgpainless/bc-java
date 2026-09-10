@@ -18,6 +18,7 @@ import org.bouncycastle.bcpg.sig.SignatureCreationTime;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
+import org.bouncycastle.openpgp.operator.PGPExternalContentSignerBuilder;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Strings;
 
@@ -106,13 +107,17 @@ public class PGPSignatureGenerator
             throw new PGPException("Illegal signature type 0xFF provided.");
         }
 
-        if (key == null)
+        if (contentSignerBuilder instanceof PGPExternalContentSignerBuilder)
         {
-            contentSigner = contentSignerBuilder.build(signatureType);
+            contentSigner = ((PGPExternalContentSignerBuilder)contentSignerBuilder).build(signatureType);
+        }
+        else if (key != null)
+        {
+            contentSigner = contentSignerBuilder.build(signatureType, key);
         }
         else
         {
-            contentSigner = contentSignerBuilder.build(signatureType, key);
+            throw new PGPException("Missing private key.");
         }
 
         sigOut = contentSigner.getOutputStream();
