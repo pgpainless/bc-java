@@ -174,7 +174,7 @@ public class OpenPGPHardwareKey
      * @return raw cryptographic signature
      */
     public byte[] sign(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] digest)
-            throws PGPException, CardException
+            throws CardException, KeyPassphraseException
     {
         return getSmartCard().sign(digest, this, stubKey, userPinProvider);
     }

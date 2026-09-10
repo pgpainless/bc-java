@@ -360,13 +360,12 @@ public abstract class OpenPGPSmartCard
      * @return raw signature
      * @throws KeyPassphraseException if the wrong PIN was provided
      * @throws CardException if communication with the card fails
-     * @throws PGPException if the signature cannot be created
      */
     public abstract byte[] sign(byte[] data,
                                 OpenPGPHardwareKey key,
                                 OpenPGPKey.OpenPGPSecretKey stubKey,
                                 KeyPassphraseProvider userPinProvider)
-        throws KeyPassphraseException, CardException, PGPException;
+        throws KeyPassphraseException, CardException;
 
     /**
      * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has

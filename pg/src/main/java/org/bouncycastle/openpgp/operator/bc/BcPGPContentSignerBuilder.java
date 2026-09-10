@@ -9,6 +9,7 @@ import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithRandom;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
@@ -86,8 +87,8 @@ public class BcPGPContentSignerBuilder
                     return signer.generateSignature();
                 }
                 catch (CryptoException e)
-                {    // TODO: need a specific runtime exception for PGP operators.
-                    throw new IllegalStateException("unable to create signature");
+                {
+                    throw new PGPRuntimeOperationException("Unable to create signature: " + e.getMessage(), e);
                 }
             }
 

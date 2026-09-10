@@ -32,6 +32,7 @@ import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -263,7 +264,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException | IOException | CryptoException e)
         {
-            throw new RuntimeException(e);
+            throw new PGPRuntimeOperationException("Unable to create signature: " + e.getMessage(), e);
         }
     }
 
@@ -297,7 +298,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException | InvalidCipherTextException e)
         {
-            throw new RuntimeException(e);
+            throw new PGPRuntimeOperationException("Unable to decrypt: " + e.getMessage(), e);
         }
     }
 
@@ -356,7 +357,7 @@ public class SimulatorOpenPGPSmartCard
         }
         catch (PGPException e)
         {
-            throw new RuntimeException(e);
+            throw new PGPRuntimeOperationException("Unable to decrypt: " + e.getMessage(), e);
         }
     }
 }

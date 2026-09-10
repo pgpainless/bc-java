@@ -7,11 +7,12 @@ import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
+import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.PGPContentSigner;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PGPExternalContentSignerBuilder;
@@ -85,16 +86,16 @@ public class ExternalContentSignerBuilder
                 }
                 catch (PGPException | IOException e)
                 {
-                    throw new RuntimeException("Cannot encode digest value.", e);
+                    throw new PGPRuntimeOperationException("unable to create signature: " + e.getMessage(), e);
                 }
 
                 try
                 {
                     return hardwareKey.sign(userPinProvider, stubKey, digest);
                 }
-                catch (PGPException | CardException e)
+                catch (CardException | KeyPassphraseException e)
                 {
-                    throw new RuntimeException(e);
+                    throw new PGPRuntimeOperationException("Cannot create signature: " + e.getMessage(), e);
                 }
             }
 

@@ -21,6 +21,7 @@ import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -327,16 +328,9 @@ public class YubikeyOpenPGPSmartCard
                        OpenPGPHardwareKey hardwareKey,
                        OpenPGPKey.OpenPGPSecretKey stubKey,
                        KeyPassphraseProvider userPinProvider)
+            throws KeyPassphraseException, CardException
     {
-        char[] pin;
-        try
-        {
-            pin = requireUserPin(userPinProvider, stubKey);
-        }
-        catch (KeyPassphraseException e)
-        {
-            throw new IllegalStateException("No user PIN provided.", e);
-        }
+        char[] pin = requireUserPin(userPinProvider, stubKey);
 
         try (OpenPgpSession session = openSession())
         {
@@ -351,17 +345,20 @@ public class YubikeyOpenPGPSmartCard
             }
             else
             {
-                throw new IllegalStateException("Cannot sign/authenticate with this key. KeyRef: " + hardwareKey.getKeyRef());
+                throw new PGPException("Cannot sign/authenticate with this key. KeyRef: " + hardwareKey.getKeyRef());
             }
+        }
+        catch (PGPException e)
+        {
+            throw new PGPRuntimeOperationException("Unable to create signature: " + e.getMessage(), e);
         }
         catch (ApduException | IOException | CardException e)
         {
-            throw new RuntimeException("Exception communicating with card. Cannot sign.", e);
+            throw new CardException("Exception communicating with card. Cannot sign.", e);
         }
         catch (InvalidPinException e)
         {
-            throw new IllegalStateException("Wrong PIN for card " + getSerialNumber(),
-                    new KeyPassphraseException(stubKey, e));
+            throw new KeyPassphraseException(stubKey, "Wrong PIN for card " + getSerialNumber(), e);
         }
         finally
         {
@@ -376,15 +373,7 @@ public class YubikeyOpenPGPSmartCard
                           KeyPassphraseProvider userPinProvider)
             throws KeyPassphraseException, CardException
     {
-        char[] pin;
-        try
-        {
-            pin = requireUserPin(userPinProvider, stubKey);
-        }
-        catch (KeyPassphraseException e)
-        {
-            throw new IllegalStateException("No user PIN provided.", e);
-        }
+        char[] pin = requireUserPin(userPinProvider, stubKey);
 
         try (OpenPgpSession session = openSession())
         {
@@ -395,8 +384,12 @@ public class YubikeyOpenPGPSmartCard
             }
             else
             {
-                throw new IllegalStateException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef());
+                throw new PGPException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef());
             }
+        }
+        catch (PGPException e)
+        {
+            throw new PGPRuntimeOperationException("Unable to decrypt: " + e.getMessage(), e);
         }
         catch (ApduException | IOException | CardException e)
         {
@@ -419,15 +412,7 @@ public class YubikeyOpenPGPSmartCard
                           KeyPassphraseProvider userPinProvider)
             throws KeyPassphraseException, CardException
     {
-        char[] pin;
-        try
-        {
-            pin = requireUserPin(userPinProvider, stubKey);
-        }
-        catch (KeyPassphraseException e)
-        {
-            throw new IllegalStateException("No user PIN provided.", e);
-        }
+        char[] pin = requireUserPin(userPinProvider, stubKey);
 
         try (OpenPgpSession session = openSession())
         {
@@ -439,8 +424,12 @@ public class YubikeyOpenPGPSmartCard
             }
             else
             {
-                throw new IllegalStateException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef());
+                throw new PGPException("Cannot decrypt with this key. KeyRef: " + openPGPHardwareKey.getKeyRef() + ", Card: " + getSerialNumber());
             }
+        }
+        catch (PGPException e)
+        {
+            throw new PGPRuntimeOperationException("Unable to decrypt: " + e.getMessage(), e);
         }
         catch (ApduException | IOException | CardException e)
         {
