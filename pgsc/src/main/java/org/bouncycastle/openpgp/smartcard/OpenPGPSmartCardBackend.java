@@ -197,7 +197,7 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         {
             return false; // TODO: What about version 5, 6+?
         }
-        for (int i = 0; i != verIdx - 1; i++)
+        for (int i = 0; i < verIdx; i++)
         {
             if (storedFingerprint[i] != 0x00)
             {
