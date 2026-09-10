@@ -1,10 +1,12 @@
 package org.bouncycastle.openpgp.smartcard.operator;
 
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.jcajce.util.MessageDigestUtils;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPRuntimeOperationException;
@@ -18,7 +20,6 @@ import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PGPExternalContentSignerBuilder;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.pqc.crypto.DigestUtils;
 import org.bouncycastle.util.io.TeeOutputStream;
 
 import java.io.IOException;
@@ -147,7 +148,7 @@ public class ExternalContentSignerBuilder
                 if (alg == PublicKeyAlgorithmTags.RSA_GENERAL || alg == PublicKeyAlgorithmTags.RSA_SIGN)
                 {
                     String digestName = PGPUtil.getDigestName(hashAlgorithm);
-                    org.bouncycastle.asn1.ASN1ObjectIdentifier hashOID = DigestUtils.getDigestOid(digestName);
+                    ASN1ObjectIdentifier hashOID = MessageDigestUtils.getDigestAlgID(digestName).getAlgorithm();
                     AlgorithmIdentifier algId = new AlgorithmIdentifier(hashOID, DERNull.INSTANCE);
                     DigestInfo info = new DigestInfo(algId, digest);
                     return info.getEncoded(ASN1Encoding.DER);
