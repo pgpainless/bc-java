@@ -191,8 +191,12 @@ public class SupportedAlgorithms
         public boolean matches(OpenPGPCertificate.OpenPGPComponentKey key)
         {
             ASN1ObjectIdentifier keyCurve = getKeyCurveOID(key);
-            int keyAlgorithm = key.getAlgorithm();
+            if (keyCurve == null)
+            {
+                return false; // unknown key curve
+            }
 
+            int keyAlgorithm = key.getAlgorithm();
             return matches(keyAlgorithm, keyCurve);
         }
 
@@ -212,7 +216,7 @@ public class SupportedAlgorithms
             {
                 return EdECObjectIdentifiers.id_Ed25519;
             }
-            throw new IllegalArgumentException("unknown key type: " + pubKey.getClass().getName());
+            return null;
         }
 
         @Override
