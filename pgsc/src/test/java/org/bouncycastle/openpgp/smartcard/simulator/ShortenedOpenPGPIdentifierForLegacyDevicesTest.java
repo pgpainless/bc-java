@@ -21,6 +21,7 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
 
         testV4FingerprintIsNotShortened(backend);
         testV6FingerprintShortening(backend);
+        testOffByOne(backend);
     }
 
     private void testV4FingerprintIsNotShortened(OpenPGPSmartCardBackend backend)
@@ -39,6 +40,13 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
         byte[] shortenedFingerprint = backend.toStoredFingerprint(v6Fingerprint, 6);
         isTrue(Arrays.areEqual(Hex.decode("000000000000000000000006cb186c4f0609a697"), shortenedFingerprint));
         isTrue(backend.fingerprintMatches(shortenedFingerprint, v6Fingerprint));
+    }
+
+    private void testOffByOne(OpenPGPSmartCardBackend backend)
+    {
+        isTrue(!(backend.fingerprintMatches(        // ↓ added non-zero octet here to test for off-by-one errors
+                Hex.decode("000000000000000000000f06cb186c4f0609a697"),
+                Hex.decode("cb186c4f0609a697e4d52dfa6c722b0c1f1e27c18a56708f6525ec27bad9acc9"))));
     }
 
     public static void main(String[] args)
