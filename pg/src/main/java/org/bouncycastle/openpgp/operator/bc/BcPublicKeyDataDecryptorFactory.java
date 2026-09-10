@@ -224,7 +224,7 @@ public class BcPublicKeyDataDecryptorFactory
         return PGPPad.unpadSessionData(unwrapped);
     }
 
-    public static ECPublicKeyParameters decodePeerKey(ECPublicBCPGKey publicKey, byte[] peerKey)
+    static ECPublicKeyParameters decodePeerKey(ECPublicBCPGKey publicKey, byte[] peerKey)
     {
         ASN1ObjectIdentifier curveOID = publicKey.getCurveOID();
         org.bouncycastle.asn1.x9.X9ECParameters x9 = BcUtil.getX9Parameters(curveOID);
