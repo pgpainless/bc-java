@@ -235,6 +235,11 @@ public class SupportedAlgorithms
             sb.append(a.toString());
             sb.append("\n");
         }
-        return sb.deleteCharAt(sb.length() - 1).toString();
+
+        if (sb.length() > 0)
+        {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        return sb.toString();
     }
 }
