@@ -14,9 +14,9 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.api.exception.InvalidSigningKeyException;
 import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
+import org.bouncycastle.openpgp.api.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
 
 public class AbstractOpenPGPDocumentSignatureGenerator<T extends AbstractOpenPGPDocumentSignatureGenerator<T>>
 {

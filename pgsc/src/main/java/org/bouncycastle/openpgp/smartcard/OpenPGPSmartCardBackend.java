@@ -9,7 +9,7 @@ import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPSecretKey;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProvider;
-import org.bouncycastle.openpgp.operator.PGPContentSignerBuilderProviderFactory;
+import org.bouncycastle.openpgp.api.operator.PGPContentSignerBuilderProviderFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
