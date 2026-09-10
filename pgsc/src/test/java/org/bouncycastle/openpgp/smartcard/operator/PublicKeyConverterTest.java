@@ -1,4 +1,4 @@
-package org.bouncycastle.jcajce.provider.asymmetric.edec;
+package org.bouncycastle.openpgp.smartcard.operator;
 
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -12,23 +12,25 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.test.SimpleTest;
 
+import java.security.Provider;
 import java.security.PublicKey;
 import java.util.Date;
 
-public class EDECPublicKeyConverterTest
+public class PublicKeyConverterTest
     extends SimpleTest
 {
     private final Date date = new Date();
     private final PGPKeyPairGenerator kpGen;
+    private final Provider provider;
     private final BcPGPKeyConverter bcKeyConverter;
     private final JcaPGPKeyConverter jcaKeyConverter;
 
-    public EDECPublicKeyConverterTest()
+    public PublicKeyConverterTest()
     {
-        BouncyCastleProvider prov = new BouncyCastleProvider();
+        provider = new BouncyCastleProvider();
         bcKeyConverter = new BcPGPKeyConverter();
         jcaKeyConverter = new JcaPGPKeyConverter()
-                .setProvider(prov);
+                .setProvider(provider);
         kpGen = new BcPGPKeyPairGeneratorProvider()
                 .get(4, date);
     }
@@ -76,7 +78,7 @@ public class EDECPublicKeyConverterTest
         AsymmetricKeyParameter bcPubKey = bcKeyConverter.getPublicKey(pgpPubKey);
         PublicKey jcaPubKey = jcaKeyConverter.getPublicKey(pgpPubKey);
 
-        PublicKey converted = EDECPublicKeyConverter.toPublicKey(bcPubKey);
+        PublicKey converted = PublicKeyConverter.convertEllipticPublicKey(pgpPubKey.getAlgorithm(), bcPubKey, provider);
         isTrue("Converted " + name + " public key does not match expectations.",
                 Arrays.areEqual(jcaPubKey.getEncoded(), converted.getEncoded()));
     }
@@ -84,6 +86,6 @@ public class EDECPublicKeyConverterTest
     public static void main(String[] args)
         throws Exception
     {
-        runTest(new EDECPublicKeyConverterTest());
+        runTest(new PublicKeyConverterTest());
     }
 }

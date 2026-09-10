@@ -1,7 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
 import junit.framework.TestCase;
-import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverterTest;
+import org.bouncycastle.openpgp.smartcard.operator.PublicKeyConverterTest;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
@@ -32,7 +32,7 @@ public class SimulatorTests
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
                         new SmartCardWithV6KeysTest(m, p),
                         new SimulatorSmartCardTest(m, p),
-                        new EDECPublicKeyConverterTest(),
+                        new PublicKeyConverterTest(),
                         new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
                         new MultiBackendTest()
                 };

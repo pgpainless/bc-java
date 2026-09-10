@@ -1,7 +1,6 @@
 package org.bouncycastle.openpgp.smartcard.operator.bc;
 
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.jcajce.provider.asymmetric.edec.EDECPublicKeyConverter;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
@@ -11,7 +10,9 @@ import org.bouncycastle.openpgp.api.operator.bc.BcExternalPublicKeyDataDecryptor
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyCryptoCallback;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.operator.PublicKeyConverter;
 
+import java.security.Provider;
 import java.security.PublicKey;
 
 /**
@@ -27,15 +28,18 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
 {
     private final KeyPassphraseProvider userPinProvider;
     private final T smartcard;
+    private final Provider provider;
 
     public BcSmartCardPublicKeyDataDecryptorFactory(OpenPGPKey.OpenPGPSecretKey secretKey,
                                                     T smartcard,
-                                                    KeyPassphraseProvider userPinProvider)
+                                                    KeyPassphraseProvider userPinProvider,
+                                                    Provider provider)
         throws PGPException
     {
         super(secretKey);
         this.smartcard = smartcard;
         this.userPinProvider = userPinProvider;
+        this.provider = provider;
     }
 
     @Override
@@ -85,6 +89,6 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
     private PublicKey toPublicKey(int keyAlgorithm, AsymmetricKeyParameter peerKey)
             throws PGPException
     {
-        return EDECPublicKeyConverter.toPublicKey(peerKey);
+        return PublicKeyConverter.convertEllipticPublicKey(keyAlgorithm, peerKey, provider);
     }
 }

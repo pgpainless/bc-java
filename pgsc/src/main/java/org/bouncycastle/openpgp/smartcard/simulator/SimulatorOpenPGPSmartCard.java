@@ -26,8 +26,7 @@ import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.signers.Ed448Signer;
 import org.bouncycastle.crypto.signers.StandardDSAEncoding;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKeyHelper;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPrivateKey;
@@ -332,7 +331,7 @@ public class SimulatorOpenPGPSmartCard
                     else
                     {
                         agreement = new BasicRawAgreement(new ECDHBasicAgreement());
-                        pubKey = BCECPublicKeyHelper.getParameters((BCECPublicKey)publicKey);
+                        pubKey = PublicKeyFactory.createKey(publicKey.getEncoded());
                     }
                     break;
 
@@ -355,7 +354,7 @@ public class SimulatorOpenPGPSmartCard
             agreement.calculateAgreement(pubKey, secret, 0);
             return secret;
         }
-        catch (PGPException e)
+        catch (IOException | PGPException e)
         {
             throw new PGPRuntimeOperationException("Unable to decrypt: " + e.getMessage(), e);
         }

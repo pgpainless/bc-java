@@ -1,5 +1,6 @@
 package org.bouncycastle.openpgp.smartcard;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
@@ -27,7 +28,7 @@ public class BcOpenPGPSmartCardImplementation
             KeyPassphraseProvider userPinProvider)
             throws PGPException
     {
-        return new BcSmartCardPublicKeyDataDecryptorFactory<>(secretKey, card, userPinProvider);
+        return new BcSmartCardPublicKeyDataDecryptorFactory<>(secretKey, card, userPinProvider, new BouncyCastleProvider());
     }
 
     @Override
