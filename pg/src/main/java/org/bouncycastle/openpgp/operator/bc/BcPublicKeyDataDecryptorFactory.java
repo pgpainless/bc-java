@@ -333,7 +333,7 @@ public class BcPublicKeyDataDecryptorFactory
                 case PublicKeyAlgorithmTags.ELGAMAL_GENERAL:
                     return decryptElGamal(keyAlgorithm, pEnc);
             }
-            return new byte[0];
+            throw new PGPException("Unsupported key algorithm: " + keyAlgorithm);
         }
 
         @Override
@@ -351,7 +351,7 @@ public class BcPublicKeyDataDecryptorFactory
                 case PublicKeyAlgorithmTags.X448:
                     return BcUtil.getSecret(new X448Agreement(), privKey, peerKey);
             }
-            return new byte[0];
+            throw new PGPException("Unsupported key algorithm: " + keyAlgorithm);
         }
 
         private byte[] decryptRSA(int keyAlgorithm, byte[] sessionKey)
