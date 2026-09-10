@@ -374,7 +374,8 @@ public class YubikeyOpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException {
+            throws KeyPassphraseException, CardException
+    {
         char[] pin;
         try
         {

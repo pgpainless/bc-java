@@ -91,7 +91,13 @@ class Utils
         return applyDefaultSubpackets(publicKey, parameters, date, operation, sigGen);
     }
 
-    static PGPSignatureGenerator applyDefaultSubpackets(PGPPublicKey publicKey, SignatureParameters parameters, Date date, HashedSubpacketsOperation operation, PGPSignatureGenerator sigGen) throws PGPException {
+    static PGPSignatureGenerator applyDefaultSubpackets(PGPPublicKey publicKey,
+                                                        SignatureParameters parameters,
+                                                        Date date,
+                                                        HashedSubpacketsOperation operation,
+                                                        PGPSignatureGenerator sigGen)
+            throws PGPException
+    {
         final PGPSignatureSubpacketGenerator hashedSubpackets = new PGPSignatureSubpacketGenerator();
         hashedSubpackets.setIssuerFingerprint(true, publicKey);
         if (date != null)
