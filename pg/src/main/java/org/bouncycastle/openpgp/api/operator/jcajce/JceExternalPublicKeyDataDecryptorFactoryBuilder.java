@@ -3,20 +3,23 @@ package org.bouncycastle.openpgp.api.operator.jcajce;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
-import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.asn1.x9.X9ECParametersHolder;
 import org.bouncycastle.bcpg.AEADEncDataPacket;
 import org.bouncycastle.bcpg.ECDHPublicBCPGKey;
@@ -24,15 +27,11 @@ import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricEncIntegrityPacket;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
-import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.jcajce.spec.HKDFParameterSpec;
 import org.bouncycastle.jcajce.util.DefaultJcaJceHelper;
 import org.bouncycastle.jcajce.util.JcaJceHelper;
 import org.bouncycastle.jcajce.util.NamedJcaJceHelper;
 import org.bouncycastle.jcajce.util.ProviderJcaJceHelper;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.openpgp.PGPException;
@@ -53,6 +52,8 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JceSessionKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.util.Strings;
+
+import static org.bouncycastle.asn1.x9.X9ObjectIdentifiers.id_ecPublicKey;
 
 /**
  * Builder for a {@link PublicKeyDataDecryptorFactory} whose private key material is held outside
@@ -360,12 +361,17 @@ public abstract class JceExternalPublicKeyDataDecryptorFactoryBuilder
                 throw new PGPException("Invalid ephemeral EC point: point at infinity");
             }
 
-            X9ECParameters parms = x9Params.getParameters();
-            PublicKey publicKey = new BCECPublicKey("ECDH",
-                    new org.bouncycastle.crypto.params.ECPublicKeyParameters(publicPoint, new org.bouncycastle.crypto.params.ECDomainParameters(parms)),
-                    new ECNamedCurveSpec(ECUtil.getCurveName(curveOID), x9Params.getCurve(), parms.getG(), parms.getN(), parms.getH(), parms.getSeed()),
-                    BouncyCastleProvider.CONFIGURATION);
-            return publicKey;
+            SubjectPublicKeyInfo info = new SubjectPublicKeyInfo(new AlgorithmIdentifier(id_ecPublicKey, curveOID), pEnc);
+            try
+            {
+                KeyFactory factory = helper.createKeyFactory("EC");
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(info.toASN1Primitive().getEncoded(ASN1Encoding.DER));
+                return factory.generatePublic(keySpec);
+            }
+            catch (NoSuchAlgorithmException | NoSuchProviderException | IOException | InvalidKeySpecException e)
+            {
+                throw new PGPException("Cannot convert EC public key", e);
+            }
         }
     }
 
