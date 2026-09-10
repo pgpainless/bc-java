@@ -38,10 +38,11 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
     // Some smart cards expect keys to be passed in JCA format (PublicKey, PrivateKey)
     protected final JcaPGPKeyConverter converter;
 
-    public OpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
+    public OpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation,
+                                   JcaPGPKeyConverter converter)
     {
         this.implementation = implementation;
-        this.converter = new JcaPGPKeyConverter().setProvider(new BouncyCastleProvider());
+        this.converter = converter;
     }
     /**
      * Return the name of the backend.

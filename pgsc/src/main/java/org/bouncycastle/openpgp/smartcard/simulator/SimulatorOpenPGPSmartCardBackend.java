@@ -19,7 +19,7 @@ public class SimulatorOpenPGPSmartCardBackend
 
     public SimulatorOpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
     {
-        super(implementation);
+        super(implementation, null);
     }
 
     @Override

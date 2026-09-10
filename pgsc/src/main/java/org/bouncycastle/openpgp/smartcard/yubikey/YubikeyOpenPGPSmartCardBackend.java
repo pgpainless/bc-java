@@ -34,7 +34,6 @@ public class YubikeyOpenPGPSmartCardBackend
 {
     private static final int X25519_SCALAR_SIZE = 32;
 
-    private final JcaPGPKeyConverter converter;
     private boolean useAllowList = true;
     private final Set<Integer> allowedCardSerials = new HashSet<>();
     private final YubiKitManager manager;
@@ -72,9 +71,8 @@ public class YubikeyOpenPGPSmartCardBackend
                                           JcaPGPKeyConverter keyConverter,
                                           OpenPGPSmartCardImplementation implementation)
     {
-        super(implementation);
+        super(implementation, keyConverter);
         this.manager = yubiKitManager;
-        this.converter = keyConverter;
     }
 
     @Override
