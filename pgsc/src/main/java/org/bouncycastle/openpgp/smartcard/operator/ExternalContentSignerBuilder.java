@@ -62,8 +62,9 @@ public class ExternalContentSignerBuilder
     public PGPContentSigner build(int signatureType)
             throws PGPException
     {
-        // Not sure why, but we need to use two different calculators here, as otherwise
-        //  modern ed25519 signing fails due to an additional unexpected digest update
+        // PGPDigestCalculator.getDigest() resets the digest.
+        // Since PGPSignatureGenerator.generate() calls both getSignature() and getDigest() - and getSignature()
+        // internally also calls getDigest(), we need two separate instances of the PGPDigestCalculator.
         PGPDigestCalculator digestCalc = digestCalculatorProvider.get(hashAlgorithm);
         PGPDigestCalculator sigDigestCalc = digestCalculatorProvider.get(hashAlgorithm);
 
