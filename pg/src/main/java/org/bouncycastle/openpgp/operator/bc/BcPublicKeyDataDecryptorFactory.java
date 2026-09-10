@@ -197,10 +197,6 @@ public class BcPublicKeyDataDecryptorFactory
             }
             // skip the 0x40 header byte.
             X25519PublicKeyParameters peerKey = new X25519PublicKeyParameters(pEnc, 1);
-            //ECDomainParameters ecParameters = ((ECPrivateKeyParameters)privKey).getParameters();
-            //ECPublicKeyParameters ephPub = new ECPublicKeyParameters(ecParameters.getCurve().decodePoint(
-            //        Arrays.copyOfRange(pEnc, 1, pEnc.length)),
-            //        ecParameters);
             secret = getCryptoCallback(privKey).decrypt(PublicKeyAlgorithmTags.X25519, peerKey);
         }
         else if (ecPubKey.getCurveOID().equals(EdECObjectIdentifiers.id_X448))
