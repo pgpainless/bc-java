@@ -269,6 +269,12 @@ public class AbstractOpenPGPDocumentSignatureGenerator<T extends AbstractOpenPGP
             {
                 PGPContentSignerBuilderProvider sigProv = sigFac.getPGPContentSignerBuilderProvider(
                         signingKey, passphraseProvider, parameters.getSignatureHashAlgorithmId());
+                if (sigProv == null)
+                {
+                    // no matching card found
+                    continue;
+                }
+
                 PGPContentSignerBuilder contentSignerBuilder;
                 try
                 {
