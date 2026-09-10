@@ -4,7 +4,11 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.gnu.GNUObjectIdentifiers;
-import org.bouncycastle.bcpg.*;
+import org.bouncycastle.bcpg.BCPGKey;
+import org.bouncycastle.bcpg.ECPublicBCPGKey;
+import org.bouncycastle.bcpg.Ed25519PublicBCPGKey;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.bcpg.X25519PublicBCPGKey;
 import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 
 import java.util.ArrayList;
