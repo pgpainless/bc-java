@@ -661,6 +661,7 @@
                  <exclude name="**/*Test.java" />
                  <exclude name="**/*Tests.java" />
                  <exclude name="**/test/*.java" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -712,6 +713,7 @@
                  <exclude name="**/*Test.java" />
                  <exclude name="**/*Tests.java" />
                  <exclude name="**/test/*.java" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -772,6 +774,7 @@
                  <exclude name="**/*Test.java" />
                  <exclude name="**/*Tests.java" />
                  <exclude name="**/test/*.java" />
+                 <exclude name="**/test/**" />
                  <include name="org/bouncycastle/tls/**/*.java" />
                  <include name="org/bouncycastle/tls/**/*.properties" />
                  <include name="org/bouncycastle/jsse/**/*.java" />
@@ -818,6 +821,7 @@
                  <exclude name="**/*Test.java" />
                  <exclude name="**/*Tests.java" />
                  <exclude name="**/test/*.java" />
+                 <exclude name="**/test/**" />
                  <include name="org/bouncycastle/asn1/bsi/**" />
                  <include name="org/bouncycastle/asn1/cmc/**" />
                  <include name="org/bouncycastle/asn1/cmp/**" />
@@ -960,6 +964,7 @@
                  <exclude name="**/*Test.java" />
                  <exclude name="**/*Tests.java" />
                  <exclude name="**/test/*.java" />
+                 <exclude name="**/test/**" />
                  <!-- src.dir merges main and test sources, so test files are excluded by name; OpenPGPTestKeys lives in the main-namespace openpgp package and ends in Keys.java, matching none of the patterns above. -->
                  <exclude name="**/*TestKeys.java" />
              </fileset>
@@ -1171,6 +1176,7 @@
                  <include name="org/bouncycastle/asn1/**/*.html" />
                  <include name="org/bouncycastle/pqc/**/*.html" />
                  <include name="org/bouncycastle/util/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1210,6 +1216,7 @@
                  <include name="org/bouncycastle/asn1/**/*.html" />
                  <include name="org/bouncycastle/pqc/**/*.html" />
                  <include name="org/bouncycastle/util/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1245,6 +1252,7 @@
         <copy todir="${mail.target.src.dir}">
              <fileset dir="${src.dir}">
                  <include name="org/bouncycastle/mail/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1269,6 +1277,7 @@
         <copy todir="${jmail.target.src.dir}">
              <fileset dir="${src.dir}">
                  <include name="org/bouncycastle/jmail/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1292,6 +1301,7 @@
              <fileset dir="${src.dir}">
                  <include name="org/bouncycastle/jsse/**/*.html" />
                  <include name="org/bouncycastle/tls/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1346,6 +1356,7 @@
                 <include name="org/bouncycastle/asn1/est/**/*.html" />
                 <include name="org/bouncycastle/asn1/isismtt/**/*.html" />
                 <include name="org/bouncycastle/asn1/smime/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
@@ -1427,12 +1438,11 @@
     <target name="javadoc-pg" depends="initMacros">
         <copy todir="${pg.target.src.dir}">
              <fileset dir="${src.dir}">
-                 <include name="org/bouncycastle/gpg/**/test/*.java" />
-                 <include name="org/bouncycastle/bcpg/**/test/*.java" />
                  <include name="org/bouncycastle/apache/**/*.html" />
                  <include name="org/bouncycastle/openpgp/**/*.html" />
                  <include name="org/bouncycastle/gpg/**/*.html" />
                  <include name="org/bouncycastle/bcpg/**/*.html" />
+                 <exclude name="**/test/**" />
              </fileset>
         </copy>
 
