@@ -16,8 +16,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import junit.framework.TestCase;
@@ -41,6 +43,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.util.CollectionStore;
+import org.bouncycastle.util.Strings;
 
 /**
  * CMS SignedData round-trip and PKIX CertPath validation tests for the eighteen Composite ML-DSA
@@ -49,12 +52,16 @@ import org.bouncycastle.util.CollectionStore;
  * ML-KEM EnvelopedData path, but the Composite ML-DSA OIDs had no CMS SignedData or PKIX CertPath
  * (chain) coverage even though they are wired through DefaultCMSSignatureAlgorithmNameGenerator and
  * the DefaultSignatureAlgorithmIdentifierFinder used on the CMS and cert-path paths.
+ * <p>
+ * Two key pairs per parameter set are generated once and shared by both test methods. The RSA half
+ * of the larger sets costs seconds to generate on a modern JVM and far more on the genuine JRE 5 the
+ * jdk15to18 suite runs against, so a key is never generated where an existing one will do.
  */
 public class CompositeMLDSASignedDataTest
     extends TestCase
 {
     private static final String BC = BouncyCastleProvider.PROVIDER_NAME;
-    private static final byte[] DATA = "the composite ML-DSA cat sat on the CMS mat".getBytes();
+    private static final byte[] DATA = Strings.toByteArray("the composite ML-DSA cat sat on the CMS mat");
 
     private static final String[] NAMES = {
         "MLDSA44-ECDSA-P256-SHA256", "MLDSA44-Ed25519-SHA512", "MLDSA44-RSA2048-PKCS15-SHA256", "MLDSA44-RSA2048-PSS-SHA256",
@@ -76,12 +83,29 @@ public class CompositeMLDSASignedDataTest
         IANAObjectIdentifiers.id_MLDSA87_RSA3072_PSS_SHA512, IANAObjectIdentifiers.id_MLDSA87_RSA4096_PSS_SHA512
     };
 
+    private static final Map keyPairs = new HashMap();
+
     public void setUp()
     {
         if (Security.getProvider(BC) == null)
         {
             Security.addProvider(new BouncyCastleProvider());
         }
+    }
+
+    private static KeyPair keyPair(String name, int index)
+        throws Exception
+    {
+        String cacheKey = name + "#" + index;
+        KeyPair kp = (KeyPair)keyPairs.get(cacheKey);
+
+        if (kp == null)
+        {
+            kp = KeyPairGenerator.getInstance(name, BC).generateKeyPair();
+            keyPairs.put(cacheKey, kp);
+        }
+
+        return kp;
     }
 
     private static X509Certificate buildCert(X500Name issuer, PrivateKey issuerKey, String sigName,
@@ -104,7 +128,7 @@ public class CompositeMLDSASignedDataTest
     {
         for (int i = 0; i != NAMES.length; i++)
         {
-            KeyPair kp = KeyPairGenerator.getInstance(NAMES[i], BC).generateKeyPair();
+            KeyPair kp = keyPair(NAMES[i], 0);
             X500Name dn = new X500Name("CN=" + NAMES[i]);
             X509Certificate cert = buildCert(dn, kp.getPrivate(), NAMES[i], dn, kp.getPublic(), true, 1);
 
@@ -128,7 +152,7 @@ public class CompositeMLDSASignedDataTest
                 signerInfo.verify(new JcaSimpleSignerInfoVerifierBuilder().setProvider(BC).build(cert)));
 
             // negative control: the same signature must not verify against a different composite key
-            KeyPair other = KeyPairGenerator.getInstance(NAMES[i], BC).generateKeyPair();
+            KeyPair other = keyPair(NAMES[i], 1);
             X509Certificate otherCert = buildCert(dn, other.getPrivate(), NAMES[i], dn, other.getPublic(), true, 9);
             assertFalse(NAMES[i] + ": composite signature verified against the wrong key",
                 signerInfo.verify(new JcaSimpleSignerInfoVerifierBuilder().setProvider(BC).build(otherCert)));
@@ -139,13 +163,15 @@ public class CompositeMLDSASignedDataTest
         throws Exception
     {
         CertificateFactory cf = CertificateFactory.getInstance("X.509", BC);
+        CertPathValidator validator = CertPathValidator.getInstance("PKIX", BC);
+
         for (int i = 0; i != NAMES.length; i++)
         {
-            KeyPair caKp = KeyPairGenerator.getInstance(NAMES[i], BC).generateKeyPair();
+            KeyPair caKp = keyPair(NAMES[i], 0);
             X500Name caDn = new X500Name("CN=Composite CA " + NAMES[i]);
             X509Certificate caCert = buildCert(caDn, caKp.getPrivate(), NAMES[i], caDn, caKp.getPublic(), true, 1);
 
-            KeyPair eeKp = KeyPairGenerator.getInstance(NAMES[i], BC).generateKeyPair();
+            KeyPair eeKp = keyPair(NAMES[i], 1);
             X509Certificate eeCert = buildCert(caDn, caKp.getPrivate(), NAMES[i],
                 new X500Name("CN=Composite EE " + NAMES[i]), eeKp.getPublic(), false, 2);
 
@@ -155,16 +181,15 @@ public class CompositeMLDSASignedDataTest
             CertPath cp = cf.generateCertPath(Collections.singletonList(eeCert));
             PKIXParameters params = new PKIXParameters(trust);
             params.setRevocationEnabled(false);
-            CertPathValidator.getInstance("PKIX", BC).validate(cp, params);
+            validator.validate(cp, params);
 
-            // negative control: an EE certificate signed by a different CA key must not validate
-            KeyPair rogueKp = KeyPairGenerator.getInstance(NAMES[i], BC).generateKeyPair();
-            X509Certificate rogueEe = buildCert(caDn, rogueKp.getPrivate(), NAMES[i],
+            // negative control: an EE certificate signed by a key outside the anchor must not validate
+            X509Certificate rogueEe = buildCert(caDn, eeKp.getPrivate(), NAMES[i],
                 new X500Name("CN=Rogue EE " + NAMES[i]), eeKp.getPublic(), false, 3);
             CertPath badCp = cf.generateCertPath(Collections.singletonList(rogueEe));
             try
             {
-                CertPathValidator.getInstance("PKIX", BC).validate(badCp, params);
+                validator.validate(badCp, params);
                 fail(NAMES[i] + ": CertPath validated an EE signed by a key outside the anchor");
             }
             catch (CertPathValidatorException expected)
