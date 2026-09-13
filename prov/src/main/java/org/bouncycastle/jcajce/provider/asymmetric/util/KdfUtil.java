@@ -223,6 +223,26 @@ public class KdfUtil
     /**
      * Return true if makeKeyBytes can service the passed in KDF algorithm identifier.
      */
+    /**
+     * Refuse a KDF this provider cannot service, at the point the spec is accepted rather than at
+     * wrap or unwrap, where it would surface as an unchecked exception those methods do not declare.
+     * The KEM services reach the same check through {@link #resolveKemSpec}; this is for the KTS
+     * key-wrapping Ciphers, which take their spec at init.
+     *
+     * @param ktsSpec the caller-supplied spec; a null KDF algorithm means no KDF and is accepted.
+     * @throws InvalidAlgorithmParameterException if the spec names a KDF that cannot be serviced.
+     */
+    public static void checkKdfSupported(KTSParameterSpec ktsSpec)
+        throws InvalidAlgorithmParameterException
+    {
+        AlgorithmIdentifier kdfAlgorithm = ktsSpec.getKdfAlgorithm();
+
+        if (kdfAlgorithm != null && !isSupportedKdf(kdfAlgorithm))
+        {
+            throw new InvalidAlgorithmParameterException("unsupported KDF: " + kdfAlgorithm.getAlgorithm());
+        }
+    }
+
     private static boolean isSupportedKdf(AlgorithmIdentifier kdfAlgorithm)
     {
         ASN1ObjectIdentifier kdfOid = kdfAlgorithm.getAlgorithm();
@@ -360,7 +380,7 @@ public class KdfUtil
             }
             else
             {
-                throw new IllegalStateException("HDKF parameter support not added");
+                throw new IllegalStateException("HKDF parameter support not added");
             }
         }
         else if (PKCSObjectIdentifiers.id_alg_hkdf_with_sha384.equals(kdfAlgorithm.getAlgorithm()))
@@ -375,7 +395,7 @@ public class KdfUtil
             }
             else
             {
-                throw new IllegalStateException("HDKF parameter support not added");
+                throw new IllegalStateException("HKDF parameter support not added");
             }
         }
         else if (PKCSObjectIdentifiers.id_alg_hkdf_with_sha512.equals(kdfAlgorithm.getAlgorithm()))
@@ -390,7 +410,7 @@ public class KdfUtil
             }
             else
             {
-                throw new IllegalStateException("HDKF parameter support not added");
+                throw new IllegalStateException("HKDF parameter support not added");
             }
         }
         else if (NISTObjectIdentifiers.id_Kmac128.equals(kdfAlgorithm.getAlgorithm()))

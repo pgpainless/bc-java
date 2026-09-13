@@ -28,6 +28,7 @@ import org.bouncycastle.crypto.params.FrodoKEMParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.util.WrapUtil;
 import org.bouncycastle.jcajce.provider.util.SecurityExceptions;
 import org.bouncycastle.jcajce.spec.FrodoKEMParameterSpec;
+import org.bouncycastle.jcajce.provider.asymmetric.util.KdfUtil;
 import org.bouncycastle.jcajce.spec.KTSParameterSpec;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Exceptions;
@@ -136,6 +137,8 @@ public class FrodoKEMCipherSpi
             }
 
             kemParameterSpec = (KTSParameterSpec)paramSpec;
+
+            KdfUtil.checkKdfSupported(kemParameterSpec);
         }
 
         if (opmode == Cipher.WRAP_MODE)

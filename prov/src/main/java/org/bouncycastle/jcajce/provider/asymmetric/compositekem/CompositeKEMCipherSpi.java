@@ -27,6 +27,7 @@ import org.bouncycastle.jcajce.CompositePrivateKey;
 import org.bouncycastle.jcajce.CompositePublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.util.WrapUtil;
 import org.bouncycastle.jcajce.provider.util.SecurityExceptions;
+import org.bouncycastle.jcajce.provider.asymmetric.util.KdfUtil;
 import org.bouncycastle.jcajce.spec.KTSParameterSpec;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.Exceptions;
@@ -116,6 +117,8 @@ public class CompositeKEMCipherSpi
             }
 
             kemParameterSpec = (KTSParameterSpec)paramSpec;
+
+            KdfUtil.checkKdfSupported(kemParameterSpec);
         }
 
         if (opmode == Cipher.WRAP_MODE)

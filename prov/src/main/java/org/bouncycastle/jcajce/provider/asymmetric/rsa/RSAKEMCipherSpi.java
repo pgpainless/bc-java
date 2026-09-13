@@ -29,6 +29,7 @@ import org.bouncycastle.crypto.engines.RSABlindedEngine;
 import org.bouncycastle.crypto.params.ParametersWithRandom;
 import org.bouncycastle.jcajce.provider.asymmetric.util.WrapUtil;
 import org.bouncycastle.jcajce.provider.util.SecurityExceptions;
+import org.bouncycastle.jcajce.provider.asymmetric.util.KdfUtil;
 import org.bouncycastle.jcajce.spec.KTSParameterSpec;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.BigIntegers;
@@ -138,6 +139,8 @@ public class RSAKEMCipherSpi
         }
 
         this.ktsSpec = (KTSParameterSpec)paramSpec;
+
+        KdfUtil.checkKdfSupported(this.ktsSpec);
 
         if (opmode == Cipher.WRAP_MODE)
         {
