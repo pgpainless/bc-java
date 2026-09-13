@@ -335,8 +335,13 @@ public class PKIXNameConstraintsTest
         isTrue("a doubled dot in a quoted local part must not be refused, and the host still matches",
             isExcluded(emailName("bank.com"), emailName("\"a..b\"@bank.com")));
 
-        // a bare "." is the root label, not an empty one, and is left alone.
-        isTrue("a bare root label must not be refused", !isExcluded(dnsName("example.com"), dnsName(".")));
+        // a bare "." is the root label, not an empty one: it is not refused as malformed, it is simply
+        // outside the subtree in both directions. (bc-csharp fails it closed as a tested name; aligning
+        // that is deferred to a broader constraint-name vs tested-name rework.)
+        isTrue("a bare root label as a tested name must not be refused",
+            !isExcluded(dnsName("example.com"), dnsName(".")));
+        isTrue("a bare root label as a tested name must not be permitted",
+            !isPermitted(dnsName("example.com"), dnsName(".")));
 
         // nothing is refused where no constraint of that type is in force.
         isTrue("an empty label is immaterial with no dNSName constraint",
