@@ -103,6 +103,12 @@ belonged to the pre-pull tree). So:
   touched what you are touching; uncommitted edits usually survive a pull untouched, but verify
   rather than assume.
 
+For the same reason, **never `git checkout` a tag or branch in this clone to build it** — that
+strands the maintainer's in-flight work and moves HEAD under anything already running. Use a worktree:
+`git worktree add ../bc-java-<tag> <tag>` builds identically and leaves the clone untouched
+(`git worktree remove` when done). Put it **beside** `bc-java` rather than anywhere else, so the
+`bc-test-data` walk-up above still finds the existing checkout with no configuration.
+
 **`BC_JDK8` is exported in the maintainer's shell**, so `:prov:test` pulls in `test8`, which runs the suite
 against the *built jar* on a real JDK 8 with `maxParallelForks = 8`. That is a different execution
 path from running a test class directly against `build/classes`, and the only place some failures
@@ -145,3 +151,60 @@ Practical rule when touching reachable `src/main/java`: don't introduce Java 6/7
 Full workflow (build → **sign with the `bcsign` helper, release machine only** → test), the complete API→fix table, the test-exclusion overlay mechanism, and the diagnostic for telling a real bug from a JRE-5 JIT defect (`-Xint`) are in the `build-jdk15to18` skill.
 
 There is an even stricter Java 1.4 distribution (`sh build1-4`) that compiles with a genuine 1.4 javac — post-1.4 APIs fail it at *compile* time, and it has its own overlay trees, source preprocessor, and signing flow: see `build-jdk14.md`.
+
+## Driving the Ant builds, and the two ways they lie about succeeding
+
+`build1-4`, `build1-5to1-8` and `build1-8+` all wrap Ant the same way, and two traps come with that.
+
+**A clean checkout cannot build at all.** `ant/jdk15+.xml:38` and `ant/jdk18+.xml` both reference
+`<fileset dir="core/src/main/resources" …>`, but that directory holds **no tracked files** — git
+cannot carry an empty directory, so it exists in any long-lived clone and is simply absent from a
+fresh clone, checkout or worktree. Ant then dies on the first target with
+`core/src/main/resources not found`. It is invisible locally and hits anyone building a release tag,
+so `mkdir -p core/src/main/resources` is step one in a new tree. The sibling `prov`, `pkix` and
+`mail` resource directories each carry tracked files and are fine; `jdk14.xml`, `jdk13.xml` and
+`bc+-build.xml` don't reference the core one.
+
+**The scripts do not propagate an Ant failure.** Each is
+
+```sh
+if ant -f ant/<file> build-provider
+then
+    ant -f ant/<file> build
+    ant -f ant/<file> zip-src
+fi
+```
+
+so a failing `build-provider` skips the body and the script still exits **0** (a shell `if` with no
+`else` succeeds), a failing `build` is masked by the `zip-src` that runs after it, and only
+`zip-src`'s status ever reaches the caller. This is the Ant-side sibling of the `UP-TO-DATE` trap
+above: grep the log for `BUILD FAILED`, or check the jars actually appeared under
+`build/artifacts/<jdkdir>/jars/`, rather than trusting `$?`.
+
+The three builds also share `build/`. They stage into separate subdirectories and write separate
+artifact trees, but they run Ant over one tree — run them sequentially, never in parallel.
+
+Build only, no tests, on this machine (r1rv86, warm, fresh worktree): `build1-8+` 50s / 9 jars,
+`build1-5to1-8` 1m21s / 9 jars, `build1-4` 56s / 8 jars — about 1.6G of artifacts in total, with no
+`bcjmail` on the jdk1.4 line. Worth knowing because `build-jdk14.md` quotes "~25 minutes" for that
+pipeline: that is build plus signing plus the full test run, and the build alone is a minute.
+
+Each artifact tree holds `jars/`, a `<module>-<vmrange>-<ver>/` directory per module carrying
+`src.zip` and `javadoc/`, and `lcrypto-<vmrange>-<ver>/` — the source distribution as a **directory**.
+Nothing in the repository creates the `lcrypto-<vmrange>-<ver>.tar.gz` / `.zip` archives the download
+page links (`grep -E '<(tar|zip) ' ant/*.xml` finds only the per-module `src.zip` tasks), so those
+come from a release step outside the tree: a missing archive on the site means that step didn't run,
+not that the tag is short of content.
+
+### The Ant `jdk18+` build is not the published `jdk18on` artifact
+
+`build1-8+` produces a `bcprov-jdk18on-<ver>.jar` with **zero** `META-INF/versions/` entries and an
+`Ant-Version: Apache Ant 1.6.5` manifest — the published multi-release jar comes from Gradle. Don't
+reach for the Ant output when reproducing a released artifact. What it is genuinely good for is the
+two variants Gradle does not build at all, `bcprov-ext-jdk18on` and `bctest-jdk18on`.
+
+Note also that both wrapper scripts post-process the provider jars *after* Ant to add the
+`META-INF/services/java.security.Provider` registration, and do it differently: `build1-5to1-8`
+loops `jar uf` over a `bcprov*jdk15to18*.jar` glob (so it catches `bcprov-ext` and a debug build)
+while `build1-8+` uses a `tar` pipe and names the two jars explicitly. That is where to look when a
+provider jar loads from Gradle but not from an Ant build.
