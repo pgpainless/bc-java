@@ -21,9 +21,11 @@
     <jar file="${ENV.BCHOME}/jmail/build/libs/bcjmail-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/mls/build/libs/bcmls-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/pg/build/libs/bcpg-jdk18on-${version}.jar"/>
+    <jar file="${ENV.BCHOME}/pgsc/build/libs/bcpgsc-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/pkix/build/libs/bcpkix-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/prov/build/libs/bcprov-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/tls/build/libs/bctls-jdk18on-${version}.jar"/>
+    <jar file="${ENV.BCHOME}/tls-klog/build/libs/bctls-klog-jdk18on-${version}.jar"/>
     <jar file="${ENV.BCHOME}/util/build/libs/bcutil-jdk18on-${version}.jar"/>
 
     <bundle matches="^bcprov" version="${bundle_ver}">

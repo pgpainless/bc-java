@@ -8,6 +8,7 @@ util ── ASN.1/X.500 helpers used by pkix
 prov ── JCA/JCE provider (BouncyCastleProvider, BouncyCastlePQCProvider) — depends on core
 pkix ── X.509 / CMS / TSP / OCSP / PKCS#12 / OpenSSL PEM — depends on prov
 pg   ── OpenPGP                          — depends on prov
+pgsc ── OpenPGP smart card / token API   — depends on pg
 tls  ── TLS API + JSSE provider          — depends on prov
 mail / jmail ── S/MIME on top of CMS     — depends on pkix
 mls  ── Messaging Layer Security

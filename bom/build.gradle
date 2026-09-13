@@ -10,6 +10,7 @@ dependencies {
         api(project(":util"))
         api(project(":pkix"))
         api(project(":pg"))
+        api(project(":pgsc"))
         api(project(":tls"))
         api(project(":mls"))
         api(project(":mail"))
