@@ -23,6 +23,7 @@ public class RegressionTest
             new ECTest(),
             new DeterministicDSATest(),
             new ECGOST3410Test(),
+            new ECGOST3410KeyEncodingTest(),
             new ECCSISignerTest(),
             new ConstantTimeUsageTest(),
             new ECIESTest(),
