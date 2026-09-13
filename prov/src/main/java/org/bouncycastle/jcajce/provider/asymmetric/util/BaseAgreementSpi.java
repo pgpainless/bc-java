@@ -166,6 +166,7 @@ public abstract class BaseAgreementSpi
     protected byte[] ukmParameters;
     protected byte[] ukmParametersSalt;
     private HybridValueParameterSpec hybridSpec;
+    private boolean completed;
 
     public BaseAgreementSpi(String kaAlgorithm, DerivationFunction kdf)
     {
@@ -268,6 +269,8 @@ public abstract class BaseAgreementSpi
         SecureRandom random)
         throws InvalidKeyException
     {
+        resetAgreement();
+
         try
         {
             doInitFromKey(key, null, random);
@@ -285,6 +288,8 @@ public abstract class BaseAgreementSpi
         SecureRandom random)
         throws InvalidKeyException, InvalidAlgorithmParameterException
     {
+        resetAgreement();
+
         if (params instanceof HybridValueParameterSpec)
         {
             this.hybridSpec = (HybridValueParameterSpec)params;
@@ -295,6 +300,39 @@ public abstract class BaseAgreementSpi
         {
             this.hybridSpec = null;
             doInitFromKey(key, params, random);
+        }
+    }
+
+    /**
+     * Record that the agreement has run to completion and its shared secret may now be generated.
+     * A subclass calls this on the successful return of the doPhase that completes the agreement.
+     */
+    protected void agreementCompleted()
+    {
+        this.completed = true;
+    }
+
+    /**
+     * Require a fresh agreement before the next shared secret. Called by the engineInit methods
+     * here; a subclass that overrides one of those rather than doInitFromKey must call this itself.
+     */
+    protected void resetAgreement()
+    {
+        this.completed = false;
+    }
+
+    /**
+     * Refuse a shared secret asked for before the agreement has completed. javax.crypto.KeyAgreement
+     * specifies IllegalStateException for that state; without this each SPI would hand back whatever
+     * its result field happened to hold, which for DH was the private value itself.
+     *
+     * @throws IllegalStateException if no doPhase has completed the agreement since the last init.
+     */
+    protected void checkAgreementCompleted()
+    {
+        if (!completed)
+        {
+            throw new IllegalStateException(kaAlgorithm + " key agreement: doPhase must be called before generateSecret");
         }
     }
 
@@ -437,6 +475,8 @@ public abstract class BaseAgreementSpi
 
     private byte[] calcSecret()
     {
+        checkAgreementCompleted();
+
         if (hybridSpec != null)
         {
             // Set Z' to Z || T

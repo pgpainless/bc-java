@@ -15,6 +15,8 @@ Date: 2026, TBD
 
 ### 2.1.2 Defects Fixed
 
+- A KeyAgreement asked for its shared secret before doPhase returned data rather than refusing. javax.crypto.KeyAgreement specifies IllegalStateException for that state, but nothing in the provider tracked it, so each SPI handed back whatever its result field held: for Diffie-Hellman that was the private value itself - engineInit seeded result with x, so generateSecret() returned the private exponent padded to the prime's length and generateSecret("AES") an all-zero key taken from that padding - while ECDH returned null and its named-algorithm overload raised NullPointerException. BaseAgreementSpi now records whether a doPhase has completed the agreement since the last init and refuses the request with an IllegalStateException naming the algorithm, so every family in the provider - DH, ECDH and ECMQV, the SM2 exchange, both ECGOST families, XDH, SM9 and NewHope - answers the same way, and the DH SPI no longer holds the private value in that field at all.
+
 ### 2.1.3 Additional Features and Functionality
 
 ### 2.1.4 Additional Notes

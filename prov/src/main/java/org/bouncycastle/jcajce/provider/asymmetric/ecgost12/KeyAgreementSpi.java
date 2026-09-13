@@ -84,6 +84,8 @@ public class KeyAgreementSpi
             };
         }
 
+        agreementCompleted();
+
         return null;
     }
 

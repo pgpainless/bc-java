@@ -118,6 +118,8 @@ public class KeyAgreementSpi
             throw SecurityExceptions.invalidKeyException(e.getMessage(), e);
         }
 
+        agreementCompleted();
+
         return null;
     }
 

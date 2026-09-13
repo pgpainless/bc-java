@@ -153,6 +153,8 @@ public class KeyAgreementSpi
 
             result = unifiedAgreement.calculateAgreement(pKey);
 
+            agreementCompleted();
+
             return null;
         }
         else if (mqvAgreement != null)
@@ -168,6 +170,8 @@ public class KeyAgreementSpi
             DHMQVPublicParameters pKey = new DHMQVPublicParameters(staticKey, ephemKey);
 
             result = bigIntToBytes(mqvAgreement.calculateAgreement(pKey));
+
+            agreementCompleted();
 
             return null;
         }
@@ -191,6 +195,8 @@ public class KeyAgreementSpi
 
             if (lastPhase)
             {
+                agreementCompleted();
+
                 return null;
             }
 
@@ -337,7 +343,6 @@ public class KeyAgreementSpi
         }
 
         this.x = privKey.getX();
-        this.result = bigIntToBytes(x);
     }
 
     protected void engineInit(
@@ -345,6 +350,8 @@ public class KeyAgreementSpi
         SecureRandom    random) 
         throws InvalidKeyException
     {
+        resetAgreement();
+
         if (!(key instanceof DHPrivateKey))
         {
             throw new InvalidKeyException("DHKeyAgreement requires DHPrivateKey");
@@ -356,7 +363,6 @@ public class KeyAgreementSpi
         this.g = privKey.getParams().getG();
         this.x = privKey.getX();
         this.random = CryptoServicesRegistrar.getSecureRandom(random);
-        this.result = bigIntToBytes(x);
     }
 
     protected byte[] doCalcSecret()

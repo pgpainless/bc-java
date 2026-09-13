@@ -151,6 +151,8 @@ public class KeyAgreementSpi
             agreement.calculateAgreement(pub, result, 0);
         }
 
+        agreementCompleted();
+
         return null;
     }
 

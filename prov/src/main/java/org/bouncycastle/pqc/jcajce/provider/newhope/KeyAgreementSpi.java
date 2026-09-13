@@ -33,6 +33,8 @@ public class KeyAgreementSpi
     protected void engineInit(Key key, SecureRandom secureRandom)
         throws InvalidKeyException
     {
+        resetAgreement();
+
         if (key != null)
         {
             agreement = new NHAgreement();
@@ -67,11 +69,15 @@ public class KeyAgreementSpi
 
             shared = exchPair.getSharedValue();
 
+            agreementCompleted();
+
             return new BCNHPublicKey((NHPublicKeyParameters)exchPair.getPublicKey());
         }
         else
         {
             shared = agreement.calculateAgreement(otherPartyKey.getKeyParams());
+
+            agreementCompleted();
 
             return null;
         }
@@ -80,6 +86,8 @@ public class KeyAgreementSpi
     protected byte[] engineGenerateSecret()
         throws IllegalStateException
     {
+        checkAgreementCompleted();
+
         byte[] rv = Arrays.clone(shared);
 
         Arrays.fill(shared, (byte)0);
@@ -90,6 +98,8 @@ public class KeyAgreementSpi
     protected int engineGenerateSecret(byte[] bytes, int offset)
         throws IllegalStateException, ShortBufferException
     {
+        checkAgreementCompleted();
+
         System.arraycopy(shared, 0, bytes, offset, shared.length);
 
         Arrays.fill(shared, (byte)0);
