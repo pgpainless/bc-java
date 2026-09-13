@@ -1,9 +1,9 @@
 # Porting `UPSTREAM-*.md` changes from the BC-LTS tree
 
 Root-level `UPSTREAM-<topic>.md` files are porting docs for changes already running in the
-downstream BC-LTS tree, aimed at this repo. The LTS checkout lives at
-`/home/dgh/bc/git/repositories/lts-java/bc-lts-java` (its module layout mirrors bc-java), so
-`diff <path> ../lts-java/bc-lts-java/<path>` usually gives the exact shape to port. Worked
+downstream BC-LTS tree, aimed at this repo. A local BC-LTS checkout (`bc-lts-java`, whose module
+layout mirrors bc-java) is kept beside this one, so `diff <path> ../lts-java/bc-lts-java/<path>`
+usually gives the exact shape to port. Worked
 examples: the ESTService 204/404 drain hardening (`b0d0e07064`) and the JceKTSKeyTransRecipient
 constraint port (`915e7f3ffb`).
 
@@ -29,6 +29,6 @@ constraint port (`915e7f3ffb`).
   shipped, not as a fresh fix.
 - **When done, revise the UPSTREAM doc to the implemented state** (status line, the actual code
   shape, real test names, how it was verified). It's a living record, not a frozen proposal.
-- **The `UPSTREAM-*.md` file itself stays out of the commit.** dgh keeps these local in the working
+- **The `UPSTREAM-*.md` file itself stays out of the commit.** They are kept local in the working
   tree — unstage one if it's in the index — and the commit carries only code, tests and
   `docs/releasenotes.md`, with the usual single-line message (see the commit conventions).

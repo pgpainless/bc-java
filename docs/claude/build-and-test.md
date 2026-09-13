@@ -1,6 +1,6 @@
 # Build & test
 
-The build is Gradle multi-module. **JDK 25+ is required to drive Gradle**: the `compileJava25Java` task (e.g. `prov/build.gradle`, `tls/build.gradle`) is unconditional and sets `options.release = 25`, so a Gradle daemon launched under JDK 21/17/etc. fails `:prov:compileJava25Java` with `error: release version 25 not supported`, and that failed compile can leave `core/build/classes/java/main` empty (cascading into confusing "package does not exist" errors on the next step). (Separately, JDK 21+ is the floor for the Error Prone compiler plugin, which is compiled for Java 21 / class file 65 — an older daemon fails `:core:compileJava` with `UnsupportedClassVersionError: …ErrorProneJavacPlugin … class file version 65.0 … up to <NN>.0`.) On this machine a JDK 25 lives at `/opt/jdk-25`; drive Gradle with `JAVA_HOME=/opt/jdk-25 BC_JDK25=/opt/jdk-25 ./gradlew …`. Optional environment variables `BC_JDK8`, `BC_JDK11`, `BC_JDK17`, `BC_JDK21`, `BC_JDK25` opt in version-specific test tasks (compiled against MR-jar overlays). The default `:test` aggregates `:core:test :prov:test :prov:test11 :prov:test15 :prov:test17 :pkix:test :pg:test :tls:test :mls:test :mail:test :jmail:test`.
+The build is Gradle multi-module. **JDK 25+ is required to drive Gradle**: the `compileJava25Java` task (e.g. `prov/build.gradle`, `tls/build.gradle`) is unconditional and sets `options.release = 25`, so a Gradle daemon launched under JDK 21/17/etc. fails `:prov:compileJava25Java` with `error: release version 25 not supported`, and that failed compile can leave `core/build/classes/java/main` empty (cascading into confusing "package does not exist" errors on the next step). (Separately, JDK 21+ is the floor for the Error Prone compiler plugin, which is compiled for Java 21 / class file 65 — an older daemon fails `:core:compileJava` with `UnsupportedClassVersionError: …ErrorProneJavacPlugin … class file version 65.0 … up to <NN>.0`.) A JDK 25 is expected at `/opt/jdk-25`; drive Gradle with `JAVA_HOME=/opt/jdk-25 BC_JDK25=/opt/jdk-25 ./gradlew …`. Optional environment variables `BC_JDK8`, `BC_JDK11`, `BC_JDK17`, `BC_JDK21`, `BC_JDK25` opt in version-specific test tasks (compiled against MR-jar overlays). The default `:test` aggregates `:core:test :prov:test :prov:test11 :prov:test15 :prov:test17 :pkix:test :pg:test :tls:test :mls:test :mail:test :jmail:test`.
 
 Per-module test tasks (`:util:test`, `:pkix:test`, …) restrict to `AllTest*` classes, so `--tests org.foo.SomeTest` for a non-`AllTests` class reports "No tests found"; run the aggregating suite instead, by **exact** class name (a glob like `*cms.test.AllTests` fails to match under the `AllTest*` include — `--tests org.bouncycastle.cms.test.AllTests` works).
 
@@ -88,7 +88,7 @@ Note also that `find` here is `bfs`, not GNU find: it rejects `-newermt "30 minu
 ("Invalid timestamp") and wants an ISO-8601 stamp, so relative-time filtering needs a different
 approach than the one above. When in doubt force it: `:<module>:cleanTest :<module>:test`.
 
-**HEAD moves while a suite runs.** dgh pulls into this clone during a session, so a long
+**HEAD moves while a suite runs.** The maintainer pulls into this clone during a session, so a long
 `:core:test` / `:prov:test` can straddle a merge and describe a tree that no longer exists. This
 has already produced a confident-but-wrong "my change broke three unrelated tests" (the failures
 belonged to the pre-pull tree). So:
@@ -103,7 +103,7 @@ belonged to the pre-pull tree). So:
   touched what you are touching; uncommitted edits usually survive a pull untouched, but verify
   rather than assume.
 
-**`BC_JDK8` is exported in dgh's shell**, so `:prov:test` pulls in `test8`, which runs the suite
+**`BC_JDK8` is exported in the maintainer's shell**, so `:prov:test` pulls in `test8`, which runs the suite
 against the *built jar* on a real JDK 8 with `maxParallelForks = 8`. That is a different execution
 path from running a test class directly against `build/classes`, and the only place some failures
 appear. A `:prov:test` that suddenly takes much longer, or fails in tests you did not touch, is
@@ -142,6 +142,6 @@ Besides the Gradle build there is a legacy Ant distribution, `jdk15to18`, driven
 
 Practical rule when touching reachable `src/main/java`: don't introduce Java 6/7/8 APIs. Route through the BC util wrappers that carry `jdk1.5` overlays (`Longs`/`Integers`/`BigIntegers`), use `Exceptions.ioException` not `new IOException(msg,cause)`, `Strings.toByteArray` not `getBytes(StandardCharsets…)`, `instanceof Destroyable` not `SecretKey.destroy()`, `System.arraycopy` not `java.util.Arrays.copyOf`, etc. This is the *runtime* sibling of the Java-4 *source* floor.
 
-Full workflow (build → **sign with `/home/dgh/bin/bcsign`, this machine only** → test), the complete API→fix table, the test-exclusion overlay mechanism, and the diagnostic for telling a real bug from a JRE-5 JIT defect (`-Xint`) are in the `build-jdk15to18` skill.
+Full workflow (build → **sign with the `bcsign` helper, release machine only** → test), the complete API→fix table, the test-exclusion overlay mechanism, and the diagnostic for telling a real bug from a JRE-5 JIT defect (`-Xint`) are in the `build-jdk15to18` skill.
 
 There is an even stricter Java 1.4 distribution (`sh build1-4`) that compiles with a genuine 1.4 javac — post-1.4 APIs fail it at *compile* time, and it has its own overlay trees, source preprocessor, and signing flow: see `build-jdk14.md`.

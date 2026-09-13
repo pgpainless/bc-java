@@ -371,14 +371,14 @@ Simply reporting a defect, however well, does not usually earn one; the issue nu
 note and the `relates to github #NNNN` in the commit message are the credit for a report. A handful
 of older entries do read "Reported ..." for findings that came with substantial analysis, so it is
 not an absolute rule — but the default is no entry, and adding one for a bare report is a change
-dgh should make rather than something to assume. Ask if unsure.
+the maintainer should make rather than something to assume. Ask if unsure.
 
-**Sustained auditing is the standing exception**, and dgh initiates it. Someone who works through a
+**Sustained auditing is the standing exception**, and the maintainer initiates it. Someone who works through a
 subsystem and turns up several confirmed defects gets an entry describing the audit rather than a
 patch — `Arpan Sharma`'s reads "initial audit of BCPQC provider consistency starting with HQC ..."
 and was extended in the same house style when a later sweep produced github #2408. Note the shape:
 it names the area swept and what the sweep led to, not the individual bugs, and it was **appended to
-the existing entry**. Still don't add one unprompted — wait for dgh to ask.
+the existing entry**. Still don't add one unprompted — wait for the maintainer to ask.
 
 When an entry is warranted it goes at the end of the list in the house form
 `- name-or-handle \<email-or-github-url\> - what they contributed (PR #NNNN).`; a bare

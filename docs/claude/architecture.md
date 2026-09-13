@@ -251,7 +251,7 @@ security-manager/configuration plumbing as the vetted exception set — `CryptoS
 checks), `util/Properties` (those plus `java.security.Security` for the security-property fallback),
 `util/Strings` (`doPrivileged` for `line.separator`), and `util/test/FixedSecureRandom`
 (`java.security.Provider` for the `SecureRandom(spi, provider)` super constructor). Don't add to
-that list without dgh signing off.
+that list without the maintainer signing off.
 
 The rule is **machine-enforced**: an `ImportControl` module in `config/checkstyle/checkstyle.xml`
 applies `config/checkstyle/import-control-core.xml` to `core/src/main/java` (path-scoped, so the

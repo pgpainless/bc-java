@@ -81,7 +81,7 @@ assertions. Rules of thumb:
 ```
 sh build1-4                                   # build-provider, build, zip-src
 JAVA_HOME=/opt/jdk1.4.2 ant -f ant/jdk14.xml build-test
-/home/dgh/bin/bcsign4 build/artifacts/jdk1.4/jars/*.jar    # this machine only
+bcsign4 build/artifacts/jdk1.4/jars/*.jar     # release machine only
 JAVA_HOME=/opt/jdk1.4.2 ant -f ant/jdk14.xml test-signed   # NOT "test" — see below
 ```
 

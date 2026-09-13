@@ -18,7 +18,8 @@ set -e
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # --- host paths (all bind-mounted read-only except the repo) -----------------
-BC_JAVA=${BC_JAVA:-/home/dgh/bc/git/repositories/bc-java}
+# Default to the checkout this skill lives in, so a worktree or a second clone needs no override.
+BC_JAVA=${BC_JAVA:-$(cd "$SCRIPT_DIR/../../.." && pwd)}
 # Resolve the /opt/jdk1.3.1 symlink to its real target so the mount is stable.
 JDK_HOST=${JDK_HOST:-$(readlink -f /opt/jdk1.3.1)}
 ANT_HOST=${ANT_HOST:-/opt/apache-ant-1.6.5}
@@ -31,8 +32,8 @@ IMAGE=${IMAGE:-bc-jdk13:etch}
 # bundled with the skill (it is a binary); located from common host spots, or
 # set ORO_JAR explicitly. Any jakarta-oro / oro 2.0.x jar works.
 if [ -z "$ORO_JAR" ]; then
-    for c in /home/dgh/.m2/repository/oro/oro/2.0.8/oro-2.0.8.jar \
-             /home/dgh/.m2/repository/oro/oro/2.0.7/oro-2.0.7.jar \
+    for c in $HOME/.m2/repository/oro/oro/2.0.8/oro-2.0.8.jar \
+             $HOME/.m2/repository/oro/oro/2.0.7/oro-2.0.7.jar \
              "$SCRIPT_DIR"/oro-*.jar "$SCRIPT_DIR"/jakarta-oro*.jar; do
         [ -e "$c" ] && { ORO_JAR=$c; break; }
     done
@@ -54,26 +55,26 @@ fi
 #     below (build/ is gitignored and gets wiped by `rm -rf build`, so this
 #     cannot be a one-off manual copy -- it has to happen every run).
 if [ -z "$XALAN_JAR" ]; then
-    for c in /home/dgh/.m2/repository/xalan/xalan/2.7.2/xalan-2.7.2.jar \
-             /home/dgh/.m2/repository/xalan/xalan/2.7.1/xalan-2.7.1.jar; do
+    for c in $HOME/.m2/repository/xalan/xalan/2.7.2/xalan-2.7.2.jar \
+             $HOME/.m2/repository/xalan/xalan/2.7.1/xalan-2.7.1.jar; do
         [ -e "$c" ] && { XALAN_JAR=$c; break; }
     done
 fi
 if [ -z "$SERIALIZER_JAR" ]; then
-    for c in /home/dgh/.m2/repository/xalan/serializer/2.7.2/serializer-2.7.2.jar \
-             /home/dgh/.m2/repository/xalan/serializer/2.7.1/serializer-2.7.1.jar; do
+    for c in $HOME/.m2/repository/xalan/serializer/2.7.2/serializer-2.7.2.jar \
+             $HOME/.m2/repository/xalan/serializer/2.7.1/serializer-2.7.1.jar; do
         [ -e "$c" ] && { SERIALIZER_JAR=$c; break; }
     done
 fi
 if [ -z "$XERCES_JAR" ]; then
-    for c in /home/dgh/.m2/repository/xerces/xercesImpl/2.8.1/xercesImpl-2.8.1.jar \
-             /home/dgh/.m2/repository/xerces/xercesImpl/2.9.1/xercesImpl-2.9.1.jar; do
+    for c in $HOME/.m2/repository/xerces/xercesImpl/2.8.1/xercesImpl-2.8.1.jar \
+             $HOME/.m2/repository/xerces/xercesImpl/2.9.1/xercesImpl-2.9.1.jar; do
         [ -e "$c" ] && { XERCES_JAR=$c; break; }
     done
 fi
 if [ -z "$XML_APIS_JAR" ]; then
-    for c in /home/dgh/.m2/repository/xml-apis/xml-apis/1.3.04/xml-apis-1.3.04.jar \
-             /home/dgh/.m2/repository/xml-apis/xml-apis/1.4.01/xml-apis-1.4.01.jar; do
+    for c in $HOME/.m2/repository/xml-apis/xml-apis/1.3.04/xml-apis-1.3.04.jar \
+             $HOME/.m2/repository/xml-apis/xml-apis/1.4.01/xml-apis-1.4.01.jar; do
         [ -e "$c" ] && { XML_APIS_JAR=$c; break; }
     done
 fi

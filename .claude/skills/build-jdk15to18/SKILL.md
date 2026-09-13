@@ -13,7 +13,7 @@ This skill is for driving `sh build1-5to1-8` and getting `sh build1-5to1-8 test`
 
 ```
 sh build1-5to1-8                                   # 1. BUILD on JDK 8  -> unsigned jars
-/home/dgh/bin/bcsign build/artifacts/jdk1.5/jars/*.jar   # 2. SIGN (this machine only)
+bcsign build/artifacts/jdk1.5/jars/*.jar           # 2. SIGN (release machine only)
 sh build1-5to1-8 test                              # 3. TEST on genuine JRE 5
 ```
 
@@ -29,14 +29,15 @@ The `<javac>` is `source/target=1.5`, `fork="true"`, **no `bootclasspath`** — 
 
 If you only need to iterate on the test compile, `build-provider` alone is *not* enough — `asn1.cmc`/`asn1.cmp`/etc. tests need `bcutil`/`bcpkix`, so run the full no-arg build at least once.
 
-### Step 2 — sign (only works on this machine)
+### Step 2 — sign (only works on the release machine)
 
-`/home/dgh/bin/bcsign <jars...>` signs in place with BC's release keys:
+The `bcsign` helper — a script on the release machine, not in this repo — signs `<jars...>` in place
+with BC's release keys:
 - It hardcodes `JAVA_HOME=java-7` (needs `pack200`, removed in JDK 14+).
-- For names matching `jdk15|jdk16|fips` it `pack200 --repack`s then double-signs (RSA-2048 `bcrsa2048key` + 1024 `bc1024key`) against keystores under `/home/dgh/bc/` with a timestamp authority, then verifies.
-- The keystores, passwords and certs live only on this machine, so **signing cannot be reproduced elsewhere** — on any other host the crypto tests cannot pass under a genuine JRE 5.
+- For names matching `jdk15|jdk16|fips` it `pack200 --repack`s then double-signs (RSA-2048 `bcrsa2048key` + 1024 `bc1024key`) against keystores held on that machine with a timestamp authority, then verifies.
+- The keystores, passwords and certs live only on the release machine, so **signing cannot be reproduced elsewhere** — on any other host the crypto tests cannot pass under a genuine JRE 5.
 
-Sign the whole jar dir: `/home/dgh/bin/bcsign build/artifacts/jdk1.5/jars/*.jar`.
+Sign the whole jar dir: `bcsign build/artifacts/jdk1.5/jars/*.jar`.
 
 **Why signing is mandatory:** on JDK 5 the JCE requires providers performing `Cipher`/`Mac`/`KeyGenerator` work to be jars signed with a trusted JCE code-signing cert. An unsigned dev jar makes essentially every crypto test fail with `java.lang.SecurityException: JCE cannot authenticate the provider BC` (pure-ASN.1 suites still pass, which is the tell).
 
@@ -106,7 +107,7 @@ If `-Xint` passes but JIT fails, it's a JVM defect — don't "fix" the BC code; 
 | Need | Command |
 |---|---|
 | Full build (JDK 8) | `sh build1-5to1-8` |
-| Sign (this machine) | `/home/dgh/bin/bcsign build/artifacts/jdk1.5/jars/*.jar` |
+| Sign (release machine) | `bcsign build/artifacts/jdk1.5/jars/*.jar` |
 | Test (JRE 5) | `sh build1-5to1-8 test` |
 | Clean | `sh build1-5to1-8 clean` |
 | Failure detail | `build/artifacts/jdk1.5/reports/xml/TEST-*.xml` |
