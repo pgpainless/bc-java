@@ -30,6 +30,9 @@ class MockPSKDTLSClient
 {
     TlsSession session;
 
+    // Short by default so that a PSK mismatch (which in DTLS shows as retransmission until timeout) fails quickly
+    private int handshakeTimeoutMillis = 1000;
+
     MockPSKDTLSClient(TlsSession session)
     {
         this(session, false);
@@ -49,7 +52,12 @@ class MockPSKDTLSClient
 
     public int getHandshakeTimeoutMillis()
     {
-        return 1000;
+        return handshakeTimeoutMillis;
+    }
+
+    public void setHandshakeTimeoutMillis(int millis)
+    {
+        handshakeTimeoutMillis = millis;
     }
 
     public int getHandshakeResendTimeMillis()
