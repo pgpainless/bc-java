@@ -105,6 +105,10 @@ public class JceExternalPublicKeyDataDecryptorFactoryBuilderTest
                 public byte[] decrypt(int keyAlgorithm, byte[][] pEnc)
                     throws PGPException
                 {
+                    if (keyAlgorithm != pubKey.getAlgorithm())
+                    {
+                        throw new PGPException("key algorithm mismatch");
+                    }
                     Cipher c;
                     try
                     {
@@ -135,6 +139,10 @@ public class JceExternalPublicKeyDataDecryptorFactoryBuilderTest
                 public byte[] decrypt(int keyAlgorithm, PublicKey ephemeralKey)
                     throws PGPException
                 {
+                    if (keyAlgorithm != pubKey.getAlgorithm())
+                    {
+                        throw new PGPException("key algorithm mismatch");
+                    }
                     switch (keyAlgorithm)
                     {
                         case PublicKeyAlgorithmTags.ECDH:

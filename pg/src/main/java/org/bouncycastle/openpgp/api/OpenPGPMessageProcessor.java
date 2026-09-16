@@ -575,6 +575,12 @@ public class OpenPGPMessageProcessor
         }
     }
 
+    public OpenPGPMessageProcessor setExceptionCallback(PGPExceptionCallback callback)
+    {
+        this.configuration.exceptionCallback = callback;
+        return this;
+    }
+
     /**
      * Recover the session key of the given PKESK using the given secret key.
      * <p>

@@ -32,6 +32,7 @@ import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.card.SupportedAlgorithms;
 
 import java.io.IOException;
+import java.lang.annotation.Inherited;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -121,16 +122,8 @@ public class YubikeyOpenPGPSmartCard
         return deviceInfo.getVersionName();
     }
 
-    @Override
-    public boolean isKeySupported(byte keyRef, OpenPGPCertificate.OpenPGPComponentKey key)
-            throws CardException
-    {
-        return getSupportedAlgorithms(keyRef).supports(key);
-    }
-
     /**
-     * Return all supported key algorithms of the slot identified by keyRef.
-     * <p>
+     * @inheritDocs
      * NOTE: yubikit's {@code AlgorithmAttributes.Rsa} / {@code .Ec} subclasses and their
      * {@code getAlgorithmId()} / {@code getNLen()} / {@code getCurve()} accessors are all package-private
      * in {@code com.yubico.yubikit.openpgp}, so the only way to read the attributes from outside that
@@ -142,6 +135,7 @@ public class YubikeyOpenPGPSmartCard
      * @param keyRef key reference
      * @return {@link SupportedAlgorithms}
      */
+    @Override
     public SupportedAlgorithms getSupportedAlgorithms(byte keyRef)
     {
         List<AlgorithmAttributes> attributes = supportedAlgorithms.get(from(keyRef));
@@ -334,13 +328,15 @@ public class YubikeyOpenPGPSmartCard
 
         try (OpenPgpSession session = openSession())
         {
-            session.verifyUserPin(pin, false);
             if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_SIGNATURE)
             {
+                session.verifyUserPin(pin, false);
                 return session.sign(digestOrMessage);
             }
             else if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_AUTHENTICATION)
             {
+                // authentication requires extended verification
+                session.verifyUserPin(pin, true);
                 return session.authenticate(digestOrMessage);
             }
             else
@@ -367,12 +363,22 @@ public class YubikeyOpenPGPSmartCard
     }
 
     @Override
-    public byte[] decrypt(byte[] message,
+    public byte[] decrypt(int keyAlgorithm,
+                          byte[] message,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException
+            throws PGPException, CardException
     {
+        if (keyAlgorithm != stubKey.getAlgorithm())
+        {
+            throw new PGPException("key algorithm mismatch");
+        }
+        if (!canProcess(openPGPHardwareKey.getKeyRef(), keyAlgorithm))
+        {
+            throw new PGPException("Hardware key with keyRef " + openPGPHardwareKey.getKeyRef() + " cannot process data of algorithm " + keyAlgorithm);
+        }
+
         char[] pin = requireUserPin(userPinProvider, stubKey);
 
         try (OpenPgpSession session = openSession())
@@ -406,12 +412,22 @@ public class YubikeyOpenPGPSmartCard
     }
 
     @Override
-    public byte[] decrypt(PublicKey publicKey,
+    public byte[] decrypt(int keyAlgorithm,
+                          PublicKey publicKey,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException
+            throws PGPException, CardException
     {
+        if (keyAlgorithm != stubKey.getAlgorithm())
+        {
+            throw new PGPException("key algorithm mismatch");
+        }
+        if (!canProcess(openPGPHardwareKey.getKeyRef(), keyAlgorithm))
+        {
+            throw new PGPException("Hardware key with keyRef " + openPGPHardwareKey.getKeyRef() + " cannot process data of algorithm " + keyAlgorithm);
+        }
+
         char[] pin = requireUserPin(userPinProvider, stubKey);
 
         try (OpenPgpSession session = openSession())

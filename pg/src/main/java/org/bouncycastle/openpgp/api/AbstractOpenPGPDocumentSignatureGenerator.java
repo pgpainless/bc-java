@@ -278,7 +278,7 @@ public class AbstractOpenPGPDocumentSignatureGenerator<T extends AbstractOpenPGP
                 PGPContentSignerBuilder contentSignerBuilder;
                 try
                 {
-                    contentSignerBuilder = sigProv.get(signingKey);
+                    contentSignerBuilder = sigProv.get(publicKey);
                 }
                 catch (IllegalArgumentException e)
                 {

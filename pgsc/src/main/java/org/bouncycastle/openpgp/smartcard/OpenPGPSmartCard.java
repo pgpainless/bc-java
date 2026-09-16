@@ -9,6 +9,7 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPKey.OpenPGPPrivateKey;
 import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
+import org.bouncycastle.openpgp.smartcard.card.SupportedAlgorithms;
 
 import java.security.PublicKey;
 import java.util.ArrayList;
@@ -74,8 +75,32 @@ public abstract class OpenPGPSmartCard
      *
      * @throws CardException if communication with the card fails
      */
-    public abstract boolean isKeySupported(byte keyRef, OpenPGPComponentKey key)
-            throws CardException;
+    public boolean isKeySupported(byte keyRef, OpenPGPComponentKey key)
+            throws CardException
+    {
+        return getSupportedAlgorithms(keyRef).supports(key);
+    }
+
+    public boolean canProcess(byte keyRef, int keyAlgorithm)
+            throws CardException
+    {
+        List<SupportedAlgorithms.Algorithm> algs = getSupportedAlgorithms(keyRef).getAlgorithms();
+        if (algs.isEmpty())
+        {
+            return false;
+        }
+        SupportedAlgorithms.Algorithm current = algs.get(0);
+        return current.matches(keyAlgorithm);
+    }
+
+    /**
+     * Return all supported key algorithms of the slot identified by keyRef.
+     *
+     * @param keyRef key reference
+     * @return {@link SupportedAlgorithms}
+     */
+    public abstract SupportedAlgorithms getSupportedAlgorithms(byte keyRef);
+
 
     /**
      * Return the {@link OpenPGPHardwareKey} identified by the given key reference.
@@ -365,7 +390,7 @@ public abstract class OpenPGPSmartCard
                                 OpenPGPHardwareKey key,
                                 OpenPGPKey.OpenPGPSecretKey stubKey,
                                 KeyPassphraseProvider userPinProvider)
-        throws KeyPassphraseException, CardException;
+            throws KeyPassphraseException, CardException;
 
     /**
      * Fetch the card's user PIN. The returned array is the caller's to zeroize once the card has
@@ -393,11 +418,13 @@ public abstract class OpenPGPSmartCard
      * @throws KeyPassphraseException if the wrong PIN was provided
      * @throws CardException if the message cannot be decrypted, e.g. because communication fails
      */
-    public abstract byte[] decrypt(byte[] message,
-                          OpenPGPHardwareKey openPGPHardwareKey,
-                          OpenPGPKey.OpenPGPSecretKey stubKey,
-                          KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+    public abstract byte[] decrypt(
+            int keyAlgorithm,
+            byte[] message,
+            OpenPGPHardwareKey openPGPHardwareKey,
+            OpenPGPKey.OpenPGPSecretKey stubKey,
+            KeyPassphraseProvider userPinProvider)
+            throws PGPException, CardException;
 
     /**
      * Decrypt a public-key-encrypted session-key.
@@ -410,9 +437,11 @@ public abstract class OpenPGPSmartCard
      * @throws KeyPassphraseException if the wrong passphrase was provided
      * @throws CardException if the message cannot be decrypted, e.g. because communication fails
      */
-    public abstract byte[] decrypt(PublicKey publicKey,
-                          OpenPGPHardwareKey openPGPHardwareKey,
-                          OpenPGPKey.OpenPGPSecretKey stubKey,
-                          KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+    public abstract byte[] decrypt(
+            int keyAlgorithm,
+            PublicKey publicKey,
+            OpenPGPHardwareKey openPGPHardwareKey,
+            OpenPGPKey.OpenPGPSecretKey stubKey,
+            KeyPassphraseProvider userPinProvider)
+            throws PGPException, CardException;
 }

@@ -1,5 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+import org.bouncycastle.asn1.teletrust.TeleTrusTObjectIdentifiers;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -38,11 +40,13 @@ import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.operator.bc.BcPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
+import org.bouncycastle.openpgp.smartcard.card.SupportedAlgorithms;
 import org.bouncycastle.util.Integers;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -147,6 +151,48 @@ public class SimulatorOpenPGPSmartCard
     public boolean isKeySupported(byte keyRef, OpenPGPCertificate.OpenPGPComponentKey key)
     {
         return true;
+    }
+
+    @Override
+    public SupportedAlgorithms getSupportedAlgorithms(byte keyRef)
+    {
+        List<SupportedAlgorithms.Algorithm> algorithms = new ArrayList<>();
+
+        OpenPGPCertificate.OpenPGPComponentKey currentKey = secretKeys.get(keyRef);
+        if (currentKey != null)
+        {
+            if (currentKey.getAlgorithm() == PublicKeyAlgorithmTags.RSA_GENERAL)
+            {
+                algorithms.add(new SupportedAlgorithms.RSA(keyRef, currentKey.getAlgorithm(), currentKey.getPGPPublicKey().getBitStrength()));
+            }
+            else if (currentKey.getAlgorithm() == PublicKeyAlgorithmTags.ECDH || currentKey.getAlgorithm() == PublicKeyAlgorithmTags.ECDSA)
+            {
+                algorithms.add(new SupportedAlgorithms.EC(keyRef, currentKey.getAlgorithm(), SupportedAlgorithms.EC.getKeyCurveOID(currentKey)));
+            }
+            else if (currentKey.getAlgorithm() == PublicKeyAlgorithmTags.X25519)
+            {
+                algorithms.add(new SupportedAlgorithms.EC(keyRef, PublicKeyAlgorithmTags.ECDH, SupportedAlgorithms.EC.getKeyCurveOID(currentKey)));
+            }
+            else if (currentKey.getAlgorithm() == PublicKeyAlgorithmTags.Ed25519)
+            {
+                algorithms.add(new SupportedAlgorithms.EC(keyRef, PublicKeyAlgorithmTags.ECDSA, SupportedAlgorithms.EC.getKeyCurveOID(currentKey)));
+            }
+        }
+
+        algorithms.add(new SupportedAlgorithms.RSA(keyRef, PublicKeyAlgorithmTags.RSA_GENERAL, 2048));
+        algorithms.add(new SupportedAlgorithms.RSA(keyRef, PublicKeyAlgorithmTags.RSA_GENERAL, 3072));
+        algorithms.add(new SupportedAlgorithms.RSA(keyRef, PublicKeyAlgorithmTags.RSA_GENERAL, 4096));
+
+        int pkAlg = keyRef == OpenPGPHardwareKey.KEY_REF_DECRYPTION ? PublicKeyAlgorithmTags.ECDH : PublicKeyAlgorithmTags.ECDSA;
+
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, SECObjectIdentifiers.secp256r1));
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, SECObjectIdentifiers.secp384r1));
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, SECObjectIdentifiers.secp521r1));
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, TeleTrusTObjectIdentifiers.brainpoolP256r1));
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, TeleTrusTObjectIdentifiers.brainpoolP384r1));
+        algorithms.add(new SupportedAlgorithms.EC(keyRef, pkAlg, TeleTrusTObjectIdentifiers.brainpoolP512r1));
+
+        return new SupportedAlgorithms(algorithms);
     }
 
     @Override
@@ -268,7 +314,8 @@ public class SimulatorOpenPGPSmartCard
     }
 
     @Override
-    public byte[] decrypt(byte[] message,
+    public byte[] decrypt(int keyAlgorithmId,
+                          byte[] message,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
@@ -302,7 +349,8 @@ public class SimulatorOpenPGPSmartCard
     }
 
     @Override
-    public byte[] decrypt(PublicKey publicKey,
+    public byte[] decrypt(int keyAlgorithmId,
+                          PublicKey publicKey,
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)

@@ -84,6 +84,32 @@ public class SupportedAlgorithms
 
         public abstract boolean matches(int keyAlgorithm, ASN1ObjectIdentifier curveOID);
 
+        public boolean matches(int keyAlgorithm)
+        {
+            System.out.println("KeyAlg: " + keyAlgorithm + ", algId: " + algorithmId);
+            if (keyAlgorithm == algorithmId)
+            {
+                return true;
+            }
+
+            if (algorithmId == PublicKeyAlgorithmTags.EDDSA_LEGACY)
+            {
+                if (keyAlgorithm == PublicKeyAlgorithmTags.Ed25519)
+                {
+                    return true;
+                }
+            }
+
+            if (algorithmId == PublicKeyAlgorithmTags.ECDH)
+            {
+                if (keyAlgorithm == PublicKeyAlgorithmTags.X25519)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public abstract String toString();
     }
 
@@ -200,7 +226,7 @@ public class SupportedAlgorithms
             return matches(keyAlgorithm, keyCurve);
         }
 
-        private ASN1ObjectIdentifier getKeyCurveOID(OpenPGPCertificate.OpenPGPComponentKey key)
+        public static ASN1ObjectIdentifier getKeyCurveOID(OpenPGPCertificate.OpenPGPComponentKey key)
         {
             BCPGKey pubKey = key.getPGPPublicKey().getPublicKeyPacket().getKey();
             if (pubKey instanceof ECPublicBCPGKey)

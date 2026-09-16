@@ -3,6 +3,7 @@ package org.bouncycastle.openpgp.smartcard;
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
+import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
@@ -185,17 +186,18 @@ public class OpenPGPHardwareKey
      * encrypted session-key data as specified in RFC9580.
      * This method is used with RSA and ElGamal keys.
      *
-     * @param userPinProvider provider for this keys user PIN
      * @param stubKey stubbed OpenPGPSecretKey corresponding to this hardware key.
      * @param message algorithm-specific encrypted session key data
+     * @param userPinProvider provider for this keys user PIN
      * @return decrypted algorithm-specific session key data
      */
-    public byte[] decrypt(KeyPassphraseProvider userPinProvider,
+    public byte[] decrypt(int keyAlgorithm,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
-                          byte[] message)
-            throws CardException, KeyPassphraseException
+                          byte[] message,
+                          KeyPassphraseProvider userPinProvider)
+            throws CardException, PGPException
     {
-        return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
+        return getSmartCard().decrypt(keyAlgorithm, message, this, stubKey, userPinProvider);
     }
 
     /**
@@ -204,16 +206,27 @@ public class OpenPGPHardwareKey
      * a message session key.
      * This method is used with ECDH, X25519, X448 keys.
      *
-     * @param userPinProvider provider for this keys user PIN
      * @param stubKey stubbed OpenPGPSecretKey corresponding to this hardware key.
      * @param ephemeralKey algorithm-specific ephemeral message public key
+     * @param userPinProvider provider for this keys user PIN
      * @return decrypted algorithm-specific session key data
      */
-    public byte[] decrypt(KeyPassphraseProvider userPinProvider,
+    public byte[] decrypt(int keyAlgorithm,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
-                          PublicKey ephemeralKey)
-            throws CardException, KeyPassphraseException
+                          PublicKey ephemeralKey,
+                          KeyPassphraseProvider userPinProvider)
+            throws CardException, PGPException
     {
-        return getSmartCard().decrypt(ephemeralKey, this, stubKey, userPinProvider);
+        return getSmartCard().decrypt(keyAlgorithm, ephemeralKey, this, stubKey, userPinProvider);
+    }
+
+    public void verifyCanDecrypt(int keyAlgorithm, OpenPGPCertificate.OpenPGPComponentKey key)
+            throws PGPException
+    {
+        if (key.getAlgorithm() != keyAlgorithm)
+        {
+            throw new PGPException("Key algorithm mismatch");
+        }
+
     }
 }
