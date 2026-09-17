@@ -378,7 +378,13 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
                 signingKeyStub, card, userPinProvider, hashAlgorithmId);
     }
 
-    protected PGPPublicKey convertPublicKey(PublicKey pk,
+    public PublicKey convertPublicKey(PGPPublicKey pgpPublicKey)
+            throws PGPException
+    {
+        return converter.getPublicKey(pgpPublicKey);
+    }
+
+    public PGPPublicKey convertPublicKey(PublicKey pk,
                                           byte[] storedFingerprint,
                                           Date creationTime)
             throws PGPException

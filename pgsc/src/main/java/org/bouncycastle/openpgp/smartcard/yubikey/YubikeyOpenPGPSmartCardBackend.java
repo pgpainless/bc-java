@@ -195,12 +195,12 @@ public class YubikeyOpenPGPSmartCardBackend
         };
     }
 
-    PublicKeyValues convertPublicKey(PGPPublicKey pgpPublicKey)
+    PublicKeyValues convertPublicKeyValues(PGPPublicKey pgpPublicKey)
             throws PGPException
     {
         try
         {
-            return PublicKeyValues.fromPublicKey(converter.getPublicKey(pgpPublicKey));
+            return PublicKeyValues.fromPublicKey(convertPublicKey(pgpPublicKey));
         }
         catch (IllegalStateException e)
         {
