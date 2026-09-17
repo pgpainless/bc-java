@@ -1,5 +1,7 @@
 package org.bouncycastle.openpgp.smartcard.simulator;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardImplementation;
@@ -19,7 +21,12 @@ public class SimulatorOpenPGPSmartCardBackend
 
     public SimulatorOpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation)
     {
-        super(implementation, null);
+        this(implementation, new JcaPGPKeyConverter().setProvider(new BouncyCastleProvider()));
+    }
+
+    public SimulatorOpenPGPSmartCardBackend(OpenPGPSmartCardImplementation implementation, JcaPGPKeyConverter keyConverter)
+    {
+        super(implementation, keyConverter);
     }
 
     @Override
