@@ -413,6 +413,16 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
         {
             candidates = new int[]{PublicKeyAlgorithmTags.ECDH, PublicKeyAlgorithmTags.X25519};
         }
+        // Modern X448 - there is no legacy X448
+        else if (EdECObjectIdentifiers.id_X448.equals(oid))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.X448};
+        }
+        // Modern Ed448 - there is no legacy Ed448
+        else if (EdECObjectIdentifiers.id_Ed448.equals(oid))
+        {
+            candidates = new int[]{PublicKeyAlgorithmTags.Ed448};
+        }
         else
         {
             throw new PGPException("Unknown public key algorithm OID: " + oid.getId());
