@@ -334,13 +334,15 @@ public class YubikeyOpenPGPSmartCard
 
         try (OpenPgpSession session = openSession())
         {
-            session.verifyUserPin(pin, false);
             if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_SIGNATURE)
             {
+                session.verifyUserPin(pin, false);
                 return session.sign(digestOrMessage);
             }
             else if (hardwareKey.getKeyRef() == OpenPGPHardwareKey.KEY_REF_AUTHENTICATION)
             {
+                // authentication requires extended verification
+                session.verifyUserPin(pin, true);
                 return session.authenticate(digestOrMessage);
             }
             else
