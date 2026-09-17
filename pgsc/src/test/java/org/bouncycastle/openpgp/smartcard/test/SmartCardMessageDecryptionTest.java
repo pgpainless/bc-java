@@ -362,6 +362,12 @@ public class SmartCardMessageDecryptionTest
         // Decrypt message using card
         ByteArrayInputStream bIn = new ByteArrayInputStream(bOut.toByteArray());
         OpenPGPMessageInputStream mIn = api.decryptAndOrVerifyMessage()
+                .setExceptionCallback(new OpenPGPMessageProcessor.PGPExceptionCallback() {
+                    @Override
+                    public void onException(PGPException e) {
+                        e.printStackTrace();
+                    }
+                })
                 .addDecryptionKey(externalKey, properties.getUserPin())
                 .addPublicKeyDataDecryptorFactoryProvider(manager)
                 .process(bIn);
