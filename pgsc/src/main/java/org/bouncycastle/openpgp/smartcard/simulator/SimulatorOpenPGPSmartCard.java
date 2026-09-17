@@ -315,34 +315,30 @@ public class SimulatorOpenPGPSmartCard
             RawAgreement agreement;
             AsymmetricKeyParameter pubKey;
 
+            pubKey = PublicKeyFactory.createKey(publicKey.getEncoded());
             switch (stubKey.getAlgorithm())
             {
                 case PublicKeyAlgorithmTags.ECDH:
                     if (privateKey instanceof X25519PrivateKeyParameters)
                     {
                         agreement = new X25519Agreement();
-                        pubKey = new X25519PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
                     }
                     else if (privateKey instanceof X448PrivateKeyParameters)
                     {
                         agreement = new X448Agreement();
-                        pubKey = new X448PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
                     }
                     else
                     {
                         agreement = new BasicRawAgreement(new ECDHBasicAgreement());
-                        pubKey = PublicKeyFactory.createKey(publicKey.getEncoded());
                     }
                     break;
 
                 case PublicKeyAlgorithmTags.X25519:
                     agreement = new X25519Agreement();
-                    pubKey = new X25519PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
                     break;
 
                 case PublicKeyAlgorithmTags.X448:
                     agreement = new X448Agreement();
-                    pubKey = new X448PublicKeyParameters(((BCXDHPublicKey)publicKey).getUEncoding());
                     break;
 
                 default:
