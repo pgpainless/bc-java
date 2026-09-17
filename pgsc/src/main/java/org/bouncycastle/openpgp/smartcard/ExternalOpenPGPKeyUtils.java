@@ -37,7 +37,7 @@ public class ExternalOpenPGPKeyUtils
             keys.add(toExternalKey(publicKey, locatorHint));
         }
 
-        return new OpenPGPKey(new PGPSecretKeyRing(keys));
+        return new OpenPGPKey(new PGPSecretKeyRing(keys), implementation);
     }
 
     public OpenPGPKey toExternalKey(OpenPGPKey key)
