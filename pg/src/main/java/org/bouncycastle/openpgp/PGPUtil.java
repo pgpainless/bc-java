@@ -18,8 +18,11 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.cryptlib.CryptlibObjectIdentifiers;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.gnu.GNUObjectIdentifiers;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
 import org.bouncycastle.asn1.teletrust.TeleTrusTObjectIdentifiers;
+import org.bouncycastle.asn1.x509.X509ObjectIdentifiers;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.bcpg.BCPGInputStream;
@@ -82,6 +85,37 @@ public class PGPUtil
             put(TeleTrusTObjectIdentifiers.brainpoolP512r1, "brainpoolP512r1");
         }
     };
+
+    public static ASN1ObjectIdentifier getDigestIdentifier(int hashAlgorithmId)
+            throws PGPException
+    {
+        switch (hashAlgorithmId)
+        {
+            case MD5:
+                return PKCSObjectIdentifiers.md5;
+            case SHA1:
+                return X509ObjectIdentifiers.id_SHA1;
+            case SHA224:
+                return NISTObjectIdentifiers.id_sha224;
+            case SHA256:
+                return NISTObjectIdentifiers.id_sha256;
+            case SHA384:
+                return NISTObjectIdentifiers.id_sha384;
+            case SHA512:
+                return NISTObjectIdentifiers.id_sha512;
+            case SHA3_224:
+                return NISTObjectIdentifiers.id_sha3_224;
+            case SHA3_256:
+                return NISTObjectIdentifiers.id_sha3_256;
+            case SHA3_384:
+                return NISTObjectIdentifiers.id_sha3_384;
+            case SHA3_512:
+                return NISTObjectIdentifiers.id_sha3_512;
+            case RIPEMD160:
+                return TeleTrusTObjectIdentifiers.ripemd128;
+        }
+        throw new PGPException("unknown hash algorithm id: " + hashAlgorithmId);
+    }
 
     /**
      * Return an appropriate name for the hash algorithm represented by the passed

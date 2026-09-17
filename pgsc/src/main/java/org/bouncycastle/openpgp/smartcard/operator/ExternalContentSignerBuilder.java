@@ -147,8 +147,7 @@ public class ExternalContentSignerBuilder
                 // see https://www.rfc-editor.org/rfc/rfc9580.html#section-5.2.3.1
                 if (alg == PublicKeyAlgorithmTags.RSA_GENERAL || alg == PublicKeyAlgorithmTags.RSA_SIGN)
                 {
-                    String digestName = PGPUtil.getDigestName(hashAlgorithm);
-                    ASN1ObjectIdentifier hashOID = MessageDigestUtils.getDigestAlgID(digestName).getAlgorithm();
+                    ASN1ObjectIdentifier hashOID = PGPUtil.getDigestIdentifier(hashAlgorithm);
                     AlgorithmIdentifier algId = new AlgorithmIdentifier(hashOID, DERNull.INSTANCE);
                     DigestInfo info = new DigestInfo(algId, digest);
                     return info.getEncoded(ASN1Encoding.DER);
