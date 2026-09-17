@@ -397,7 +397,7 @@ public abstract class OpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+            throws PGPException, CardException;
 
     /**
      * Decrypt a public-key-encrypted session-key.
@@ -414,5 +414,5 @@ public abstract class OpenPGPSmartCard
                           OpenPGPHardwareKey openPGPHardwareKey,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
+            throws PGPException, CardException;
 }

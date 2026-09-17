@@ -2,10 +2,8 @@ package org.bouncycastle.openpgp.smartcard.operator.bc;
 
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.api.operator.bc.BcExternalPublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyCryptoCallback;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
@@ -49,6 +47,7 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
         {
             @Override
             public byte[] decrypt(int keyAlgorithm, byte[][] pEnc)
+                    throws PGPException
             {
                 try
                 {
@@ -56,11 +55,7 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
                 }
                 catch (CardException e)
                 {
-                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                    throw new PGPException("Error decrypting with smart card", e);
                 }
             }
 
@@ -75,11 +70,7 @@ public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard
                 }
                 catch (CardException e)
                 {
-                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                    throw new PGPException("Error decrypting with smart card", e);
                 }
 
             }

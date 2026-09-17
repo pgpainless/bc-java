@@ -2,10 +2,8 @@ package org.bouncycastle.openpgp.smartcard.operator.jcajce;
 
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
-import org.bouncycastle.openpgp.PGPRuntimeOperationException;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.api.operator.jcajce.JceExternalPublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
@@ -45,6 +43,7 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
         {
             @Override
             public byte[] decrypt(int keyAlgorithm, byte[][] secKeyData)
+                    throws PGPException
             {
                 try
                 {
@@ -52,11 +51,7 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
                 }
                 catch (CardException e)
                 {
-                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                    throw new PGPException("Error decrypting with smart card", e);
                 }
             }
 
@@ -70,11 +65,7 @@ public class JceSmartCardPublicKeyDataDecryptorFactoryBuilder<T extends OpenPGPS
                 }
                 catch (CardException e)
                 {
-                    throw new PGPRuntimeOperationException("Error decrypting with smart card", e);
-                }
-                catch (KeyPassphraseException e)
-                {
-                    throw new PGPRuntimeOperationException("Wrong smart card PIN provided.", e);
+                    throw new PGPException("Error decrypting with smart card", e);
                 }
             }
         });

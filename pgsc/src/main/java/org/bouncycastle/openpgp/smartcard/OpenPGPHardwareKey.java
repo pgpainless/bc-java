@@ -193,7 +193,7 @@ public class OpenPGPHardwareKey
     public byte[] decrypt(KeyPassphraseProvider userPinProvider,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           byte[] message)
-            throws CardException, KeyPassphraseException
+            throws CardException, PGPException
     {
         return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
     }
@@ -212,7 +212,7 @@ public class OpenPGPHardwareKey
     public byte[] decrypt(KeyPassphraseProvider userPinProvider,
                           OpenPGPKey.OpenPGPSecretKey stubKey,
                           PublicKey ephemeralKey)
-            throws CardException, KeyPassphraseException
+            throws CardException, PGPException
     {
         return getSmartCard().decrypt(ephemeralKey, this, stubKey, userPinProvider);
     }
