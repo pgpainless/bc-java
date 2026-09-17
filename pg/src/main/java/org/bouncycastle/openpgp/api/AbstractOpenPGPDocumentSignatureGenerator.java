@@ -267,11 +267,20 @@ public class AbstractOpenPGPDocumentSignatureGenerator<T extends AbstractOpenPGP
             PGPPublicKey publicKey = signingKey.getPGPPublicKey();
             for (PGPContentSignerBuilderProviderFactory sigFac : customContentSignerBuilderProviderFactories)
             {
-                PGPContentSignerBuilderProvider sigProv = sigFac.getPGPContentSignerBuilderProvider(
-                        signingKey, passphraseProvider, parameters.getSignatureHashAlgorithmId());
-                if (sigProv == null)
+                PGPContentSignerBuilderProvider sigProv;
+                try
                 {
-                    // no matching card found
+                    sigProv = sigFac.getPGPContentSignerBuilderProvider(
+                            signingKey, passphraseProvider, parameters.getSignatureHashAlgorithmId());
+                    if (sigProv == null)
+                    {
+                        // no matching card found
+                        continue;
+                    }
+                }
+                catch (PGPException e)
+                {
+                    // No matching card found
                     continue;
                 }
 
@@ -292,7 +301,7 @@ public class AbstractOpenPGPDocumentSignatureGenerator<T extends AbstractOpenPGP
                 return Utils.applyDefaultSubpackets(publicKey, parameters, parameters.getSignatureCreationTime(), null, sigGen);
             }
 
-            throw new IllegalStateException("Cannot initialize signature generator for external key " + signingKey.getKeyIdentifier());
+            throw new PGPException("Cannot initialize signature generator for external key " + signingKey.getKeyIdentifier());
         }
         else
         {

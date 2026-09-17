@@ -29,7 +29,8 @@ public class AllTests
                 {
                         new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
                         new PublicKeyConverterTest(),
-                        new MultiBackendTest()
+                        new MultiBackendTest(),
+                        new FailingBackendTest()
                 };
 
         for (int i = 0; i != tests.length; i++)
