@@ -6,6 +6,7 @@ import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
+import org.bouncycastle.openpgp.smartcard.test.OpenPGPSmartCardBackendTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
@@ -42,6 +43,7 @@ public class YubikeyTests
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
                         new SmartCardWithV6KeysTest(m, p),
                         new CloseYubikeySessionTest(m, p),
+                        new OpenPGPSmartCardBackendTest(m, p)
                 };
 
         for (int i = 0; i != tests.length; i++)

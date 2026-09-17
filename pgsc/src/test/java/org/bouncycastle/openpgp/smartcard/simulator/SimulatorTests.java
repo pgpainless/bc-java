@@ -6,6 +6,7 @@ import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
 import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.MultiBackendTest;
+import org.bouncycastle.openpgp.smartcard.test.OpenPGPSmartCardBackendTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
@@ -32,6 +33,7 @@ public class SimulatorTests
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
                         new SmartCardWithV6KeysTest(m, p),
                         new SimulatorSmartCardTest(m, p),
+                        new OpenPGPSmartCardBackendTest(m, p),
                         new PublicKeyConverterTest(),
                         new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
                         new MultiBackendTest()

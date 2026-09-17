@@ -1,47 +1,52 @@
-package org.bouncycastle.openpgp.smartcard.yubikey;
+package org.bouncycastle.openpgp.smartcard.test;
 
-import com.yubico.yubikit.core.keys.PublicKeyValues;
 import org.bouncycastle.bcpg.BCPGKey;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPairGeneratorCallback;
-import org.bouncycastle.openpgp.api.OpenPGPApi;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.api.bc.BcOpenPGPApi;
 import org.bouncycastle.openpgp.operator.PGPKeyPairGenerator;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.util.Arrays;
-import org.bouncycastle.util.test.SimpleTest;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
+import java.security.PublicKey;
 
-/**
- * Test conversion of Bouncy Castles {@link BCPGKey} public keys to and from YubiKit's {@link PublicKeyValues}.
- * <p>
- * This test does not require a Yubikey device to be present, as the conversion is done in software.
- */
-public class YubikeySmartCardBackendTest
-        extends SimpleTest
+public class OpenPGPSmartCardBackendTest
+        extends AbstractOpenPGPSmartCardTest
 {
-    private final OpenPGPApi api = new BcOpenPGPApi();
+    public OpenPGPSmartCardBackendTest(OpenPGPSmartCardManager manager, TestProperties properties)
+    {
+        super(manager, properties);
+    }
 
     @Override
     public String getName()
     {
-        return "YubikeySmartCardBackendTest";
+        return "OpenPGPSmartCardBackendTest";
     }
 
     @Override
     public void performTest()
             throws Exception
     {
-        YubikeyOpenPGPSmartCardBackend backend = YubikeyOpenPGPSmartCardBackend.createInstance();
+        for (OpenPGPSmartCardBackend<?> backend : manager.getBackends())
+        {
+            performTestOn(backend);
+        }
+    }
 
+    private void performTestOn(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
+    {
         testLegacyX25519KeyConversion(backend);
         testLegacyEd25519KeyConversion(backend);
 
         testX25519KeyConversion(backend);
         testEd25519KeyConversion(backend);
+
+        testX448KeyConversion(backend);
+        testEd448KeyConversion(backend);
 
         testRSA2048KeyConversion(backend);
         testRSA3072KeyConversion(backend);
@@ -56,8 +61,8 @@ public class YubikeySmartCardBackendTest
         testNistP521ECDHKeyConversion(backend);
     }
 
-    private void testLegacyX25519KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testLegacyX25519KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of legacy X25519 key");
@@ -68,8 +73,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
     }
 
-    private void testLegacyEd25519KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testLegacyEd25519KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of legacy Ed25519 key");
@@ -79,8 +84,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testX25519KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testX25519KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of X25519 key");
@@ -91,8 +96,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
     }
 
-    private void testEd25519KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testEd25519KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Ed25519 key");
@@ -102,8 +107,31 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testRSA2048KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testX448KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
+    {
+        // -DM System.out.println
+        System.out.println("Test conversion of X448 key");
+        OpenPGPKey k = api.generateKey(6)
+                .withPrimaryKey((KeyPairGeneratorCallback) PGPKeyPairGenerator::generateEd448KeyPair)
+                .addEncryptionSubkey((KeyPairGeneratorCallback) PGPKeyPairGenerator::generateX448KeyPair)
+                .build();
+        testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
+    }
+
+    private void testEd448KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
+    {
+        // -DM System.out.println
+        System.out.println("Test conversion of Ed448 key");
+        OpenPGPKey k = api.generateKey(6)
+                .withPrimaryKey((KeyPairGeneratorCallback) PGPKeyPairGenerator::generateEd448KeyPair)
+                .build();
+        testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
+    }
+
+    private void testRSA2048KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of 2048-bit RSA key");
@@ -113,8 +141,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testRSA3072KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testRSA3072KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of 3072-bit RSA key");
@@ -124,8 +152,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testRSA4096KeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testRSA4096KeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of 4096-bit RSA key");
@@ -135,8 +163,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testNistP256ECDSAKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testNistP256ECDSAKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P256 ECDSA key");
@@ -146,8 +174,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testNistP384ECDSAKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testNistP384ECDSAKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P384 ECDSA key");
@@ -157,8 +185,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testNistP521ECDSAKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testNistP521ECDSAKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P521 ECDSA key");
@@ -168,8 +196,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getPrimaryKey().getPGPPublicKey());
     }
 
-    private void testNistP256ECDHKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testNistP256ECDHKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P256 ECDH key");
@@ -180,8 +208,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
     }
 
-    private void testNistP384ECDHKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
+    private void testNistP384ECDHKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException
     {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P384 ECDH key");
@@ -192,9 +220,8 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
     }
 
-    private void testNistP521ECDHKeyConversion(YubikeyOpenPGPSmartCardBackend backend)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
-    {
+    private void testNistP521ECDHKeyConversion(OpenPGPSmartCardBackend<?> backend)
+            throws PGPException {
         // -DM System.out.println
         System.out.println("Test conversion of Nist-P521 ECDH key");
         OpenPGPKey k = api.generateKey(4)
@@ -204,20 +231,13 @@ public class YubikeySmartCardBackendTest
         testConversionOfKey(backend, k.getEncryptionKeys().get(0).getPGPPublicKey());
     }
 
-    private void testConversionOfKey(YubikeyOpenPGPSmartCardBackend backend,
-                                     PGPPublicKey originalPGPPublicKey)
-            throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
-    {
+    private void testConversionOfKey(OpenPGPSmartCardBackend<?> backend, PGPPublicKey originalPGPPublicKey)
+            throws PGPException {
         BCPGKey originalBCPGKey = originalPGPPublicKey.getPublicKeyPacket().getKey();
-        PublicKeyValues convertedPublicKeyValues = backend.convertPublicKey(originalPGPPublicKey);
+        PublicKey convertedPublicKeyValues = backend.convertPublicKey(originalPGPPublicKey);
         PGPPublicKey convertedPGPPublicKey = backend.convertPublicKey(convertedPublicKeyValues, originalPGPPublicKey.getFingerprint(), originalPGPPublicKey.getCreationTime());
         BCPGKey convertedBCPGKey = convertedPGPPublicKey.getPublicKeyPacket().getKey();
 
         isTrue(Arrays.areEqual(originalBCPGKey.getEncoded(), convertedBCPGKey.getEncoded()));
-    }
-
-    public static void main(String[] args)
-    {
-        runTest(new YubikeySmartCardBackendTest());
     }
 }
