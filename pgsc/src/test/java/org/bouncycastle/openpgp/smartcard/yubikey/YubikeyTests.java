@@ -35,16 +35,7 @@ public class YubikeyTests
             return;
         }
 
-        Test[] tests = new Test[]
-                {
-                        new SmartCardMessageDecryptionTest(m, p),
-                        new SmartCardMessageSigningTest(m, p),
-                        new AnonymousRecipientSmartCardDecryptionTest(m, p),
-                        new UnrelatedSmartCardMessageDecryptionTest(m, p),
-                        new SmartCardWithV6KeysTest(m, p),
-                        new CloseYubikeySessionTest(m, p),
-                        new OpenPGPSmartCardBackendTest(m, p)
-                };
+        Test[] tests = getTests(m, p);
 
         for (int i = 0; i != tests.length; i++)
         {
@@ -74,15 +65,7 @@ public class YubikeyTests
             return;
         }
 
-        Test[] tests = new Test[]
-                {
-                        new SmartCardMessageDecryptionTest(m, p),
-                        new SmartCardMessageSigningTest(m, p),
-                        new AnonymousRecipientSmartCardDecryptionTest(m, p),
-                        new UnrelatedSmartCardMessageDecryptionTest(m, p),
-                        new SmartCardWithV6KeysTest(m, p),
-                        new CloseYubikeySessionTest(m, p),
-                };
+        Test[] tests = getTests(m, p);
 
         for (int i = 0; i != tests.length; i++)
         {
@@ -93,5 +76,20 @@ public class YubikeyTests
                 fail(result.toString());
             }
         }
+    }
+
+    private Test[] getTests(OpenPGPSmartCardManager m, TestProperties p)
+    {
+        Test[] tests = new Test[]
+            {
+                    new SmartCardMessageDecryptionTest(m, p),
+                    new SmartCardMessageSigningTest(m, p),
+                    new AnonymousRecipientSmartCardDecryptionTest(m, p),
+                    new UnrelatedSmartCardMessageDecryptionTest(m, p),
+                    new SmartCardWithV6KeysTest(m, p),
+                    new CloseYubikeySessionTest(m, p),
+                    new OpenPGPSmartCardBackendTest(m, p)
+            };
+        return tests;
     }
 }

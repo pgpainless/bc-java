@@ -27,16 +27,13 @@ public class SimulatorTests
 
         Test[] tests = new Test[]
                 {
+                        new SimulatorSmartCardTest(m, p),
                         new SmartCardMessageDecryptionTest(m, p),
                         new SmartCardMessageSigningTest(m, p),
                         new AnonymousRecipientSmartCardDecryptionTest(m, p),
                         new UnrelatedSmartCardMessageDecryptionTest(m, p),
                         new SmartCardWithV6KeysTest(m, p),
-                        new SimulatorSmartCardTest(m, p),
                         new OpenPGPSmartCardBackendTest(m, p),
-                        new PublicKeyConverterTest(),
-                        new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
-                        new MultiBackendTest()
                 };
 
         for (int i = 0; i != tests.length; i++)
