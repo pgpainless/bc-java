@@ -19,7 +19,6 @@ import java.security.PublicKey;
  * <p>
  * The card performs the RSA decryption or the ECDH / X25519 agreement; all packet parsing, KDF and key
  * unwrap work stays in {@link org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory}.
- * ElGamal and X448 are not supported by the applet and are rejected.
  */
 public class BcSmartCardPublicKeyDataDecryptorFactory<T extends OpenPGPSmartCard>
     extends BcExternalPublicKeyDataDecryptorFactory
