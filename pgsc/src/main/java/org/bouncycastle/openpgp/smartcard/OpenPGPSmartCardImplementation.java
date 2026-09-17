@@ -65,12 +65,6 @@ public abstract class OpenPGPSmartCardImplementation
                     throw new IllegalArgumentException("Wrong public key provided.");
                 }
 
-                return get(signingKey);
-            }
-
-            @Override
-            public PGPContentSignerBuilder get(OpenPGPKey.OpenPGPSecretKey signingKey)
-            {
                 return new ExternalContentSignerBuilder(
                         card.getSignatureKey(),
                         signingKey,
