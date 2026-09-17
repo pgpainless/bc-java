@@ -1,8 +1,13 @@
 package org.bouncycastle.openpgp.smartcard;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.api.KeyPassphraseProvider;
@@ -378,35 +383,45 @@ public abstract class OpenPGPSmartCardBackend<T extends OpenPGPSmartCard>
                                           Date creationTime)
             throws PGPException
     {
-        String alg = pk.getAlgorithm();
+        ASN1Sequence seq = ASN1Sequence.getInstance(pk.getEncoded());
+        SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(seq);
+        if (spki == null)
+        {
+            throw new PGPException("Cannot decode SubjectPublicKeyInfo for public key " + pk.getClass().getName());
+        }
+        ASN1ObjectIdentifier oid = spki.getAlgorithm().getAlgorithm();
+
         int[] candidates;
-        if ("RSA".equals(alg))
+        // RSA
+        if (PKCSObjectIdentifiers.rsaEncryption.equals(oid))
         {
             candidates = new int[]{PublicKeyAlgorithmTags.RSA_GENERAL, PublicKeyAlgorithmTags.RSA_ENCRYPT,
                 PublicKeyAlgorithmTags.RSA_SIGN};
         }
-        else if ("EC".equals(alg))
+        // ECDH / ECDSA with NIST or Brainpool
+        else if (X9ObjectIdentifiers.id_ecPublicKey.equals(oid))
         {
             candidates = new int[]{PublicKeyAlgorithmTags.ECDSA, PublicKeyAlgorithmTags.ECDH};
         }
-        else if ("EdDSA".equals(alg))
+        // Modern or legacy Ed25519
+        else if (EdECObjectIdentifiers.id_Ed25519.equals(oid))
         {
-            candidates = new int[]{PublicKeyAlgorithmTags.EDDSA_LEGACY, PublicKeyAlgorithmTags.Ed25519,
-                PublicKeyAlgorithmTags.Ed448};
+            candidates = new int[]{PublicKeyAlgorithmTags.Ed25519, PublicKeyAlgorithmTags.EDDSA_LEGACY};
         }
-        else if ("XDH".equals(alg))
+        // Modern or legacy X25519
+        else if (EdECObjectIdentifiers.id_X25519.equals(oid))
         {
             candidates = new int[]{PublicKeyAlgorithmTags.ECDH, PublicKeyAlgorithmTags.X25519};
         }
         else
         {
-            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
+            throw new PGPException("Unknown public key algorithm OID: " + oid.getId());
         }
 
         PGPPublicKey pgpKey = bruteForcePublicKey(pk, creationTime, storedFingerprint, candidates);
         if (pgpKey == null)
         {
-            throw new PGPException("Cannot reconstruct public " + alg + " PGP key.");
+            throw new PGPException("Cannot reconstruct public " + pk.getAlgorithm() + " PGP key.");
         }
         return pgpKey;
     }

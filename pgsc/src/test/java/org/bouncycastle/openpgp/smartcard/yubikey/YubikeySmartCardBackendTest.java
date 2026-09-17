@@ -60,7 +60,7 @@ public class YubikeySmartCardBackendTest
             throws PGPException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         // -DM System.out.println
-        System.out.println("Test conversion of legacy Ed25519 key");
+        System.out.println("Test conversion of legacy X25519 key");
         OpenPGPKey k = api.generateKey(4)
                 .withPrimaryKey((KeyPairGeneratorCallback) PGPKeyPairGenerator::generateLegacyEd25519KeyPair)
                 .addEncryptionSubkey((KeyPairGeneratorCallback) PGPKeyPairGenerator::generateLegacyX25519KeyPair)
