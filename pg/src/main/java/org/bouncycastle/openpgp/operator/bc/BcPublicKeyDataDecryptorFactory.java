@@ -302,6 +302,25 @@ public class BcPublicKeyDataDecryptorFactory
      * Return the callback used for the raw private-key operations. Subclasses backing the key with a
      * hardware device override this to route those operations to the device.
      *
+     * @deprecated use {@link #getCryptoCallback(AsymmetricKeyParameter)} instead
+     * @return crypto callback
+     * @throws PGPException if the crypto callback cannot be instantiated
+     */
+    @Deprecated
+    protected BcPublicKeyCryptoCallback getCryptoCallback()
+            throws PGPException
+    {
+        if (pgpPrivKey == null)
+        {
+            throw new PGPException("External private key material. Overwrite this method to delegate public-key crypto operation.");
+        }
+        return new DefaultBcPublicKeyCryptoCallback(KEY_CONVERTER.getPrivateKey(pgpPrivKey));
+    }
+
+    /**
+     * Return the callback used for the raw private-key operations. Subclasses backing the key with a
+     * hardware device override this to route those operations to the device.
+     *
      * @return crypto callback
      */
     protected BcPublicKeyCryptoCallback getCryptoCallback(AsymmetricKeyParameter privKey)
