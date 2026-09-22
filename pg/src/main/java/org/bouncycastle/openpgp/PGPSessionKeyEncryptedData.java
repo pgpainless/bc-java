@@ -13,9 +13,17 @@ import org.bouncycastle.openpgp.operator.SessionKeyDataDecryptorFactory;
 public class PGPSessionKeyEncryptedData
     extends PGPSymmetricKeyEncryptedData
 {
+    private final boolean enableQuickCheck;
+
     PGPSessionKeyEncryptedData(InputStreamPacket encData)
     {
+        this(encData, false);
+    }
+
+    PGPSessionKeyEncryptedData(InputStreamPacket encData, boolean enableQuickCheck)
+    {
         super(encData);
+        this.enableQuickCheck = enableQuickCheck;
     }
 
     @Override
@@ -69,6 +77,6 @@ public class PGPSessionKeyEncryptedData
     @Override
     protected boolean isPublicKeyEncrypted()
     {
-        return true;
+        return !enableQuickCheck;
     }
 }

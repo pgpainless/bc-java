@@ -202,4 +202,20 @@ public class PGPEncryptedDataList
     {
         return new PGPSessionKeyEncryptedData(data);
     }
+
+    /**
+     * Create a decryption method using a {@link PGPSessionKey}.
+     * This method can be used to decrypt messages which do not contain a SKESK or PKESK packet using a session key.
+     * If <pre>enableQuickCheck</pre> is set to true, upon decryption, the 2-octet quick-check is performed
+     * to early reject wrong session-keys.
+     * NOTE: The quick check should only be enabled for symmetrically encrypted data, in order to prevent
+     * attacks via the Mister-Zuccherato oracle.
+     *
+     * @param enableQuickCheck whether to enable the 2-octet SEIPDv1 quick check.
+     * @return session key encrypted data
+     */
+    public PGPSessionKeyEncryptedData extractSessionKeyEncryptedData(boolean enableQuickCheck)
+    {
+        return new PGPSessionKeyEncryptedData(data, enableQuickCheck);
+    }
 }
