@@ -1,0 +1,12 @@
+# Rename this file to cardio.properties in order to enable execution of the Cardio tests.
+#
+# NOTE: The smart card will be reset, so any keys present on it will be lost!
+
+# Serial number of the smart card device.
+DEVICE_SERIAL=15472425
+
+# Admin PIN of the smart card device
+ADMIN_PIN=12345678
+
+# User PIN of the smart card device
+USER_PIN=123456
