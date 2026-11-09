@@ -4,13 +4,8 @@ import org.bouncycastle.openpgp.api.OpenPGPCertificate;
 import org.bouncycastle.openpgp.api.OpenPGPKey;
 import org.bouncycastle.openpgp.api.OpenPGPMessageInputStream;
 import org.bouncycastle.openpgp.api.OpenPGPMessageOutputStream;
-import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
-import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.Streams;
 
@@ -73,42 +68,6 @@ public class UnrelatedSmartCardMessageDecryptionTest
         mIn.close();
 
         isTrue(Arrays.areEqual(msg, bOut.toByteArray()));
-    }
-
-    public static void main(String[] args)
-    {
-        OpenPGPSmartCardManager m;
-        TestProperties p;
-
-        // BCYK
-        try
-        {
-            p = YubikeyTestInstanceProvider.defaultProperties();
-
-            // BCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
-            runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
-
-            // JCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
-            runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of UnrelatedSmartCardMessageDecryptionTest on Yubikey: " + e.getMessage());
-        }
-
-        p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
-        m = new OpenPGPSmartCardManager()
-                .addBackend(sim);
-        runTest(new UnrelatedSmartCardMessageDecryptionTest(m, p));
     }
 
     @Override

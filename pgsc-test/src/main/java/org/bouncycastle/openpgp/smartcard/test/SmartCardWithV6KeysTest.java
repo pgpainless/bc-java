@@ -1,14 +1,9 @@
 package org.bouncycastle.openpgp.smartcard.test;
 
 import org.bouncycastle.openpgp.api.OpenPGPKey;
-import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
-import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -83,40 +78,5 @@ public class SmartCardWithV6KeysTest
                 Arrays.areEqual(
                         V6_ENCRYPTION_FP,
                         hwDecryptionKey.getFullKeyIdentifier().getFingerprint()));
-    }
-
-    public static void main(String[] args)
-    {
-        OpenPGPSmartCardManager m;
-        TestProperties p;
-
-        try
-        {
-            p = YubikeyTestInstanceProvider.defaultProperties();
-
-            // BCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardWithV6KeysTest(m, p));
-
-            // JCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardWithV6KeysTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SmartCardWithV6KeysTest on Yubikey: " + e.getMessage());
-        }
-
-        p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
-        m = new OpenPGPSmartCardManager()
-                .addBackend(sim);
-        runTest(new SmartCardWithV6KeysTest(m, p));
     }
 }

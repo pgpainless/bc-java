@@ -1,14 +1,9 @@
 package org.bouncycastle.openpgp.smartcard.test;
 
-import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
-import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 
 import java.io.IOException;
 import java.util.List;
@@ -94,40 +89,5 @@ public class SmartCardChangePINTest
 
         // change back user PIN
         card.changeUserPIN(c -> newUserPIN, c -> oldUserPIN);
-    }
-
-    public static void main(String[] args)
-    {
-        OpenPGPSmartCardManager m;
-        TestProperties p;
-
-        try
-        {
-            p = YubikeyTestInstanceProvider.defaultProperties();
-
-            // BCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardChangePINTest(m, p));
-
-            // JCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardChangePINTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SmartCardChangePINTest on Yubikey: " + e.getMessage());
-        }
-
-        p = new TestProperties(161);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
-        m = new OpenPGPSmartCardManager()
-                .addBackend(sim);
-        runTest(new SmartCardChangePINTest(m, p));
     }
 }

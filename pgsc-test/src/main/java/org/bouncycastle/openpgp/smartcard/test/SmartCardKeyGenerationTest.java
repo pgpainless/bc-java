@@ -3,17 +3,12 @@ package org.bouncycastle.openpgp.smartcard.test;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
-import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPHardwareKey;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCard;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.card.SupportedAlgorithms;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCard;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorOpenPGPSmartCardBackend;
-import org.bouncycastle.openpgp.smartcard.yubikey.YubikeyTestInstanceProvider;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -88,41 +83,5 @@ public class SmartCardKeyGenerationTest
                 }
             }
         }
-    }
-
-    public static void main(String[] args)
-            throws CardException
-    {
-        OpenPGPSmartCardManager m;
-        TestProperties p;
-
-        try
-        {
-            p = YubikeyTestInstanceProvider.defaultProperties();
-
-            // BCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new BcOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardKeyGenerationTest(m, p));
-
-            // JCYK
-            m = new OpenPGPSmartCardManager();
-            m.addBackend(
-                    YubikeyTestInstanceProvider.prepareBackend(p, new JcaOpenPGPSmartCardImplementation()));
-            runTest(new SmartCardKeyGenerationTest(m, p));
-        }
-        catch (YubikeyTestInstanceProvider.YubikeySetupException e)
-        {
-            // -DM System.out.println
-            System.out.println("Skipping run of SmartCardKeyGenerationTest on Yubikey: " + e.getMessage());
-        }
-
-        p = new TestProperties(1312);
-        SimulatorOpenPGPSmartCardBackend sim = new SimulatorOpenPGPSmartCardBackend();
-        sim.addSmartCard(new SimulatorOpenPGPSmartCard(sim, p.getSerialNumber()));
-        m = new OpenPGPSmartCardManager()
-                .addBackend(sim);
-        runTest(new SmartCardKeyGenerationTest(m, p));
     }
 }
