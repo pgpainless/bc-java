@@ -1,0 +1,78 @@
+
+plugins {
+    id "biz.aQute.bnd.builder" version "7.1.0"
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':prov')
+    implementation project(':util')
+    implementation project(':pg')
+    implementation project(':pgsc')
+
+    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+}
+
+evaluationDependsOn(":core")
+evaluationDependsOn(":prov")
+evaluationDependsOn(":util")
+evaluationDependsOn(":pg")
+
+jar.archiveBaseName = "bcpgsctest-$vmrange"
+
+task sourcesJar(type: Jar) {
+
+    archiveBaseName = jar.archiveBaseName
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+jar {
+    from sourceSets.main.output
+    String v = "${rootProject.extensions.ext.bundle_version}"
+    manifest.attributes('Bundle-RequiredExecutionEnvironment': 'JavaSE-1.8')
+    manifest.attributes('Bundle-Name': 'bcpgsctest')
+    manifest.attributes('Bundle-SymbolicName': 'bcpgsctest')
+    manifest.attributes('Export-Package': "org.bouncycastle.openpgp.smartcard.*;version=${v}")
+    // com.yubico.* is optional: only the yubikey sub-package needs it, and it is not a runtime dependency
+    manifest.attributes('Import-Package': "java.*;resolution:=optional,javax.*;resolution:=optional,!org.bouncycastle.openpgp.smartcard.*,org.bouncycastle.*;version=\"[${v},${maxVersion})\"")
+    manifest.attributes('Bundle-Version': "${v}")
+    manifest.attributes('Permissions': 'all-permissions')
+    manifest.attributes('Codebase': '*')
+    manifest.attributes('Application-Library-Allowable-Codebase': '*')
+    manifest.attributes('Caller-Allowable-Codebase': '*')
+    manifest.attributes('Trusted-Library': 'true')
+}
+
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    archiveBaseName = jar.archiveBaseName
+    archiveClassifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+test {
+    forkEvery = 1;
+    maxParallelForks = 8;
+    maxHeapSize = "3g";
+    jvmArgs = ['-Dtest.java.version.prefix=any']
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'org.bouncycastle'
+            artifactId = "bcpgsctest-$vmrange"
+            from components.java
+
+            artifact(javadocJar)
+            artifact(sourcesJar)
+        }
+    }
+}
