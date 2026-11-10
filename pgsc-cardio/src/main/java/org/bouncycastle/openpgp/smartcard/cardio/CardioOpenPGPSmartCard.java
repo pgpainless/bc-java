@@ -108,14 +108,14 @@ public class CardioOpenPGPSmartCard
     public boolean checkUserPIN(CardPinProvider userPinProvider)
             throws CardException
     {
-        return true;
+        return card.checkUserPin(userPinProvider.providePIN(this));
     }
 
     @Override
     public boolean checkAdminPIN(CardPinProvider adminPinProvider)
             throws CardException
     {
-        return true;
+        return card.checkAdminPIN(adminPinProvider.providePIN(this));
     }
 
     @Override
@@ -160,9 +160,10 @@ public class CardioOpenPGPSmartCard
         PublicKey pubKey = getBackend().getKeyConverter().getPublicKey(keyPair.getPublicKey());
 
         card.verifyAdminPIN(adminPin);
-        hardwareKey.setCreationTime(keyPair.getPublicKey().getCreationTime());
-        hardwareKey.setFingerprint(keyPair.getPublicKey().getFingerprint());
         hardwareKey.importKey(new KeyPair(pubKey, privKey));
+        hardwareKey.setCreationTime(keyPair.getPublicKey().getCreationTime());
+        byte[] fingerprint = getBackend().toStoredFingerprint(keyPair.getPublicKey());
+        hardwareKey.setFingerprint(fingerprint);
 
         return this;
     }
