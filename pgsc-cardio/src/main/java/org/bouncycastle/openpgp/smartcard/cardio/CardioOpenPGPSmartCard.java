@@ -20,6 +20,7 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -182,6 +183,7 @@ public class CardioOpenPGPSmartCard
                                     CardPinProvider adminPinProvider)
             throws CardException
     {
+        card.verifyAdminPIN(adminPinProvider.providePIN(this));
         OpenPGPCard.Key key = card.getKeys().get(algorithm.keyRef);
         List<AlgorithmAttributesDO> attrs = key.getSupportedAlgorithms();
 
@@ -218,17 +220,22 @@ public class CardioOpenPGPSmartCard
         {
             throw new CardException("Algorithm not supported.");
         }
+        Date creationTime = new Date((new Date().getTime() / 1000) * 1000);
         PublicKey publicKey = key.generateKey(selected);
-
+        PGPPublicKey pgpPublicKey;
         try
         {
-            return getBackend().convertPublicKey(publicKey, keyVersion, algorithm.algorithmId, key.getCreationTime(), subkey);
+            pgpPublicKey = getBackend().convertPublicKey(publicKey, keyVersion, algorithm.algorithmId, creationTime, subkey);
         }
         catch (PGPException e)
         {
             throw new CardException("Failed to generate key.", e);
         }
 
+        key.setFingerprint(getBackend().toStoredFingerprint(pgpPublicKey));
+        key.setCreationTime(creationTime);
+
+        return pgpPublicKey;
     }
 
     @Override
