@@ -59,12 +59,12 @@ public class CardioOpenPGPSmartCard
                 {
                     KeyType.EC kt = (KeyType.EC) alg.getKeyType();
                     ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.fromContents(kt.getCurveBytes());
-                    algs.add(new SupportedAlgorithms.EC(k.getKeyRef(), k.getAlgorithmId(), oid));
+                    algs.add(new SupportedAlgorithms.EC(k.getKeyRef(), alg.getAlgId(), oid));
                 }
                 else if (alg.getKeyType() instanceof KeyType.RSA)
                 {
                     KeyType.RSA kt = (KeyType.RSA) alg.getKeyType();
-                    algs.add(new SupportedAlgorithms.RSA(k.getKeyRef(), k.getAlgorithmId(), kt.getLenN()));
+                    algs.add(new SupportedAlgorithms.RSA(k.getKeyRef(), alg.getAlgId(), kt.getLenN()));
                 }
                 else
                 {
