@@ -56,6 +56,10 @@ public class SmartCardKeyGenerationTest
                 isTrue("no algorithms advertised for key slot " + keyRef, !keyAlgorithms.getAlgorithms().isEmpty());
                 for (SupportedAlgorithms.Algorithm alg : keyAlgorithms.getAlgorithms())
                 {
+                    // Filter out illogical algorithm combinations (e.g. Yubikeys algId=22, curve=Curve25519)
+                    if (!alg.isAssignableTo(alg.algorithmId)) {
+                        continue;
+                    }
                     // -DM System.out.println
                     System.out.println("Generate key " + alg.toString());
                     PGPPublicKey publicKey = card.generateKey(
