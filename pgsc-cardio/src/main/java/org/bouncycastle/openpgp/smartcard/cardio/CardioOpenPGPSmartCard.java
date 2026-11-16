@@ -175,7 +175,7 @@ public class CardioOpenPGPSmartCard
     }
 
     @Override
-    public PGPPublicKey generateKey(SupportedAlgorithms.Algorithm algorithm,
+    public PGPPublicKey implGenerateKey(SupportedAlgorithms.Algorithm algorithm,
                                     int keyVersion,
                                     int publicKeyAlgorithmTag,
                                     boolean subkey,
