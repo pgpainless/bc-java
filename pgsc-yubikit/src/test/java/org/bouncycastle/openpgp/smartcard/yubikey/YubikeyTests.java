@@ -5,20 +5,37 @@ import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest.TestProperties;
-import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.OpenPGPSmartCardBackendTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardChangePINTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardKeyGenerationTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
-import org.bouncycastle.openpgp.smartcard.test.UnrelatedSmartCardMessageDecryptionTest;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardTestSuite;
 import org.bouncycastle.util.test.SimpleTestResult;
 import org.bouncycastle.util.test.Test;
+
+import java.util.List;
 
 public class YubikeyTests
         extends TestCase
 {
+    private List<Test> getTests(OpenPGPSmartCardManager m,
+                                TestProperties p)
+    {
+        List<Test> tests = SmartCardTestSuite.getGenericTestsFor(m, p);
+        tests.add(new CloseYubikeySessionTest(m, p));
+        return tests;
+    }
+
+    private void runWith(OpenPGPSmartCardManager m, TestProperties p)
+    {
+        List<Test> tests = getTests(m, p);
+
+        for (int i = 0; i != tests.size(); i++)
+        {
+            SimpleTestResult result = (SimpleTestResult)tests.get(i).perform();
+
+            if (!result.isSuccessful())
+            {
+                fail(result.toString());
+            }
+        }
+    }
 
     public void testOnBcYubikeySmartCard()
     {
@@ -37,17 +54,7 @@ public class YubikeyTests
             return;
         }
 
-        Test[] tests = getTests(m, p);
-
-        for (int i = 0; i != tests.length; i++)
-        {
-            SimpleTestResult result = (SimpleTestResult)tests[i].perform();
-
-            if (!result.isSuccessful())
-            {
-                fail(result.toString());
-            }
-        }
+        runWith(m, p);
     }
 
     public void testOnJcaJceYubikeySmartCard()
@@ -67,33 +74,11 @@ public class YubikeyTests
             return;
         }
 
-        Test[] tests = getTests(m, p);
-
-        for (int i = 0; i != tests.length; i++)
-        {
-            SimpleTestResult result = (SimpleTestResult)tests[i].perform();
-
-            if (!result.isSuccessful())
-            {
-                fail(result.toString());
-            }
-        }
+        runWith(m, p);
     }
 
-    private Test[] getTests(OpenPGPSmartCardManager m, TestProperties p)
-    {
-        Test[] tests = new Test[]
-            {
-                    new SmartCardMessageDecryptionTest(m, p),
-                    new SmartCardMessageSigningTest(m, p),
-                    new SmartCardKeyGenerationTest(m, p),
-                    new AnonymousRecipientSmartCardDecryptionTest(m, p),
-                    new UnrelatedSmartCardMessageDecryptionTest(m, p),
-                    new SmartCardWithV6KeysTest(m, p),
-                    new CloseYubikeySessionTest(m, p),
-                    new OpenPGPSmartCardBackendTest(m, p),
-                    new SmartCardChangePINTest(m, p)
-            };
-        return tests;
+    public static void main(String[] args) {
+        YubikeyTests t = new YubikeyTests();
+        t.testOnBcYubikeySmartCard();
     }
 }

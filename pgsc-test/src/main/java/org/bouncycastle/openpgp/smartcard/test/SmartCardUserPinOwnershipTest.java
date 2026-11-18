@@ -107,16 +107,17 @@ public class SmartCardUserPinOwnershipTest
         // -DM System.out.println
         System.out.println("Test user PIN ownership over two messages on " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
 
-        card.reset();
-
         OpenPGPKey softwareKey = api.generateKey()
-            .withPrimaryKey((KeyPairGeneratorCallback)PGPKeyPairGenerator::generateEd25519KeyPair)
-            .addEncryptionSubkey((KeyPairGeneratorCallback)PGPKeyPairGenerator::generateX25519KeyPair)
-            .build();
+                .withPrimaryKey((KeyPairGeneratorCallback)PGPKeyPairGenerator::generateEd25519KeyPair)
+                .addEncryptionSubkey((KeyPairGeneratorCallback)PGPKeyPairGenerator::generateX25519KeyPair)
+                .build();
         OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
-
-        card.uploadDecryptionKey(softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0)).unlock(),
-            k -> properties.getAdminPin());
+        try (OpenPGPSmartCard.Session session = card.open(true))
+        {
+            session.reset();
+            session.uploadDecryptionKey(softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0)).unlock(),
+                    k -> properties.getAdminPin());
+        }
 
         char[] expectedPin = properties.getUserPin();
         char[] applicationPin = properties.getUserPin();

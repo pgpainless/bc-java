@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class SmartCardMessageDecryptionTest
-    extends AbstractOpenPGPSmartCardTest
+        extends AbstractOpenPGPSmartCardTest
 {
     public static boolean DEBUG = false;
 
@@ -34,7 +34,7 @@ public class SmartCardMessageDecryptionTest
 
     @Override
     public void performTest()
-        throws Exception
+            throws Exception
     {
         testX25519Key();
         testLegacyX25519Key();
@@ -55,7 +55,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testFixedRSA2048Key()
-        throws IOException, PGPException, CardException
+            throws IOException, PGPException, CardException
     {
         String KEY = "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" +
                 "Comment: 03D6 5E27 0344 A9DD EABC  E33D B698 B8A3 78E7 BFE9\n" +
@@ -182,7 +182,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testRSA2048Key()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with 2048-bit RSA key");
@@ -193,7 +193,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testRSA3072Key()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with 3072-bit RSA key");
@@ -204,7 +204,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testRSA4096Key()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with 4096-bit RSA key");
@@ -215,7 +215,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testNISTP256ECDHKey()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with NIST-P256 ECDH key");
@@ -228,7 +228,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testNISTP384ECDHKey()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with NIST-P384 ECDH key");
@@ -241,7 +241,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testNISTP521ECDHKey()
-        throws CardException, PGPException, IOException
+            throws CardException, PGPException, IOException
     {
         // -DM System.out.println
         System.out.println("Test decryption with NIST-P521 ECDH key");
@@ -293,7 +293,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testLegacyX25519Key()
-        throws PGPException, IOException, CardException
+            throws PGPException, IOException, CardException
     {
         // -DM System.out.println
         System.out.println("Test decryption with legacy X25519 key");
@@ -306,7 +306,7 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testX25519Key()
-        throws PGPException, IOException, CardException
+            throws PGPException, IOException, CardException
     {
         // -DM System.out.println
         System.out.println("Test decryption with X25519 key");
@@ -319,25 +319,28 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testEncryptionAndDecryptionWithExternalKey(OpenPGPKey softwareKey)
-        throws PGPException, IOException, CardException
+            throws PGPException, IOException, CardException
     {
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
+
         OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
         System.out.println("Decrypt on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
-        card.reset();
-        if (DEBUG)
+        try (OpenPGPSmartCard.Session session = card.open(true))
         {
-            // -DM System.out.println
-            System.out.println(softwareKey.toAsciiArmoredString());
+            session.reset();
+            if (DEBUG)
+            {
+                // -DM System.out.println
+                System.out.println(softwareKey.toAsciiArmoredString());
+            }
+
+            char[] adminPin = properties.getAdminPin();
+
+            // Upload keys to card
+            OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
+            session.uploadDecryptionKey(decryptionKey.unlock(), k -> adminPin);
         }
-
-        char[] adminPin = properties.getAdminPin();
-
-        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
-
-        // Upload keys to card
-        OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
-        card.uploadDecryptionKey(decryptionKey.unlock(), k -> adminPin);
 
         // Generate encrypted message
         byte[] plaintext = "Hello, World!\n".getBytes(StandardCharsets.UTF_8);
@@ -370,25 +373,28 @@ public class SmartCardMessageDecryptionTest
     }
 
     private void testDecryptWithExternalKey(OpenPGPKey softwareKey, String message)
-        throws CardException, IOException, PGPException
+            throws CardException, IOException, PGPException
     {
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
         OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
         System.out.println("Decrypt on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
-        card.reset();
-        if (DEBUG)
+
+        try (OpenPGPSmartCard.Session session = card.open(true))
         {
-            // -DM System.out.println
-            System.out.println(softwareKey.toAsciiArmoredString());
+            session.reset();
+            if (DEBUG)
+            {
+                // -DM System.out.println
+                System.out.println(softwareKey.toAsciiArmoredString());
+            }
+
+            char[] adminPin = properties.getAdminPin();
+
+            // Upload keys to card
+            OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
+            session.uploadDecryptionKey(decryptionKey.unlock(), k -> adminPin);
         }
-
-        char[] adminPin = properties.getAdminPin();
-
-        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
-
-        // Upload keys to card
-        OpenPGPKey.OpenPGPSecretKey decryptionKey = softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
-        card.uploadDecryptionKey(decryptionKey.unlock(), k -> adminPin);
 
         // Decrypt message using card
         ByteArrayInputStream bIn = new ByteArrayInputStream(message.getBytes(StandardCharsets.UTF_8));

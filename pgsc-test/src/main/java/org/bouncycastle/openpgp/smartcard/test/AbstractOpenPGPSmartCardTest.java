@@ -42,26 +42,34 @@ public abstract class AbstractOpenPGPSmartCardTest
     public void keyToCard(OpenPGPKey key, OpenPGPSmartCard card)
             throws PGPException, CardException
     {
-        card.reset();
-        List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
-        if (!signingKeys.isEmpty())
+        try (OpenPGPSmartCard.Session session = card.open(true))
         {
-            OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(signingKeys.get(0));
-            card.uploadSigningKey(secretKey.unlock(), k -> properties.getAdminPin());
-        }
+            session.reset();
 
-        List<OpenPGPCertificate.OpenPGPComponentKey> decryptionKeys = key.getEncryptionKeys();
-        if (!decryptionKeys.isEmpty())
-        {
-            OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(decryptionKeys.get(0));
-            card.uploadDecryptionKey(secretKey.unlock(), k -> properties.getAdminPin());
-        }
+            List<OpenPGPCertificate.OpenPGPComponentKey> signingKeys = key.getSigningKeys();
+            if (!signingKeys.isEmpty())
+            {
+                OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(signingKeys.get(0));
+                session.uploadSigningKey(secretKey.unlock(), k -> properties.getAdminPin());
+            }
 
-        List<OpenPGPCertificate.OpenPGPComponentKey> authenticationKeys = key.getComponentKeysWithFlag(new Date(), KeyFlags.AUTHENTICATION);
-        if (!authenticationKeys.isEmpty())
+            List<OpenPGPCertificate.OpenPGPComponentKey> decryptionKeys = key.getEncryptionKeys();
+            if (!decryptionKeys.isEmpty())
+            {
+                OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(decryptionKeys.get(0));
+                session.uploadDecryptionKey(secretKey.unlock(), k -> properties.getAdminPin());
+            }
+
+            List<OpenPGPCertificate.OpenPGPComponentKey> authenticationKeys = key.getComponentKeysWithFlag(new Date(), KeyFlags.AUTHENTICATION);
+            if (!authenticationKeys.isEmpty())
+            {
+                OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(authenticationKeys.get(0));
+                session.uploadAuthenticationKey(secretKey.unlock(), k -> properties.getAdminPin());
+            }
+        }
+        catch (IOException e)
         {
-            OpenPGPKey.OpenPGPSecretKey secretKey = key.getSecretKey(authenticationKeys.get(0));
-            card.uploadAuthenticationKey(secretKey.unlock(), k -> properties.getAdminPin());
+            throw new CardException(e);
         }
     }
 

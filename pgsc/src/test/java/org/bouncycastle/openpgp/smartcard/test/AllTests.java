@@ -6,8 +6,6 @@ import junit.framework.TestCase;
 import junit.framework.TestSuite;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.smartcard.operator.PublicKeyConverterTest;
-import org.bouncycastle.openpgp.smartcard.simulator.ShortenedOpenPGPIdentifierForLegacyDevicesTest;
-import org.bouncycastle.openpgp.smartcard.simulator.SimulatorTests;
 import org.bouncycastle.test.PrintTestResult;
 import org.bouncycastle.util.test.SimpleTestResult;
 
@@ -26,7 +24,6 @@ public class AllTests
     {
         org.bouncycastle.util.test.Test[] tests = new org.bouncycastle.util.test.Test[]
                 {
-                        new ShortenedOpenPGPIdentifierForLegacyDevicesTest(),
                         new PublicKeyConverterTest(),
                         new MultiBackendTest(),
                         new FailingBackendTest()
@@ -49,7 +46,6 @@ public class AllTests
 
         // this class's own testUnits(), which JUnit ignores in favour of suite()
         suite.addTestSuite(AllTests.class);
-        suite.addTestSuite(SimulatorTests.class);
 
         return new BCTestSetup(suite);
     }

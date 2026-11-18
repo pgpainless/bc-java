@@ -1,13 +1,20 @@
-package org.bouncycastle.openpgp.smartcard.simulator;
+package org.bouncycastle.openpgp.smartcard.test;
 
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardBackend;
+import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
-import org.bouncycastle.util.test.SimpleTest;
 
 public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
-        extends SimpleTest
+        extends AbstractOpenPGPSmartCardTest
 {
+
+    public ShortenedOpenPGPIdentifierForLegacyDevicesTest(
+            OpenPGPSmartCardManager manager,
+            TestProperties properties)
+    {
+        super(manager, properties);
+    }
 
     public String getName()
     {
@@ -15,16 +22,22 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
     }
 
     public void performTest()
-        throws Exception
     {
-        SimulatorOpenPGPSmartCardBackend backend = new SimulatorOpenPGPSmartCardBackend();
+        for (OpenPGPSmartCardBackend<?> backend : manager.getBackends())
+        {
+            performTestOn(backend);
+        }
 
+    }
+
+    private void performTestOn(OpenPGPSmartCardBackend<?> backend)
+    {
         testV4FingerprintIsNotShortened(backend);
         testV6FingerprintShortening(backend);
         testOffByOne(backend);
     }
 
-    private void testV4FingerprintIsNotShortened(OpenPGPSmartCardBackend backend)
+    private void testV4FingerprintIsNotShortened(OpenPGPSmartCardBackend<?> backend)
     {
         // fingerprint from https://www.rfc-editor.org/rfc/rfc9580.html#name-sample-version-4-ed25519leg
         byte[] v4Fingerprint = Hex.decode("C959BDBAFA32A2F89A153B678CFDE12197965A9A");
@@ -33,7 +46,7 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
         isTrue(backend.fingerprintMatches(shortenedFingerprint, v4Fingerprint));
     }
 
-    private void testV6FingerprintShortening(OpenPGPSmartCardBackend backend)
+    private void testV6FingerprintShortening(OpenPGPSmartCardBackend<?> backend)
     {
         // Test the example from https://www.ietf.org/archive/id/draft-hko-openpgp-identifiers-for-legacy-devices-01.html#name-example
         byte[] v6Fingerprint = Hex.decode("cb186c4f0609a697e4d52dfa6c722b0c1f1e27c18a56708f6525ec27bad9acc9");
@@ -42,16 +55,10 @@ public class ShortenedOpenPGPIdentifierForLegacyDevicesTest
         isTrue(backend.fingerprintMatches(shortenedFingerprint, v6Fingerprint));
     }
 
-    private void testOffByOne(OpenPGPSmartCardBackend backend)
+    private void testOffByOne(OpenPGPSmartCardBackend<?> backend)
     {
         isTrue(!(backend.fingerprintMatches(        // ↓ added non-zero octet here to test for off-by-one errors
                 Hex.decode("000000000000000000000f06cb186c4f0609a697"),
                 Hex.decode("cb186c4f0609a697e4d52dfa6c722b0c1f1e27c18a56708f6525ec27bad9acc9"))));
-    }
-
-    public static void main(String[] args)
-        throws Exception
-    {
-        runTest(new ShortenedOpenPGPIdentifierForLegacyDevicesTest());
     }
 }

@@ -392,8 +392,6 @@ public class SmartCardMessageSigningTest
         OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
         // -DM System.out.println
         System.out.println("Sign with " + card.getCardType() + " " + card.getVersion() + " (" + card.getBackend().getName() + ")");
-        card.reset();
-
         if (DEBUG)
         {
             // -DM System.out.println
@@ -401,12 +399,17 @@ public class SmartCardMessageSigningTest
         }
 
         char[] adminPin = properties.getAdminPin();
-
         OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
-
-        // Upload keys to card
         OpenPGPKey.OpenPGPSecretKey signingKey = softwareKey.getSecretKey(softwareKey.getSigningKeys().get(0));
-        card.uploadSigningKey(signingKey.unlock(), k -> adminPin);
+
+
+        try (OpenPGPSmartCard.Session session = card.open(true))
+        {
+            session.reset();
+            // Upload keys to card
+            session.uploadSigningKey(signingKey.unlock(), k -> adminPin);
+        }
+
         KeyPassphraseProvider userPinProvider = new KeyPassphraseProvider.DefaultKeyPassphraseProvider()
                 .addPassphrase(externalKey, properties.getUserPin());
 

@@ -8,6 +8,7 @@ import org.bouncycastle.openpgp.api.exception.KeyPassphraseException;
 import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.util.Arrays;
 
+import java.io.IOException;
 import java.security.PublicKey;
 import java.util.Date;
 
@@ -96,8 +97,14 @@ public class OpenPGPHardwareKey
     public byte[] reconstructFullFingerprint()
             throws PGPException, CardException
     {
-        return getSmartCard().reconstructPGPPublicKey(getKeyRef())
-                .getFingerprint();
+        try (OpenPGPSmartCard.Session session = getSmartCard().open(true))
+        {
+            return session.reconstructPGPPublicKey(getKeyRef()).getFingerprint();
+        }
+        catch (IOException e)
+        {
+            throw new CardException(e);
+        }
     }
 
     /**
@@ -176,7 +183,14 @@ public class OpenPGPHardwareKey
     public byte[] sign(KeyPassphraseProvider userPinProvider, OpenPGPKey.OpenPGPSecretKey stubKey, byte[] digest)
             throws CardException, KeyPassphraseException
     {
-        return getSmartCard().sign(digest, this, stubKey, userPinProvider);
+        try (OpenPGPSmartCard.Session session = getSmartCard().open(true))
+        {
+            return session.sign(digest, this, stubKey, userPinProvider);
+        }
+        catch (IOException e)
+        {
+            throw new CardException(e);
+        }
     }
 
     /**
@@ -195,7 +209,14 @@ public class OpenPGPHardwareKey
                           byte[] message)
             throws CardException, PGPException
     {
-        return getSmartCard().decrypt(message, this, stubKey, userPinProvider);
+        try (OpenPGPSmartCard.Session session = getSmartCard().open(true))
+        {
+            return session.decrypt(message, this, stubKey, userPinProvider);
+        }
+        catch (IOException e)
+        {
+            throw new CardException(e);
+        }
     }
 
     /**
@@ -214,6 +235,13 @@ public class OpenPGPHardwareKey
                           PublicKey ephemeralKey)
             throws CardException, PGPException
     {
-        return getSmartCard().decrypt(ephemeralKey, this, stubKey, userPinProvider);
+        try (OpenPGPSmartCard.Session session = getSmartCard().open(true))
+        {
+            return session.decrypt(ephemeralKey, this, stubKey, userPinProvider);
+        }
+        catch (IOException e)
+        {
+            throw new CardException(e);
+        }
     }
 }

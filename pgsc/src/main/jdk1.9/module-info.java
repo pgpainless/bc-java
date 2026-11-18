@@ -16,5 +16,4 @@ module org.bouncycastle.pgsc
     exports org.bouncycastle.openpgp.smartcard.operator;
     exports org.bouncycastle.openpgp.smartcard.operator.bc;
     exports org.bouncycastle.openpgp.smartcard.operator.jcajce;
-    exports org.bouncycastle.openpgp.smartcard.simulator;
 }

@@ -13,6 +13,7 @@ import org.bouncycastle.openpgp.smartcard.card.CardException;
 import org.bouncycastle.openpgp.smartcard.card.SupportedAlgorithms;
 import org.bouncycastle.util.Arrays;
 
+import java.io.IOException;
 import java.security.PublicKey;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -30,6 +31,8 @@ public abstract class OpenPGPSmartCard
         this.backend = backend;
     }
 
+    public abstract Session open(boolean exclusive) throws CardException;
+
     /**
      * Return the {@link OpenPGPSmartCardBackend} that manages this smart card.
      *
@@ -39,6 +42,14 @@ public abstract class OpenPGPSmartCard
     {
         return backend;
     }
+
+    /**
+     * Return a {@link String} representing the card type.
+     * This is an informative description of the device.
+     *
+     * @return card type
+     */
+    public abstract String getCardType();
 
     /**
      * Return the serial number of this smart card.
@@ -222,211 +233,6 @@ public abstract class OpenPGPSmartCard
         return getKeyByKeyRef(OpenPGPHardwareKey.KEY_REF_AUTHENTICATION);
     }
 
-    public abstract boolean checkUserPIN(CardPinProvider userPinProvider)
-            throws CardException;
-
-    public abstract boolean checkAdminPIN(CardPinProvider adminPinProvider)
-            throws CardException;
-
-    /**
-     * Change the user PIN (PW1,PW2) of the card.
-     *
-     * @param oldPinProvider provider for the old card user PIN
-     * @param newPinProvider provider for the new card user PIN
-     * @return this
-     * @throws CardException if the card PIN cannot be changed.
-     */
-    public abstract OpenPGPSmartCard changeUserPIN(CardPinProvider oldPinProvider,
-                                                   CardPinProvider newPinProvider)
-            throws CardException;
-
-    /**
-     * Change the admin PIN (PW3) of the card.
-     *
-     * @param oldPinProvider provider for the old card admin PIN
-     * @param newPinProvider provider for the new card admin PIN
-     * @return this
-     * @throws CardException if the card PIN cannot be changed.
-     */
-    public abstract OpenPGPSmartCard changeAdminPIN(CardPinProvider oldPinProvider,
-                                                    CardPinProvider newPinProvider)
-            throws CardException;
-
-    /**
-     * Factory-reset the smart card, clearing all key slots and resetting the admin PIN, user PIN to their defaults.
-     *
-     * @return this
-     * @throws CardException if communication with the card failed
-     */
-    public abstract OpenPGPSmartCard reset() throws CardException;
-
-    /**
-     * Upload the given {@link OpenPGPPrivateKey} to the signing key slot on the card.
-     *
-     * @param key OpenPGP private key
-     * @param adminPinProvider provider for the admin pin of the card
-     * @return card
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be prepared for the card
-     */
-    public OpenPGPSmartCard uploadSigningKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
-            throws PGPException, CardException
-    {
-        return uploadKey(OpenPGPHardwareKey.KEY_REF_SIGNATURE, key, adminPinProvider);
-    }
-
-    /**
-     * Upload the given {@link OpenPGPPrivateKey} to the decryption key slot on the card.
-     *
-     * @param key OpenPGP private key
-     * @param adminPinProvider provider for the admin pin of the card
-     * @return card
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be prepared for the card
-     */
-    public OpenPGPSmartCard uploadDecryptionKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
-            throws CardException, PGPException
-    {
-        return uploadKey(OpenPGPHardwareKey.KEY_REF_DECRYPTION, key, adminPinProvider);
-    }
-
-    /**
-     * Upload the given {@link OpenPGPPrivateKey} to the authentication key slot on the card.
-     *
-     * @param key OpenPGP private key
-     * @param adminPinProvider provider for the admin pin of the card
-     * @return card
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be prepared for the card
-     */
-    public OpenPGPSmartCard uploadAuthenticationKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
-            throws CardException, PGPException
-    {
-        return uploadKey(OpenPGPHardwareKey.KEY_REF_AUTHENTICATION, key, adminPinProvider);
-    }
-
-    /**
-     * Upload the given key to the slot identified by <pre>keyRef</pre>.
-     * The admin PIN is required from the <pre>adminPinProvider</pre>.
-     * @param keyRef key ref
-     * @param key key
-     * @param adminPinProvider provider for the admin pin of the card
-     * @return card
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be prepared for the card
-     */
-    public OpenPGPSmartCard uploadKey(byte keyRef,
-                                      OpenPGPPrivateKey key,
-                                      CardPinProvider adminPinProvider)
-            throws PGPException, CardException
-    {
-        char[] adminPin = requirePin(adminPinProvider, "admin");
-        OpenPGPSmartCard card;
-        try
-        {
-            card = uploadKey(keyRef, key, adminPin);
-        }
-        finally
-        {
-            Arrays.fill(adminPin, '\0');
-        }
-        return card;
-    }
-
-    /**
-     * Upload the given {@link OpenPGPPrivateKey} to the given keyRef slot on the card.
-     * Note: This method is not guaranteed to clear out the <pre>adminPin</pre> so you need to do that yourselves.
-     * @param keyRef keyRef
-     * @param key OpenPGP private key
-     * @param adminPin admin pin of the card
-     * @return card
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be prepared for the card
-     */
-    protected abstract OpenPGPSmartCard uploadKey(byte keyRef,
-                                                  OpenPGPPrivateKey key,
-                                                  char[] adminPin)
-            throws CardException, PGPException;
-
-    /**
-     * Generate an OpenPGP key on the device, replacing any key in the slot of <pre>algorithm</pre>.
-     * The arguments are checked before the card is touched, so a key in the slot survives a rejected request.
-     *
-     * @param algorithm algorithm description
-     * @param keyVersion OpenPGP key version (4, 5 or 6)
-     * @param publicKeyAlgorithmTag OpenPGP Public Key Algorithm Tag, which must be assignable to <pre>algorithm</pre>
-     * @param subkey whether the key is a subkey
-     * @param adminPinProvider provider for the devices admin PIN
-     * @return generated bare OpenPGP public key
-     * @throws IllegalArgumentException if the key version or algorithm tag does not fit the algorithm
-     * @throws CardException if the key cannot be generated, e.g. because communication fails
-     */
-    public PGPPublicKey generateKey(SupportedAlgorithms.Algorithm algorithm,
-                                    int keyVersion,
-                                    int publicKeyAlgorithmTag,
-                                    boolean subkey,
-                                    CardPinProvider adminPinProvider)
-            throws CardException
-    {
-        if (keyVersion != PublicKeyPacket.VERSION_4 && keyVersion != PublicKeyPacket.LIBREPGP_5
-            && keyVersion != PublicKeyPacket.VERSION_6)
-        {
-            throw new IllegalArgumentException("Unsupported key version " + keyVersion);
-        }
-        if (!algorithm.isAssignableTo(publicKeyAlgorithmTag))
-        {
-            throw new IllegalArgumentException("Cannot assign public key algorithm ID " + publicKeyAlgorithmTag
-                + " to " + algorithm);
-        }
-
-        return implGenerateKey(algorithm, keyVersion, publicKeyAlgorithmTag, subkey, adminPinProvider);
-    }
-
-    /**
-     * Generate an OpenPGP key on the device, with arguments already checked by
-     * {@link #generateKey(SupportedAlgorithms.Algorithm, int, int, boolean, CardPinProvider)}.
-     * Implementations record the new key's fingerprint and generation time on the card, so that it is
-     * reported by {@link #getKeyByKeyRef(byte)} and can be reconstructed by {@link #reconstructPGPPublicKey(byte)}.
-     *
-     * @param algorithm algorithm description
-     * @param keyVersion OpenPGP key version
-     * @param publicKeyAlgorithmTag OpenPGP Public Key Algorithm Tag
-     * @param subkey whether the key is a subkey
-     * @param adminPinProvider provider for the devices admin PIN
-     * @return generated bare OpenPGP public key
-     * @throws CardException if the key cannot be generated
-     */
-    protected abstract PGPPublicKey implGenerateKey(SupportedAlgorithms.Algorithm algorithm,
-                                                    int keyVersion,
-                                                    int publicKeyAlgorithmTag,
-                                                    boolean subkey,
-                                                    CardPinProvider adminPinProvider)
-            throws CardException;
-
-    /**
-     * Return the {@link PGPPublicKey} component of the key in the slot identified by keyRef.
-     * <p>
-     * Note: The key might be reconstructed on the fly.
-     * In this case, {@link org.bouncycastle.bcpg.PublicKeyAlgorithmTags Public key algorithm} and version
-     * number might be brute-forced by comparing the resulting {@link PGPPublicKey keys} fingerprint to the
-     * contents of the cards {@link OpenPGPHardwareKey#getFingerprint()} field.
-     *
-     * @param keyRef key reference
-     * @return PGPPublicKey representation
-     * @throws CardException if communication with the card fails
-     * @throws PGPException if the key cannot be reconstructed
-     */
-    public abstract PGPPublicKey reconstructPGPPublicKey(byte keyRef)
-            throws CardException, PGPException;
-
-    /**
-     * Return a {@link String} representing the card type.
-     * This is an informative description of the device.
-     *
-     * @return card type
-     */
-    public abstract String getCardType();
-
     @Override
     public String toString()
     {
@@ -449,22 +255,6 @@ public abstract class OpenPGPSmartCard
     }
 
     /**
-     * Create a raw signature over the provided data.
-     * @param data algorithm-specific encoding of a message digest
-     * @param key hardware-backed key to create the signature with
-     * @param stubKey stub of the signing key
-     * @param userPinProvider provider for the device user PIN
-     * @return raw signature
-     * @throws KeyPassphraseException if the wrong PIN was provided
-     * @throws CardException if communication with the card fails
-     */
-    public abstract byte[] sign(byte[] data,
-                                OpenPGPHardwareKey key,
-                                OpenPGPKey.OpenPGPSecretKey stubKey,
-                                KeyPassphraseProvider userPinProvider)
-            throws KeyPassphraseException, CardException;
-
-    /**
      * Fetch the card's user PIN. A {@link KeyPassphraseProvider} keeps ownership of the array it
      * hands out - both implementations BC ships return the application's own array by reference -
      * so a copy is returned here, and that copy is the caller's to zeroize once the card has
@@ -482,60 +272,6 @@ public abstract class OpenPGPSmartCard
     }
 
     /**
-     * Decrypt public-key-encrypted session-data.
-     *
-     * @param message algorithm-specific ciphertext of the encrypted session data
-     * @param openPGPHardwareKey hardware-backed key to perform decryption with
-     * @param stubKey stub of the decryption key
-     * @param userPinProvider provider for the devices user PIN
-     * @return decrypted session data
-     * @throws KeyPassphraseException if the wrong PIN was provided
-     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
-     */
-    public abstract byte[] decrypt(byte[] message,
-                                   OpenPGPHardwareKey openPGPHardwareKey,
-                                   OpenPGPKey.OpenPGPSecretKey stubKey,
-                                   KeyPassphraseProvider userPinProvider)
-            throws PGPException, CardException;
-
-    /**
-     * Decrypt a public-key-encrypted session-key.
-     *
-     * @param publicKey algorithm-specific ephemeral per-message public key
-     * @param openPGPHardwareKey hardware-backed key to perform decryption with
-     * @param stubKey stub of the decryption key
-     * @param userPinProvider provider for the devices user PIN
-     * @return decrypted session data
-     * @throws KeyPassphraseException if the wrong passphrase was provided
-     * @throws CardException if the message cannot be decrypted, e.g. because communication fails
-     */
-    public abstract byte[] decrypt(PublicKey publicKey,
-                                   OpenPGPHardwareKey openPGPHardwareKey,
-                                   OpenPGPKey.OpenPGPSecretKey stubKey,
-                                   KeyPassphraseProvider userPinProvider)
-            throws PGPException, CardException;
-
-    /**
-     * Fetch a card PIN. A {@link CardPinProvider} keeps ownership of the array it returns, so the
-     * card works on a copy and clears that copy when done.
-     *
-     * @param pinProvider provider of the PIN
-     * @param pinName name of the PIN for the error message, e.g. "admin"
-     * @return a copy of the PIN, which the caller must clear
-     * @throws CardException if no PIN is provided
-     */
-    protected char[] requirePin(CardPinProvider pinProvider, String pinName)
-            throws CardException
-    {
-        char[] pin = Arrays.clone(pinProvider.providePIN(this));
-        if (pin == null || pin.length == 0)
-        {
-            throw new CardException("No " + pinName + " PIN provided for card " + getSerialNumber());
-        }
-        return pin;
-    }
-
-    /**
      * Supplies a PIN (user or admin) of a card. The provider keeps ownership of the array it returns:
      * the card copies it and clears its own copy, so a provider may hand out the same array more than once.
      */
@@ -543,5 +279,286 @@ public abstract class OpenPGPSmartCard
     public interface CardPinProvider
     {
         char[] providePIN(OpenPGPSmartCard card);
+    }
+
+    public static abstract class Session implements AutoCloseable
+    {
+        protected final OpenPGPSmartCard card;
+
+        public Session(OpenPGPSmartCard smartCard)
+        {
+            this.card = smartCard;
+        }
+
+        protected abstract OpenPGPSmartCard getCard();
+
+        @Override
+        public abstract void close() throws IOException;
+
+        /**
+         * Fetch a card PIN. A {@link CardPinProvider} keeps ownership of the array it returns, so the
+         * card works on a copy and clears that copy when done.
+         *
+         * @param pinProvider provider of the PIN
+         * @param pinName name of the PIN for the error message, e.g. "admin"
+         * @return a copy of the PIN, which the caller must clear
+         * @throws CardException if no PIN is provided
+         */
+        protected char[] requirePin(CardPinProvider pinProvider, String pinName)
+                throws CardException
+        {
+            char[] pin = Arrays.clone(pinProvider.providePIN(card));
+            if (pin == null || pin.length == 0)
+            {
+                throw new CardException("No " + pinName + " PIN provided for card " + card.getSerialNumber());
+            }
+            return pin;
+        }
+
+        public abstract boolean checkUserPIN(CardPinProvider userPinProvider)
+                throws CardException;
+
+        public abstract boolean checkAdminPIN(CardPinProvider adminPinProvider)
+                throws CardException;
+
+        /**
+         * Change the user PIN (PW1,PW2) of the card.
+         *
+         * @param oldPinProvider provider for the old card user PIN
+         * @param newPinProvider provider for the new card user PIN
+         * @return this
+         * @throws CardException if the card PIN cannot be changed.
+         */
+        public abstract Session changeUserPIN(CardPinProvider oldPinProvider,
+                                              CardPinProvider newPinProvider)
+                throws CardException;
+
+        /**
+         * Change the admin PIN (PW3) of the card.
+         *
+         * @param oldPinProvider provider for the old card admin PIN
+         * @param newPinProvider provider for the new card admin PIN
+         * @return this
+         * @throws CardException if the card PIN cannot be changed.
+         */
+        public abstract Session changeAdminPIN(CardPinProvider oldPinProvider,
+                                               CardPinProvider newPinProvider)
+                throws CardException;
+
+        /**
+         * Factory-reset the smart card, clearing all key slots and resetting the admin PIN, user PIN to their defaults.
+         *
+         * @return reset smart card
+         * @throws CardException if communication with the card failed
+         */
+        public abstract OpenPGPSmartCard reset() throws CardException;
+
+        /**
+         * Upload the given {@link OpenPGPPrivateKey} to the signing key slot on the card.
+         *
+         * @param key OpenPGP private key
+         * @param adminPinProvider provider for the admin pin of the card
+         * @return card
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be prepared for the card
+         */
+        public Session uploadSigningKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
+                throws PGPException, CardException
+        {
+            return uploadKey(OpenPGPHardwareKey.KEY_REF_SIGNATURE, key, adminPinProvider);
+        }
+
+        /**
+         * Upload the given {@link OpenPGPPrivateKey} to the decryption key slot on the card.
+         *
+         * @param key OpenPGP private key
+         * @param adminPinProvider provider for the admin pin of the card
+         * @return card
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be prepared for the card
+         */
+        public Session uploadDecryptionKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
+                throws CardException, PGPException
+        {
+            return uploadKey(OpenPGPHardwareKey.KEY_REF_DECRYPTION, key, adminPinProvider);
+        }
+
+        /**
+         * Upload the given {@link OpenPGPPrivateKey} to the authentication key slot on the card.
+         *
+         * @param key OpenPGP private key
+         * @param adminPinProvider provider for the admin pin of the card
+         * @return card
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be prepared for the card
+         */
+        public Session uploadAuthenticationKey(OpenPGPPrivateKey key, CardPinProvider adminPinProvider)
+                throws CardException, PGPException
+        {
+            return uploadKey(OpenPGPHardwareKey.KEY_REF_AUTHENTICATION, key, adminPinProvider);
+        }
+
+        /**
+         * Upload the given key to the slot identified by <pre>keyRef</pre>.
+         * The admin PIN is required from the <pre>adminPinProvider</pre>.
+         * @param keyRef key ref
+         * @param key key
+         * @param adminPinProvider provider for the admin pin of the card
+         * @return card
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be prepared for the card
+         */
+        public Session uploadKey(byte keyRef,
+                                 OpenPGPPrivateKey key,
+                                 CardPinProvider adminPinProvider)
+                throws PGPException, CardException
+        {
+            char[] adminPin = requirePin(adminPinProvider, "admin");
+            try
+            {
+                uploadKey(keyRef, key, adminPin);
+            }
+            finally
+            {
+                Arrays.fill(adminPin, '\0');
+            }
+            return this;
+        }
+
+        /**
+         * Upload the given {@link OpenPGPPrivateKey} to the given keyRef slot on the card.
+         * Note: This method is not guaranteed to clear out the <pre>adminPin</pre> so you need to do that yourselves.
+         * @param keyRef keyRef
+         * @param key OpenPGP private key
+         * @param adminPin admin pin of the card
+         * @return session
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be prepared for the card
+         */
+        protected abstract Session uploadKey(byte keyRef,
+                                             OpenPGPPrivateKey key,
+                                             char[] adminPin)
+                throws CardException, PGPException;
+
+        /**
+         * Generate an OpenPGP key on the device, replacing any key in the slot of <pre>algorithm</pre>.
+         * The arguments are checked before the card is touched, so a key in the slot survives a rejected request.
+         *
+         * @param algorithm algorithm description
+         * @param keyVersion OpenPGP key version (4, 5 or 6)
+         * @param publicKeyAlgorithmTag OpenPGP Public Key Algorithm Tag, which must be assignable to <pre>algorithm</pre>
+         * @param subkey whether the key is a subkey
+         * @param adminPinProvider provider for the devices admin PIN
+         * @return generated bare OpenPGP public key
+         * @throws IllegalArgumentException if the key version or algorithm tag does not fit the algorithm
+         * @throws CardException if the key cannot be generated, e.g. because communication fails
+         */
+        public PGPPublicKey generateKey(SupportedAlgorithms.Algorithm algorithm,
+                                        int keyVersion,
+                                        int publicKeyAlgorithmTag,
+                                        boolean subkey,
+                                        CardPinProvider adminPinProvider)
+                throws CardException
+        {
+            if (keyVersion != PublicKeyPacket.VERSION_4 && keyVersion != PublicKeyPacket.LIBREPGP_5
+                    && keyVersion != PublicKeyPacket.VERSION_6)
+            {
+                throw new IllegalArgumentException("Unsupported key version " + keyVersion);
+            }
+            if (!algorithm.isAssignableTo(publicKeyAlgorithmTag))
+            {
+                throw new IllegalArgumentException("Cannot assign public key algorithm ID " + publicKeyAlgorithmTag
+                        + " to " + algorithm);
+            }
+
+            return implGenerateKey(algorithm, keyVersion, publicKeyAlgorithmTag, subkey, adminPinProvider);
+        }
+
+        /**
+         * Generate an OpenPGP key on the device, with arguments already checked by
+         * {@link #generateKey(SupportedAlgorithms.Algorithm, int, int, boolean, CardPinProvider)}.
+         * Implementations record the new key's fingerprint and generation time on the card, so that it is
+         * reported by {@link #getKeyByKeyRef(byte)} and can be reconstructed by {@link #reconstructPGPPublicKey(byte)}.
+         *
+         * @param algorithm algorithm description
+         * @param keyVersion OpenPGP key version
+         * @param publicKeyAlgorithmTag OpenPGP Public Key Algorithm Tag
+         * @param subkey whether the key is a subkey
+         * @param adminPinProvider provider for the devices admin PIN
+         * @return generated bare OpenPGP public key
+         * @throws CardException if the key cannot be generated
+         */
+        protected abstract PGPPublicKey implGenerateKey(SupportedAlgorithms.Algorithm algorithm,
+                                                        int keyVersion,
+                                                        int publicKeyAlgorithmTag,
+                                                        boolean subkey,
+                                                        CardPinProvider adminPinProvider)
+                throws CardException;
+
+        /**
+         * Create a raw signature over the provided data.
+         * @param data algorithm-specific encoding of a message digest
+         * @param key hardware-backed key to create the signature with
+         * @param stubKey stub of the signing key
+         * @param userPinProvider provider for the device user PIN
+         * @return raw signature
+         * @throws KeyPassphraseException if the wrong PIN was provided
+         * @throws CardException if communication with the card fails
+         */
+        public abstract byte[] sign(byte[] data,
+                                    OpenPGPHardwareKey key,
+                                    OpenPGPKey.OpenPGPSecretKey stubKey,
+                                    KeyPassphraseProvider userPinProvider)
+                throws KeyPassphraseException, CardException;
+
+        /**
+         * Decrypt public-key-encrypted session-data.
+         *
+         * @param message algorithm-specific ciphertext of the encrypted session data
+         * @param openPGPHardwareKey hardware-backed key to perform decryption with
+         * @param stubKey stub of the decryption key
+         * @param userPinProvider provider for the devices user PIN
+         * @return decrypted session data
+         * @throws KeyPassphraseException if the wrong PIN was provided
+         * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+         */
+        public abstract byte[] decrypt(byte[] message,
+                                       OpenPGPHardwareKey openPGPHardwareKey,
+                                       OpenPGPKey.OpenPGPSecretKey stubKey,
+                                       KeyPassphraseProvider userPinProvider)
+                throws PGPException, CardException;
+
+        /**
+         * Decrypt a public-key-encrypted session-key.
+         *
+         * @param publicKey algorithm-specific ephemeral per-message public key
+         * @param openPGPHardwareKey hardware-backed key to perform decryption with
+         * @param stubKey stub of the decryption key
+         * @param userPinProvider provider for the devices user PIN
+         * @return decrypted session data
+         * @throws KeyPassphraseException if the wrong passphrase was provided
+         * @throws CardException if the message cannot be decrypted, e.g. because communication fails
+         */
+        public abstract byte[] decrypt(PublicKey publicKey,
+                                       OpenPGPHardwareKey openPGPHardwareKey,
+                                       OpenPGPKey.OpenPGPSecretKey stubKey,
+                                       KeyPassphraseProvider userPinProvider)
+                throws PGPException, CardException;
+
+        /**
+         * Return the {@link PGPPublicKey} component of the key in the slot identified by keyRef.
+         * <p>
+         * Note: The key might be reconstructed on the fly.
+         * In this case, {@link org.bouncycastle.bcpg.PublicKeyAlgorithmTags Public key algorithm} and version
+         * number might be brute-forced by comparing the resulting {@link PGPPublicKey keys} fingerprint to the
+         * contents of the cards {@link OpenPGPHardwareKey#getFingerprint()} field.
+         *
+         * @param keyRef key reference
+         * @return PGPPublicKey representation
+         * @throws CardException if communication with the card fails
+         * @throws PGPException if the key cannot be reconstructed
+         */
+        public abstract PGPPublicKey reconstructPGPPublicKey(byte keyRef)
+                throws CardException, PGPException;
     }
 }

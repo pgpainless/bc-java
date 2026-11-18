@@ -53,7 +53,7 @@ public class CardioOpenPGPSmartCardBackend
         for (Iterator<SmartCard> i = cards.iterator(); i.hasNext(); )
         {
             SmartCard card = i.next();
-            bcCards.add(new CardioOpenPGPSmartCard(this, card.selectOpenPGP()));
+            bcCards.add(new CardioOpenPGPSmartCard(this, card));
         }
         return bcCards;
     }

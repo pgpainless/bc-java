@@ -6,18 +6,14 @@ import org.bouncycastle.openpgp.smartcard.BcOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.JcaOpenPGPSmartCardImplementation;
 import org.bouncycastle.openpgp.smartcard.OpenPGPSmartCardManager;
 import org.bouncycastle.openpgp.smartcard.test.AbstractOpenPGPSmartCardTest;
-import org.bouncycastle.openpgp.smartcard.test.AnonymousRecipientSmartCardDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.OpenPGPSmartCardBackendTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardChangePINTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardKeyGenerationTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageDecryptionTest;
-import org.bouncycastle.openpgp.smartcard.test.SmartCardMessageSigningTest;
+import org.bouncycastle.openpgp.smartcard.test.SmartCardTestSuite;
 import org.bouncycastle.openpgp.smartcard.test.SmartCardWithV6KeysTest;
 import org.bouncycastle.openpgp.smartcard.test.UnrelatedSmartCardMessageDecryptionTest;
 import org.bouncycastle.util.test.SimpleTestResult;
 import org.bouncycastle.util.test.Test;
 
 import java.security.Security;
+import java.util.List;
 
 public class CardioTests
         extends TestCase
@@ -45,17 +41,7 @@ public class CardioTests
             return;
         }
 
-        Test[] tests = getTests(m, p);
-
-        for (int i = 0; i != tests.length; i++)
-        {
-            SimpleTestResult result = (SimpleTestResult)tests[i].perform();
-
-            if (!result.isSuccessful())
-            {
-                fail(result.toString());
-            }
-        }
+        runWith(m, p);
     }
 
     public void testOnJcaJceCardioSmartCard()
@@ -75,33 +61,26 @@ public class CardioTests
             return;
         }
 
-        Test[] tests = getTests(m, p);
+        runWith(m, p);
+    }
 
-        for (int i = 0; i != tests.length; i++)
+    private void runWith(OpenPGPSmartCardManager m, AbstractOpenPGPSmartCardTest.TestProperties p)
+    {
+        List<Test> tests = SmartCardTestSuite.getGenericTestsFor(m, p);
+        tests.clear();
+        tests.add(new SmartCardWithV6KeysTest(m, p));
+        tests.add(new UnrelatedSmartCardMessageDecryptionTest(m, p));
+        // Add additional cardio-related tests here
+
+        for (int i = 0; i != tests.size(); i++)
         {
-            SimpleTestResult result = (SimpleTestResult)tests[i].perform();
+            SimpleTestResult result = (SimpleTestResult)tests.get(i).perform();
 
             if (!result.isSuccessful())
             {
                 fail(result.toString());
             }
         }
-    }
-
-    private Test[] getTests(OpenPGPSmartCardManager m, AbstractOpenPGPSmartCardTest.TestProperties p)
-    {
-        Test[] tests = new Test[]
-                {
-                        new SmartCardMessageDecryptionTest(m, p),
-                        new SmartCardMessageSigningTest(m, p),
-                        new SmartCardKeyGenerationTest(m, p),
-                        new AnonymousRecipientSmartCardDecryptionTest(m, p),
-                        new UnrelatedSmartCardMessageDecryptionTest(m, p),
-                        new SmartCardWithV6KeysTest(m, p),
-                        new OpenPGPSmartCardBackendTest(m, p),
-                        new SmartCardChangePINTest(m, p)
-                };
-        return tests;
     }
 
     public static void main(String[] args)

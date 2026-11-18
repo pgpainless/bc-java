@@ -96,20 +96,25 @@ public class AnonymousRecipientSmartCardDecryptionTest
     private void implTestAnonymousRecipient(String label, OpenPGPKey softwareKey)
             throws PGPException, IOException, CardException
     {
-        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
-        // -DM System.out.println
-        System.out.println("Test anonymous " + label + " key on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
-        card.reset();
-
-        // move the decryption key onto the card, then strip the private key material from our copy
         OpenPGPKey.OpenPGPSecretKey decryptionKey =
                 softwareKey.getSecretKey(softwareKey.getEncryptionKeys().get(0));
-        card.uploadDecryptionKey(decryptionKey.unlock(), k -> properties.getAdminPin());
-        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
 
+        OpenPGPKey externalKey = cardUtils.toExternalKey(softwareKey);
         isTrue(label + ": the stripped key must be marked external",
                 externalKey.getSecretKey(externalKey.getEncryptionKeys().get(0))
                         .getPGPSecretKey().isExternalKey());
+
+        OpenPGPSmartCard card = manager.findSmartCard(properties.getSerialNumber());
+        // -DM System.out.println
+        System.out.println("Test anonymous " + label + " key on " + card.getCardType() + " " + card.getVersion()  + " (" + card.getBackend().getName() + ")");
+
+        try (OpenPGPSmartCard.Session session = card.open(true))
+        {
+            session.reset();
+
+            // move the decryption key onto the card, then strip the private key material from our copy
+            session.uploadDecryptionKey(decryptionKey.unlock(), k -> properties.getAdminPin());
+        }
 
         // encrypt to an ANONYMOUS recipient - the PKESK carries a wildcard key identifier
         byte[] plaintext = ("Hello, anonymous " + label + "!\n").getBytes(StandardCharsets.UTF_8);

@@ -43,62 +43,66 @@ public class SmartCardChangePINTest
         {
             // -DM System.out.println
             System.out.println("Change PINs on " + card.getCardType() + " " + card.getSerialNumber());
-            testChangeAdminPIN(card);
-            testChangeUserPIN(card);
+            try (OpenPGPSmartCard.Session session = card.open(true))
+            {
+                session.reset();
+                testChangeAdminPIN(session);
+                testChangeUserPIN(session);
+            }
         }
     }
 
-    private void testChangeAdminPIN(OpenPGPSmartCard card)
+    private void testChangeAdminPIN(OpenPGPSmartCard.Session session)
             throws CardException
     {
         char[] oldAdminPin = properties.getAdminPin();
-        isTrue("Cannot verify old admin PIN", card.checkAdminPIN(c -> oldAdminPin));
+        isTrue("Cannot verify old admin PIN", session.checkAdminPIN(c -> oldAdminPin));
 
         char[] newAdminPin = "12131415".toCharArray();
-        card.changeAdminPIN(c -> oldAdminPin, c -> newAdminPin);
+        session.changeAdminPIN(c -> oldAdminPin, c -> newAdminPin);
         try
         {
-            isTrue("Cannot verify new admin PIN after changing it", card.checkAdminPIN(c -> newAdminPin));
-            isTrue("Old admin PIN erroneously still verifies", !card.checkAdminPIN(c -> oldAdminPin));
+            isTrue("Cannot verify new admin PIN after changing it", session.checkAdminPIN(c -> newAdminPin));
+            isTrue("Old admin PIN erroneously still verifies", !session.checkAdminPIN(c -> oldAdminPin));
         }
         finally
         {
             // change back, so a failure does not leave the card with an unknown PIN
-            card.changeAdminPIN(c -> newAdminPin, c -> oldAdminPin);
+            session.changeAdminPIN(c -> newAdminPin, c -> oldAdminPin);
         }
-        isTrue("Cannot verify admin PIN after changing it back", card.checkAdminPIN(c -> oldAdminPin));
+        isTrue("Cannot verify admin PIN after changing it back", session.checkAdminPIN(c -> oldAdminPin));
     }
 
-    private void testChangeUserPIN(OpenPGPSmartCard card)
+    private void testChangeUserPIN(OpenPGPSmartCard.Session session)
             throws CardException
     {
         char[] oldUserPIN = properties.getUserPin();
-        isTrue("Cannot verify old user PIN", card.checkUserPIN(c -> oldUserPIN));
+        isTrue("Cannot verify old user PIN", session.checkUserPIN(c -> oldUserPIN));
 
         // a wrong old PIN is refused and leaves the PIN as it was
         char[] newUserPIN = "121314".toCharArray();
         try
         {
-            card.changeUserPIN(c -> "999999".toCharArray(), c -> newUserPIN);
+            session.changeUserPIN(c -> "999999".toCharArray(), c -> newUserPIN);
             fail("User PIN changed with a wrong old PIN");
         }
         catch (CardException e)
         {
             // expected
         }
-        isTrue("Rejected change altered the user PIN", card.checkUserPIN(c -> oldUserPIN));
+        isTrue("Rejected change altered the user PIN", session.checkUserPIN(c -> oldUserPIN));
 
-        card.changeUserPIN(c -> oldUserPIN, c -> newUserPIN);
+        session.changeUserPIN(c -> oldUserPIN, c -> newUserPIN);
         try
         {
-            isTrue("Cannot verify new user PIN after changing it", card.checkUserPIN(c -> newUserPIN));
-            isTrue("Old user PIN erroneously still verifies", !card.checkUserPIN(c -> oldUserPIN));
+            isTrue("Cannot verify new user PIN after changing it", session.checkUserPIN(c -> newUserPIN));
+            isTrue("Old user PIN erroneously still verifies", !session.checkUserPIN(c -> oldUserPIN));
         }
         finally
         {
             // change back, so a failure does not leave the card with an unknown PIN
-            card.changeUserPIN(c -> newUserPIN, c -> oldUserPIN);
+            session.changeUserPIN(c -> newUserPIN, c -> oldUserPIN);
         }
-        isTrue("Cannot verify user PIN after changing it back", card.checkUserPIN(c -> oldUserPIN));
+        isTrue("Cannot verify user PIN after changing it back", session.checkUserPIN(c -> oldUserPIN));
     }
 }
